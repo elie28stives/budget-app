@@ -181,8 +181,14 @@ def save_data_to_sheet(tab_name, df):
 def to_excel_download(df):
     """Génère un fichier Excel téléchargeable"""
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Transactions')
+    try:
+        # Essai avec xlsxwriter (plus léger)
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Transactions')
+    except ImportError:
+        # Fallback: export CSV si Excel ne fonctionne pas
+        output = BytesIO()
+        output.write(df.to_csv(index=False).encode('utf-8'))
     output.seek(0)
     return output
 
@@ -476,12 +482,21 @@ with tabs[1]:
             if search: df_e = df_e[df_e.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)]
             
             # ===== MODULE 3: EXPORT EXCEL =====
-            excel_data = to_excel_download(df_e)
+            try:
+                excel_data = to_excel_download(df_e)
+                file_ext = ".xlsx"
+                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            except:
+                # Fallback CSV si Excel échoue
+                excel_data = BytesIO(df_e.to_csv(index=False).encode('utf-8'))
+                file_ext = ".csv"
+                mime_type = "text/csv"
+            
             col_export.download_button(
-                label="📥 Export Excel",
+                label="📥 Export",
                 data=excel_data,
-                file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}{file_ext}",
+                mime=mime_type,
                 key="dl_excel",
                 use_container_width=True
             )
