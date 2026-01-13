@@ -119,11 +119,7 @@ def apply_custom_style():
             padding: 10px 20px;
             box-shadow: 0 2px 5px rgba(218, 119, 86, 0.2);
         }
-        div.stButton > button:hover {
-            background-color: var(--primary-hover) !important;
-            transform: translateY(-1px);
-        }
-
+        
         section[data-testid="stSidebar"] {
             background-color: #FFFFFF;
             border-right: 1px solid var(--border);
@@ -282,7 +278,7 @@ def save_projets_targets(d):
 
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V46", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ma Banque V47", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -569,12 +565,13 @@ with tabs[4]:
             else: mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
             reel = df_mois[mask]["Montant"].sum()
             ratio = reel / cible if cible > 0 else 0
-            # FIX: Ajout de la colonne % pour affichage
+            # FIX V46: Ajout de la colonne % pour affichage textuel
             budget_data.append({"Catégorie": cat, "Scope": scope, "Budget": cible, "Réel": reel, "Reste": cible - reel, "Progression": min(ratio, 1.0), "%": f"{ratio*100:.0f}%"})
+        
         df_display = pd.DataFrame(budget_data)
         col_budget = st.columns(2)
         
-        # Configuration des colonnes pour affichage
+        # Configuration des colonnes pour affichage avec le % textuel
         cfg = {
             "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1),
             "Budget": st.column_config.NumberColumn(format="%.0f€"),
@@ -608,7 +605,12 @@ with tabs[5]:
                 with col_abo[1]: st.write(f"**{row['Montant']:.2f}€**")
                 with col_abo[2]: st.write(f"Jour {row['Jour']}")
                 with col_abo[3]: st.write(row.get('Frequence', 'Mensuel'))
-                with col_abo[4]: st.markdown("🏠 Commun") if "Commun" in str(row['Imputation']) else st.markdown("👤 Perso")
+                # Correction du one-liner qui faisait planter Streamlit
+                with col_abo[4]:
+                    if "Commun" in str(row['Imputation']):
+                        st.markdown("🏠 Commun")
+                    else:
+                        st.markdown("👤 Perso")
                 with col_abo[5]:
                     if st.button("🗑️", key=f"del_abo_{idx}"):
                         df_abonnements = df_abonnements.drop(idx); save_abonnements(df_abonnements); st.success("Supprimé"); time.sleep(0.5); st.rerun()
