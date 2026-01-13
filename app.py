@@ -481,4 +481,7 @@ with tabs[1]:
                 label="📥 Export Excel",
                 data=excel_data,
                 file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_excel",
+                use_container_width=True
+            )
