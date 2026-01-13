@@ -336,6 +336,7 @@ with tabs[0]:
     epg = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Épargne")]["Montant"].sum()
     com = df_mois[df_mois["Imputation"] == "Commun (50/50)"]["Montant"].sum() / 2
     
+    # ===== MODULE 1: RESTE À VIVRE =====
     # Calcul des charges fixes (abonnements)
     charges_fixes = 0.0
     if not df_abonnements.empty:
@@ -378,7 +379,6 @@ with tabs[0]:
     
     with c2:
         st.subheader("Alertes Budget")
-        # FIX V51: Utilisation correcte de la liste objectifs_list
         objs_perso = [o for o in objectifs_list if o["Scope"] == "Perso" or (o["Scope"] in USERS and o["Scope"] == user_actuel)]
         mask = (df_mois["Type"] == "Dépense") & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
         df_f = df_mois[mask]
@@ -475,13 +475,10 @@ with tabs[1]:
             df_e = df.copy().sort_values(by="Date", ascending=False)
             if search: df_e = df_e[df_e.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)]
             
-            # Bouton Export Excel
-            if col_export.button("📥 Export Excel", key="export_excel", use_container_width=True):
-                excel_data = to_excel_download(df_e)
-                st.download_button(
-                    label="⬇️ Télécharger",
-                    data=excel_data,
-                    file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="dl_excel"
-                )
+            # ===== MODULE 3: EXPORT EXCEL =====
+            excel_data = to_excel_download(df_e)
+            col_export.download_button(
+                label="📥 Export Excel",
+                data=excel_data,
+                file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="
