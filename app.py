@@ -286,17 +286,8 @@ SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accoun
 with st.sidebar:
     st.markdown("<h3 style='margin-bottom:20px;'>Menu</h3>", unsafe_allow_html=True)
     user_actuel = st.selectbox("Utilisateur", USERS)
-    
-    st.markdown("---")
-    st.markdown("**Période**")
-    date_jour = datetime.now()
-    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
-    mois_selection = MOIS_FR.index(mois_nom) + 1
-    annee_selection = st.number_input("Année", value=date_jour.year)
-    
-    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
-    
-    st.markdown("---")
+
+  st.markdown("---")
     comptes_disponibles = get_comptes_autorises(user_actuel)
     total_courant = 0; total_epargne = 0
     list_courant = []; list_epargne = []
@@ -324,7 +315,16 @@ with st.sidebar:
     st.write("")
     st.markdown(f"**ÉPARGNE ({total_epargne:,.0f}€)**")
     for name, val in list_epargne: draw_account_card(name, val, True)
-
+    
+    st.markdown("---")
+    st.markdown("**Période**")
+    date_jour = datetime.now()
+    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
+    mois_selection = MOIS_FR.index(mois_nom) + 1
+    annee_selection = st.number_input("Année", value=date_jour.year)
+    
+    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
+    
     st.markdown("---")
     if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
 
@@ -682,3 +682,4 @@ with tabs[4]:
             col_a, col_b = st.columns([4,1])
             col_a.text(c)
             if col_b.button("X", key=f"del_cat_{typ}_{c}"): cats_memoire[typ].remove(c); save_config_cats(cats_memoire); st.rerun()
+
