@@ -332,6 +332,54 @@ with tabs[0]:
     k2.metric("Dépenses Perso", f"{dep:,.0f} €")
     k3.metric("Ma Part (50% Commun)", f"{com:,.0f} €")
     k4.metric("Épargne", f"{epg:,.0f} €")
+
+    # =========================
+# MODULE RESTE À VIVRE
+# =========================
+
+st.markdown("---")
+st.subheader("💰 Reste à vivre")
+
+# Revenus du mois
+total_revenus = df_mois[
+    (df_mois["Type"] == "Revenu")
+]["Montant"].sum()
+
+# Charges fixes = abonnements
+charges_fixes = 0
+if not df_abonnements.empty:
+    charges_fixes = df_abonnements["Montant"].astype(float).sum()
+
+# Dépenses engagées
+dep_perso = df_mois[
+    (df_mois["Type"] == "Dépense") &
+    (df_mois["Imputation"] == "Perso") &
+    (df_mois["Qui_Connecte"] == user_actuel)
+]["Montant"].sum()
+
+dep_commun = df_mois[
+    (df_mois["Type"] == "Dépense") &
+    (df_mois["Imputation"] == "Commun (50/50)")
+]["Montant"].sum() / 2
+
+dep_total = dep_perso + dep_commun
+
+reste_a_vivre = total_revenus - charges_fixes - dep_total
+
+col1, col2 = st.columns([3,1])
+
+with col1:
+    ref = max(total_revenus, 1)
+    ratio = max(min(reste_a_vivre / ref, 1), 0)
+    st.progress(ratio)
+
+with col2:
+    emoji = "🟢" if reste_a_vivre >= 0 else "🔴"
+    st.metric(
+        "Disponible",
+        f"{reste_a_vivre:,.0f} €",
+        delta=emoji
+    )
     
     st.markdown("---")
     c1, c2 = st.columns(2)
@@ -597,3 +645,4 @@ with tabs[4]:
             col_a, col_b = st.columns([4,1])
             col_a.text(c)
             if col_b.button("X", key=f"del_cat_{typ}_{c}"): cats_memoire[typ].remove(c); save_config_cats(cats_memoire); st.rerun()
+
