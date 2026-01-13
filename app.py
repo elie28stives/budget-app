@@ -23,7 +23,7 @@ USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
 # AJOUT DU CHOIX DE POURCENTAGE DANS IMPUTATIONS
 IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
-FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
+FREQUENCES = ["Hebdomadaire", "Mensuel", "Trimestriel", "Annuel"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
@@ -150,13 +150,31 @@ def apply_custom_style():
             border-radius: 8px !important;
         }
         
-        /* TABLES CONFIG PROPRES */
-        .account-row {
-            padding: 10px;
-            border-bottom: 1px solid #f0f0f0;
+        /* CATEGORY ITEM CARD */
+        .category-item {
+            background: white;
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: move;
+            transition: all 0.2s ease;
+        }
+        .category-item:hover {
+            border-color: #DA7756;
+            box-shadow: 0 2px 8px rgba(218, 119, 86, 0.15);
+        }
+        .category-name {
+            font-weight: 600;
+            color: #1F2937;
+        }
+        .drag-handle {
+            color: #9CA3AF;
+            cursor: move;
+            margin-right: 12px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -257,11 +275,11 @@ def process_configs():
             if row["Type"] in cats and row["Categorie"] not in cats[row["Type"]]:
                 cats[row["Type"]].append(row["Categorie"])
     defaults = {
-        "Dépense": ["Alimentation", "Loyer", "Prêt Immo", "Énergie", "Transport", "Santé", "Resto/Bar", "Shopping", "Cinéma", "Activités", "Autre"],
-        "Revenu": ["Salaire", "Primes", "Ventes", "Aides", "Autre"],
-        "Épargne": ["Virement Mensuel", "Cagnotte", "Autre"],
-        "Investissement": ["Bourse", "Assurance Vie", "Crypto", "Autre"],
-        "Virement Interne": ["Alimentation Compte", "Autre"]
+        "Dépense": ["Alimentation", "Loyer", "Prêt Immo", "Énergie", "Transport", "Santé", "Resto/Bar", "Shopping", "Cinéma", "Activités"],
+        "Revenu": ["Salaire", "Primes", "Ventes", "Aides"],
+        "Épargne": ["Virement Mensuel", "Cagnotte"],
+        "Investissement": ["Bourse", "Assurance Vie", "Crypto"],
+        "Virement Interne": ["Alimentation Compte"]
     }
     for t, l in defaults.items():
         if t not in cats: cats[t] = []
@@ -306,7 +324,7 @@ def save_projets_targets(d):
 
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V42", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ma Banque V43", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -347,7 +365,7 @@ with st.sidebar:
     st.markdown(f"**ÉPARGNE** <span style='float:right; font-size:12px; color:#6B7280;'>{total_epargne:,.0f}€</span>", unsafe_allow_html=True)
     for name, val in list_epargne: draw_account_card(name, val, True)
     st.markdown("---")
-    if st.button(" Actualiser"): clear_cache(); st.rerun()
+    if st.button("🔄 Actualiser"): clear_cache(); st.rerun()
 
 # --- MAIN ---
 c_filt1, c_filt2, c_filt3 = st.columns([1, 1, 4])
@@ -389,7 +407,7 @@ with tabs[0]:
             fig = px.bar(df_chart, x="Periode", y="Montant", color_discrete_sequence=['#DA7756'])
             st.plotly_chart(fig, use_container_width=True)
 
-# 1. SAISIR
+# 1. SAISIR - AVEC CORRECTIONS
 with tabs[1]:
     page_header("Nouvelle Transaction", "Enregistrez une dépense, un revenu ou un virement")
     with st.form("add_op", clear_on_submit=True):
@@ -399,27 +417,36 @@ with tabs[1]:
         montant_op = c3.number_input("Montant (€)", min_value=0.0, step=0.01)
         c4, c5 = st.columns(2)
         titre_op = c4.text_input("Titre", placeholder="Libellé...")
-        cat_finale = "Autre"
-        if type_op == "Virement Interne": c5.info("Virement de fonds")
+        
+        # CORRECTION 2: GESTION "AUTRE" AVEC SAUVEGARDE AUTOMATIQUE
+        cat_finale = ""
+        if type_op == "Virement Interne": 
+            c5.info("Virement de fonds")
+            cat_finale = "Virement"
         else:
-            cats = cats_memoire.get(type_op, ["Autre"])
-            cats_options = cats + ["➕ Nouvelle..."]
-            cat_sel = c5.selectbox("Catégorie", cats_options)
-            if cat_sel == "➕ Nouvelle...": cat_finale = c5.text_input("Nom de la nouvelle catégorie")
-            elif cat_sel == "Autre": cat_finale = c5.text_input("Préciser Autre :")
-            else: cat_finale = cat_sel
+            cats = cats_memoire.get(type_op, [])
+            cat_sel = c5.selectbox("Catégorie", cats + ["➕ Autre (nouvelle)"])
+            
+            if cat_sel == "➕ Autre (nouvelle)":
+                cat_finale = c5.text_input("Nom de la catégorie", placeholder="Ex: Cadeaux, Voyages...")
+            else:
+                cat_finale = cat_sel
         
         st.write("")
         if type_op == "Épargne":
             st.markdown("**💰 Mouvement d'Épargne**")
             ce1, ce2, ce3 = st.columns(3)
             c_src = ce1.selectbox("Compte Source (Débit)", comptes_disponibles)
-            comptes_epargne_only = [c for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"]
-            if not comptes_epargne_only: comptes_epargne_only = comptes_disponibles
-            c_tgt = ce2.selectbox("Compte Cible (Épargne)", comptes_epargne_only)
-            projs = list(projets_config.keys()) + ["Nouveau"]
+            # Permettre tous les comptes comme destination
+            c_tgt = ce2.selectbox("Compte Cible (Destination)", comptes_disponibles)
+            projs = list(projets_config.keys()) + ["Nouveau", "Aucun projet"]
             p_sel = ce3.selectbox("Projet lié", projs)
-            p_epg = st.text_input("Nom Nouveau Projet") if p_sel == "Nouveau" else p_sel
+            if p_sel == "Nouveau":
+                p_epg = st.text_input("Nom Nouveau Projet")
+            elif p_sel == "Aucun projet":
+                p_epg = ""
+            else:
+                p_epg = p_sel
             p_par = user_actuel; imput = "Perso"
         elif type_op == "Virement Interne":
             st.markdown("**🔄 Virement Interne**")
@@ -433,21 +460,58 @@ with tabs[1]:
             c_src = cc1.selectbox("Compte", comptes_disponibles)
             p_par = cc2.selectbox("Payé par", ["Pierre", "Elie", "Commun"])
             imput = cc3.radio("Imputation", IMPUTATIONS)
+            
+            # CORRECTION 1: GESTION DU POURCENTAGE
+            if imput == "Commun (Autre %)":
+                st.markdown("**📊 Répartition personnalisée**")
+                pct_col1, pct_col2 = st.columns(2)
+                pct_pierre = pct_col1.slider("% Pierre", min_value=0, max_value=100, value=60, step=5)
+                pct_elie = 100 - pct_pierre
+                pct_col2.metric("% Elie", f"{pct_elie}%")
+                imput = f"Commun ({pct_pierre}/{pct_elie})"
+            
             c_tgt = ""; p_epg = ""
+            
         st.write("")
         desc = st.text_area("Note", height=60)
-        if st.form_submit_button("Enregistrer", use_container_width=True):
-            if not cat_finale: cat_finale = "Autre"
-            if not titre_op: titre_op = cat_finale
-            if type_op != "Virement Interne" and cat_finale not in cats_memoire.get(type_op, []):
-                 if type_op not in cats_memoire: cats_memoire[type_op] = []
-                 cats_memoire[type_op].append(cat_finale); save_config_cats(cats_memoire)
-            if type_op == "Épargne" and p_epg and p_epg not in projets_config:
-                projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
-                save_projets_targets(projets_config)
-            new_row = {"Date": date_op, "Mois": date_op.month, "Annee": date_op.year, "Qui_Connecte": user_actuel, "Type": type_op, "Categorie": cat_finale, "Titre": titre_op, "Description": desc, "Montant": montant_op, "Paye_Par": p_par, "Imputation": imput, "Compte_Cible": c_tgt, "Projet_Epargne": p_epg, "Compte_Source": c_src}
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data_to_sheet(TAB_DATA, df)
-            st.success("Enregistré"); time.sleep(1); st.rerun()
+        
+        if st.form_submit_button("✅ Enregistrer", use_container_width=True):
+            if not cat_finale: 
+                st.error("Veuillez sélectionner ou créer une catégorie")
+            else:
+                if not titre_op: titre_op = cat_finale
+                
+                # Sauvegarde automatique de la nouvelle catégorie
+                if type_op != "Virement Interne" and cat_finale not in cats_memoire.get(type_op, []):
+                    if type_op not in cats_memoire: cats_memoire[type_op] = []
+                    cats_memoire[type_op].append(cat_finale)
+                    save_config_cats(cats_memoire)
+                
+                if type_op == "Épargne" and p_epg and p_epg not in projets_config:
+                    projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
+                    save_projets_targets(projets_config)
+                
+                new_row = {
+                    "Date": date_op, 
+                    "Mois": date_op.month, 
+                    "Annee": date_op.year, 
+                    "Qui_Connecte": user_actuel, 
+                    "Type": type_op, 
+                    "Categorie": cat_finale, 
+                    "Titre": titre_op, 
+                    "Description": desc, 
+                    "Montant": montant_op, 
+                    "Paye_Par": p_par, 
+                    "Imputation": imput, 
+                    "Compte_Cible": c_tgt, 
+                    "Projet_Epargne": p_epg, 
+                    "Compte_Source": c_src
+                }
+                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                save_data_to_sheet(TAB_DATA, df)
+                st.success("✅ Transaction enregistrée !")
+                time.sleep(1)
+                st.rerun()
 
 # 2. TRESORERIE
 with tabs[2]:
@@ -522,7 +586,7 @@ with tabs[4]:
 # 5. CHARGES FIXES
 with tabs[5]:
     page_header("Charges Fixes & Abonnements", "Automatisez vos dépenses récurrentes")
-    with st.expander(" Créer"):
+    with st.expander("➕ Créer"):
         with st.form("new_abo"):
             c1, c2, c3, c4 = st.columns(4)
             nom = c1.text_input("Nom"); mt = c2.number_input("Montant"); j = c3.number_input("Jour", 1, 31, 1); freq = c4.selectbox("Fréquence", FREQUENCES)
@@ -591,11 +655,82 @@ with tabs[7]:
                 pct = saved/target if target > 0 else 0
                 st.progress(min(pct, 1.0))
 
-# 8. CONFIG (REDESIGNED V42)
+# 8. CONFIG - CORRECTION 3: INTERFACE SIMPLE CATEGORIES
 with tabs[8]:
-    page_header("Configuration & Budgets", "Gérez vos comptes et vos objectifs budgétaires")
+    page_header("Configuration & Budgets", "Gérez vos comptes, catégories et objectifs budgétaires")
     
-    st.markdown("### 1. Gestion des Comptes")
+    # Initialize session state for category order if not exists
+    if 'category_order' not in st.session_state:
+        st.session_state.category_order = {}
+    
+    st.markdown("### 1. Gestion des Catégories")
+    st.info("💡 Ajoutez, supprimez ou réorganisez vos catégories par type de transaction")
+    
+    type_cat_selected = st.selectbox("Type de transaction", TYPES, key="type_cat_manage")
+    
+    # Get current categories for this type
+    current_cats = cats_memoire.get(type_cat_selected, [])
+    
+    # Initialize order for this type if needed
+    if type_cat_selected not in st.session_state.category_order:
+        st.session_state.category_order[type_cat_selected] = current_cats.copy()
+    
+    col_add1, col_add2 = st.columns([3, 1])
+    with col_add1:
+        new_cat_name = st.text_input("Nouvelle catégorie", key="new_cat_input", placeholder="Ex: Cadeaux, Voyages...")
+    with col_add2:
+        st.write("")  # Spacing
+        if st.button("➕ Ajouter", use_container_width=True, key="add_cat_btn"):
+            if new_cat_name and new_cat_name not in current_cats:
+                if type_cat_selected not in cats_memoire:
+                    cats_memoire[type_cat_selected] = []
+                cats_memoire[type_cat_selected].append(new_cat_name)
+                save_config_cats(cats_memoire)
+                st.success(f"✅ '{new_cat_name}' ajoutée !")
+                time.sleep(0.5)
+                st.rerun()
+    
+    st.markdown("---")
+    st.markdown(f"**Catégories actuelles** ({len(current_cats)})")
+    
+    # Display categories with delete buttons
+    if current_cats:
+        for idx, cat in enumerate(current_cats):
+            col_cat1, col_cat2, col_cat3, col_cat4 = st.columns([1, 5, 1, 1])
+            
+            with col_cat1:
+                st.write(f"**{idx+1}**")
+            
+            with col_cat2:
+                st.markdown(f"""
+                <div class="category-item">
+                    <span class="drag-handle">⋮⋮</span>
+                    <span class="category-name">{cat}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_cat3:
+                # Move up button
+                if idx > 0:
+                    if st.button("↑", key=f"up_{type_cat_selected}_{idx}", help="Monter"):
+                        cats_memoire[type_cat_selected][idx], cats_memoire[type_cat_selected][idx-1] = \
+                            cats_memoire[type_cat_selected][idx-1], cats_memoire[type_cat_selected][idx]
+                        save_config_cats(cats_memoire)
+                        st.rerun()
+            
+            with col_cat4:
+                # Delete button
+                if st.button("✕", key=f"del_{type_cat_selected}_{cat}", help="Supprimer"):
+                    cats_memoire[type_cat_selected].remove(cat)
+                    save_config_cats(cats_memoire)
+                    st.success(f"'{cat}' supprimée")
+                    time.sleep(0.5)
+                    st.rerun()
+    else:
+        st.caption("Aucune catégorie personnalisée pour ce type")
+    
+    st.markdown("---")
+    st.markdown("### 2. Gestion des Comptes")
     
     # Formulaire ajout propre
     with st.form("add_account_clean"):
@@ -624,7 +759,7 @@ with tabs[8]:
                     # Layout row: Name + Delete button
                     c_row1, c_row2 = st.columns([4, 1])
                     c_row1.caption(acc)
-                    if c_row2.button("✕", key=f"del_{acc}", help="Supprimer"):
+                    if c_row2.button("✕", key=f"del_acc_{acc}", help="Supprimer"):
                         comptes_structure[owner_name].remove(acc)
                         save_comptes_struct(comptes_structure, comptes_types_map)
                         st.rerun()
@@ -636,27 +771,74 @@ with tabs[8]:
     display_accounts_list("Commun", col_c)
 
     st.markdown("---")
-    st.markdown("### 2. Objectifs Budgétaires")
-    st.info("Modifiez directement dans le tableau ci-dessous.")
+    st.markdown("### 3. Objectifs Budgétaires")
+    st.info("💡 Définissez vos budgets mensuels par catégorie de dépenses")
+    
+    # Interface simplifiée pour ajouter un objectif
+    with st.form("add_objectif"):
+        st.markdown("**Ajouter un objectif**")
+        c_obj1, c_obj2, c_obj3, c_obj4 = st.columns([2, 2, 2, 1])
+        scope_new = c_obj1.selectbox("Scope", ["Perso", "Commun"], key="scope_new_obj")
+        cat_new = c_obj2.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_new_obj")
+        montant_new = c_obj3.number_input("Montant (€)", min_value=0.0, step=10.0, key="montant_new_obj")
+        
+        if c_obj4.form_submit_button("➕ Ajouter", use_container_width=True):
+            if cat_new and montant_new > 0:
+                # Check if already exists
+                existing = False
+                for obj in objectifs_list:
+                    if obj["Scope"] == scope_new and obj["Categorie"] == cat_new:
+                        existing = True
+                        break
+                
+                if existing:
+                    st.warning(f"Un objectif existe déjà pour {scope_new} - {cat_new}")
+                else:
+                    objectifs_list.append({"Scope": scope_new, "Categorie": cat_new, "Montant": montant_new})
+                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                    st.success(f"✅ Objectif ajouté : {cat_new} = {montant_new}€")
+                    time.sleep(0.5)
+                    st.rerun()
+    
+    st.markdown("---")
+    st.markdown("**Objectifs actuels**")
     
     if objectifs_list:
-        df_obj_edit = pd.DataFrame(objectifs_list)
+        # Display as cards with edit/delete
+        for idx, obj in enumerate(objectifs_list):
+            col_o1, col_o2, col_o3, col_o4, col_o5 = st.columns([2, 2, 2, 1, 1])
+            
+            with col_o1:
+                st.write(f"**{obj['Scope']}**")
+            with col_o2:
+                st.write(obj['Categorie'])
+            with col_o3:
+                # Editable amount
+                new_amount = st.number_input(
+                    "Montant", 
+                    value=float(obj['Montant']), 
+                    min_value=0.0, 
+                    step=10.0,
+                    key=f"edit_obj_{idx}",
+                    label_visibility="collapsed"
+                )
+                if new_amount != float(obj['Montant']):
+                    if st.button("💾", key=f"save_obj_{idx}", help="Sauvegarder"):
+                        objectifs_list[idx]['Montant'] = new_amount
+                        save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                        st.success("Modifié !")
+                        time.sleep(0.5)
+                        st.rerun()
+            with col_o4:
+                st.metric("", f"{obj['Montant']}€", label_visibility="collapsed")
+            with col_o5:
+                if st.button("✕", key=f"del_obj_{idx}", help="Supprimer"):
+                    objectifs_list.pop(idx)
+                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                    st.success("Supprimé !")
+                    time.sleep(0.5)
+                    st.rerun()
+            
+            st.markdown("---")
     else:
-        df_obj_edit = pd.DataFrame(columns=["Scope", "Categorie", "Montant"])
-        
-    edited_df = st.data_editor(
-        df_obj_edit, 
-        num_rows="dynamic", 
-        use_container_width=True,
-        column_config={
-            "Scope": st.column_config.SelectboxColumn(options=["Perso", "Commun"], required=True),
-            "Categorie": st.column_config.SelectboxColumn(options=cats_memoire.get("Dépense", []), required=True),
-            "Montant": st.column_config.NumberColumn(min_value=0, required=True, format="%.2f €")
-        }
-    )
-    
-    if st.button(" Sauvegarder les Budgets", type="primary"):
-        save_objectifs_from_df(edited_df)
-        st.success("Budgets mis à jour !")
-        time.sleep(1)
-        st.rerun()
+        st.caption("Aucun objectif budgétaire configuré")
