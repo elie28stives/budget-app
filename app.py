@@ -8,6 +8,7 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 import json
 import time
+from io import BytesIO
 
 # --- CONFIGURATION ---
 SHEET_NAME = "Budget_Couple_DB"
@@ -177,6 +178,18 @@ def save_data_to_sheet(tab_name, df):
     clear_cache()
 
 # --- LOGIC ---
+def to_excel_download(df):
+    """Génère un fichier Excel téléchargeable"""
+    output = BytesIO()
+    try:
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Transactions')
+    except ImportError:
+        output = BytesIO()
+        output.write(df.to_csv(index=False).encode('utf-8'))
+    output.seek(0)
+    return output
+
 def calculer_soldes_reels(df_transac, df_patri, comptes_list):
     soldes = {}
     for compte in comptes_list:
@@ -256,7 +269,7 @@ def save_projets_targets(d):
 
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V51", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ma Banque V52", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -327,11 +340,33 @@ with tabs[0]:
     epg = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Épargne")]["Montant"].sum()
     com = df_mois[df_mois["Imputation"] == "Commun (50/50)"]["Montant"].sum() / 2
     
-    k1, k2, k3, k4 = st.columns(4)
+    # ===== MODULE 1: RESTE À VIVRE =====
+    charges_fixes = 0.0
+    if not df_abonnements.empty:
+        abos_user = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))]
+        for _, row in abos_user.iterrows():
+            if "Commun" in str(row["Imputation"]):
+                charges_fixes += float(row["Montant"]) / 2
+            else:
+                charges_fixes += float(row["Montant"])
+    
+    reste_a_vivre = rev - charges_fixes - dep - com
+    
+    k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Revenus", f"{rev:,.0f} €")
-    k2.metric("Dépenses Perso", f"{dep:,.0f} €")
-    k3.metric("Ma Part (50% Commun)", f"{com:,.0f} €")
-    k4.metric("Épargne", f"{epg:,.0f} €")
+    k2.metric("Charges Fixes", f"{charges_fixes:,.0f} €", delta=None, delta_color="inverse")
+    k3.metric("Dépenses Variables", f"{(dep + com):,.0f} €", delta=None, delta_color="inverse")
+    k4.metric("Épargne", f"{epg:,.0f} €", delta=None, delta_color="normal")
+    
+    rav_color = "#10B981" if reste_a_vivre > 0 else "#EF4444"
+    k5.markdown(f"""
+    <div style="background: linear-gradient(135deg, {rav_color}22 0%, {rav_color}11 100%); 
+                border-radius: 8px; padding: 12px; border-left: 4px solid {rav_color};">
+        <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Reste à Vivre</div>
+        <div style="font-size: 20px; font-weight: 800; color: {rav_color}; margin-top: 4px;">{reste_a_vivre:,.0f} €</div>
+        <div style="font-size: 9px; color: #9CA3AF; margin-top: 2px;">Pour finir le mois</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     c1, c2 = st.columns(2)
@@ -345,7 +380,6 @@ with tabs[0]:
     
     with c2:
         st.subheader("Alertes Budget")
-        # FIX V51: Utilisation correcte de la liste objectifs_list
         objs_perso = [o for o in objectifs_list if o["Scope"] == "Perso" or (o["Scope"] in USERS and o["Scope"] == user_actuel)]
         mask = (df_mois["Type"] == "Dépense") & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
         df_f = df_mois[mask]
@@ -435,10 +469,32 @@ with tabs[1]:
 
     # --- JOURNAL ---
     with subtabs[1]:
-        search = st.text_input("Rechercher transaction...", placeholder="Ex: Auchan", key="search_j")
+        col_search, col_export = st.columns([3, 1])
+        search = col_search.text_input("Rechercher transaction...", placeholder="Ex: Auchan", key="search_j")
+        
         if not df.empty:
             df_e = df.copy().sort_values(by="Date", ascending=False)
             if search: df_e = df_e[df_e.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)]
+            
+            # ===== MODULE 3: EXPORT EXCEL =====
+            try:
+                excel_data = to_excel_download(df_e)
+                file_ext = ".xlsx"
+                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            except:
+                excel_data = BytesIO(df_e.to_csv(index=False).encode('utf-8'))
+                file_ext = ".csv"
+                mime_type = "text/csv"
+            
+            col_export.download_button(
+                label="📥 Export",
+                data=excel_data,
+                file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}{file_ext}",
+                mime=mime_type,
+                key="dl_excel",
+                use_container_width=True
+            )
+            
             df_e.insert(0, "Suppr", False)
             ed = st.data_editor(df_e, use_container_width=True, hide_index=True, column_config={"Suppr": st.column_config.CheckboxColumn("Suppr", width="small")}, key="ed_j")
             if st.button("Supprimer sélection", type="primary", key="del_j"):
@@ -492,6 +548,35 @@ with tabs[1]:
 with tabs[2]:
     page_header("Analyses & Budget")
     
+    # ===== MODULE 2: MODE COMPARAISON M vs M-1 =====
+    st.subheader("📊 Comparaison Mensuelle")
+    
+    date_mois_actuel = datetime(annee_selection, mois_selection, 1)
+    date_mois_precedent = date_mois_actuel - relativedelta(months=1)
+    mois_prec = date_mois_precedent.month
+    annee_prec = date_mois_precedent.year
+    
+    df_mois_prec = df[(df["Mois"] == mois_prec) & (df["Annee"] == annee_prec)]
+    
+    dep_actuel = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Dépense")]["Montant"].sum()
+    dep_prec = df_mois_prec[(df_mois_prec["Qui_Connecte"] == user_actuel) & (df_mois_prec["Type"] == "Dépense")]["Montant"].sum()
+    
+    rev_actuel = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Revenu")]["Montant"].sum()
+    rev_prec = df_mois_prec[(df_mois_prec["Qui_Connecte"] == user_actuel) & (df_mois_prec["Type"] == "Revenu")]["Montant"].sum()
+    
+    epg_actuel = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Épargne")]["Montant"].sum()
+    epg_prec = df_mois_prec[(df_mois_prec["Qui_Connecte"] == user_actuel) & (df_mois_prec["Type"] == "Épargne")]["Montant"].sum()
+    
+    var_dep = ((dep_actuel - dep_prec) / dep_prec * 100) if dep_prec > 0 else 0
+    var_rev = ((rev_actuel - rev_prec) / rev_prec * 100) if rev_prec > 0 else 0
+    var_epg = ((epg_actuel - epg_prec) / epg_prec * 100) if epg_prec > 0 else 0
+    
+    comp1, comp2, comp3 = st.columns(3)
+    comp1.metric("Dépenses", f"{dep_actuel:,.0f} €", f"{var_dep:+.1f}% vs M-1", delta_color="inverse")
+    comp2.metric("Revenus", f"{rev_actuel:,.0f} €", f"{var_rev:+.1f}% vs M-1", delta_color="normal")
+    comp3.metric("Épargne", f"{epg_actuel:,.0f} €", f"{var_epg:+.1f}% vs M-1", delta_color="normal")
+    
+    st.markdown("---")
     st.subheader("1. Flux Financiers (Sankey)")
     if not df_mois.empty:
         df_rev = df_mois[df_mois["Type"] == "Revenu"]; df_dep = df_mois[df_mois["Type"] == "Dépense"]
