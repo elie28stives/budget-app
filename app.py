@@ -21,28 +21,25 @@ TAB_PROJETS = "Projets_Config"
 
 USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
-# AJOUT DU CHOIX DE POURCENTAGE DANS IMPUTATIONS
 IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
 FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# --- STYLE CSS (DESIGN SYSTEM PRO + MARGES OPTIMISÉES) ---
+# --- STYLE CSS (DESIGN SYSTEM PRO) ---
 def apply_custom_style():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #DA7756; /* Orange Claude */
+            --primary: #DA7756;
             --primary-hover: #C56243;
             --bg-page: #F8F9FA;
             --bg-card: #FFFFFF;
             --text-main: #1F2937;
             --text-sub: #6B7280;
             --border: #E5E7EB;
-            --success: #10B981;
-            --danger: #EF4444;
         }
 
         .stApp {
@@ -62,7 +59,6 @@ def apply_custom_style():
         footer {visibility: hidden;}
         header {visibility: hidden;}
 
-        /* TABS */
         .stTabs [data-baseweb="tab-list"] {
             gap: 15px;
             border-bottom: 2px solid var(--border);
@@ -91,7 +87,6 @@ def apply_custom_style():
             border-bottom: 3px solid var(--primary) !important;
         }
 
-        /* HEADERS */
         .page-title {
             color: var(--text-main);
             font-size: 28px;
@@ -108,12 +103,6 @@ def apply_custom_style():
             padding-bottom: 15px;
         }
         
-        h2, h3 {
-            color: var(--text-main) !important;
-            font-weight: 700 !important;
-        }
-
-        /* CONTAINERS */
         div[data-testid="stMetric"], div.stDataFrame, div.stForm, div.block-container > div {
             background-color: var(--bg-card) !important;
             border: 1px solid var(--border) !important;
@@ -121,7 +110,6 @@ def apply_custom_style():
             box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
         }
         
-        /* BOUTONS */
         div.stButton > button {
             background-color: var(--primary) !important;
             color: white !important;
@@ -136,45 +124,16 @@ def apply_custom_style():
             transform: translateY(-1px);
         }
 
-        /* SIDEBAR */
         section[data-testid="stSidebar"] {
             background-color: #FFFFFF;
             border-right: 1px solid var(--border);
         }
         
-        /* INPUTS */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"], .stDateInput input, .stTextArea textarea {
             background-color: #ffffff !important;
             border: 1px solid var(--border) !important;
             color: var(--text-main) !important;
             border-radius: 8px !important;
-        }
-        
-        /* CATEGORY ITEM CARD */
-        .category-item {
-            background: white;
-            border: 2px solid #E5E7EB;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: move;
-            transition: all 0.2s ease;
-        }
-        .category-item:hover {
-            border-color: #DA7756;
-            box-shadow: 0 2px 8px rgba(218, 119, 86, 0.15);
-        }
-        .category-name {
-            font-weight: 600;
-            color: #1F2937;
-        }
-        .drag-handle {
-            color: #9CA3AF;
-            cursor: move;
-            margin-right: 12px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -274,17 +233,16 @@ def process_configs():
         for _, row in df_cats.iterrows():
             if row["Type"] in cats and row["Categorie"] not in cats[row["Type"]]:
                 cats[row["Type"]].append(row["Categorie"])
-    defaults = {
-        "Dépense": ["Alimentation", "Loyer", "Prêt Immo", "Énergie", "Transport", "Santé", "Resto/Bar", "Shopping", "Cinéma", "Activités"],
-        "Revenu": ["Salaire", "Primes", "Ventes", "Aides"],
-        "Épargne": ["Virement Mensuel", "Cagnotte"],
-        "Investissement": ["Bourse", "Assurance Vie", "Crypto"],
-        "Virement Interne": ["Alimentation Compte"]
-    }
-    for t, l in defaults.items():
-        if t not in cats: cats[t] = []
-        for c in l:
-            if c not in cats[t]: cats[t].append(c)
+    if df_cats.empty:
+        defaults = {
+            "Dépense": ["Alimentation", "Loyer", "Prêt Immo", "Énergie", "Transport", "Santé", "Resto/Bar", "Shopping", "Cinéma", "Activités"],
+            "Revenu": ["Salaire", "Primes", "Ventes", "Aides"],
+            "Épargne": ["Virement Mensuel", "Cagnotte"],
+            "Investissement": ["Bourse", "Assurance Vie", "Crypto"],
+            "Virement Interne": ["Alimentation Compte"]
+        }
+        cats = defaults
+        save_data_to_sheet(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in defaults.items() for c in l]))
 
     comptes = {"Pierre": ["Compte Courant Pierre"], "Elie": ["Compte Courant Elie"], "Commun": []}
     comptes_types = {}
@@ -324,7 +282,7 @@ def save_projets_targets(d):
 
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V43", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ma Banque V46", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -407,11 +365,10 @@ with tabs[0]:
             fig = px.bar(df_chart, x="Periode", y="Montant", color_discrete_sequence=['#DA7756'])
             st.plotly_chart(fig, use_container_width=True)
 
-# 1. SAISIR - AVEC CORRECTIONS
+# 1. SAISIR
 with tabs[1]:
     page_header("Nouvelle Transaction", "Enregistrez une dépense, un revenu ou un virement")
     
-    # Pas de st.form pour permettre les widgets conditionnels
     c1, c2, c3 = st.columns(3)
     date_op = c1.date_input("Date", datetime.today(), key="date_transaction")
     type_op = c2.selectbox("Type", TYPES, key="type_transaction")
@@ -420,7 +377,6 @@ with tabs[1]:
     c4, c5 = st.columns(2)
     titre_op = c4.text_input("Titre", placeholder="Libellé...", key="titre_transaction")
     
-    # CORRECTION 3: GESTION "AUTRE" AVEC SAUVEGARDE AUTOMATIQUE
     cat_finale = ""
     if type_op == "Virement Interne": 
         c5.info("Virement de fonds")
@@ -436,10 +392,8 @@ with tabs[1]:
     
     st.write("")
     
-    # Initialize variables
     c_src = ""; c_tgt = ""; p_epg = ""; p_par = user_actuel; imput = "Perso"
     
-    # CORRECTION 2: VIREMENT ET EPARGNE
     if type_op == "Épargne":
         st.markdown("**💰 Mouvement d'Épargne**")
         ce1, ce2, ce3 = st.columns(3)
@@ -455,40 +409,26 @@ with tabs[1]:
         else:
             p_epg = p_sel
         
-        # Ajout récurrence
         st.markdown("**🔄 Récurrence (optionnel)**")
         rec_col1, rec_col2, rec_col3 = st.columns(3)
         recurrence_epargne = rec_col1.selectbox("Fréquence", ["Aucune", "Mensuel", "Trimestriel", "Annuel"], key="rec_epargne")
         if recurrence_epargne != "Aucune":
             jour_rec_epargne = rec_col2.number_input("Jour du mois", min_value=1, max_value=31, value=1, key="jour_rec_epargne")
             date_fin_rec_epargne = rec_col3.date_input("Jusqu'au", value=datetime.today() + relativedelta(years=1), key="date_fin_rec_epargne")
-        else:
-            jour_rec_epargne = None
-            date_fin_rec_epargne = None
-        
-        p_par = user_actuel
-        imput = "Perso"
+        p_par = user_actuel; imput = "Perso"
         
     elif type_op == "Virement Interne":
         st.markdown("**🔄 Virement Interne**")
         cv1, cv2 = st.columns(2)
         c_src = cv1.selectbox("Compte Débit", comptes_disponibles, key="virement_src")
         c_tgt = cv2.selectbox("Compte Crédit", comptes_disponibles, key="virement_tgt")
-        
-        # Ajout récurrence
         st.markdown("**🔄 Récurrence (optionnel)**")
         rec_v_col1, rec_v_col2, rec_v_col3 = st.columns(3)
         recurrence_virement = rec_v_col1.selectbox("Fréquence", ["Aucune", "Mensuel", "Trimestriel", "Annuel"], key="rec_virement")
         if recurrence_virement != "Aucune":
             jour_rec_virement = rec_v_col2.number_input("Jour du mois", min_value=1, max_value=31, value=1, key="jour_rec_virement")
             date_fin_rec_virement = rec_v_col3.date_input("Jusqu'au", value=datetime.today() + relativedelta(years=1), key="date_fin_rec_virement")
-        else:
-            jour_rec_virement = None
-            date_fin_rec_virement = None
-        
-        p_epg = ""
-        p_par = "Virement"
-        imput = "Neutre"
+        p_epg = ""; p_par = "Virement"; imput = "Neutre"
         
     else:
         st.markdown("**💳 Détails Paiement**")
@@ -497,7 +437,6 @@ with tabs[1]:
         p_par = cc2.selectbox("Payé par", ["Pierre", "Elie", "Commun"], key="depense_par")
         imput = cc3.radio("Imputation", IMPUTATIONS, key="depense_imput")
         
-        # CORRECTION 1: GESTION DU POURCENTAGE
         if imput == "Commun (Autre %)":
             st.markdown("**📊 Répartition personnalisée**")
             pct_col1, pct_col2 = st.columns(2)
@@ -506,26 +445,22 @@ with tabs[1]:
             pct_col2.metric("% Elie", f"{pct_elie}%")
             imput = f"Commun ({pct_pierre}/{pct_elie})"
         
-        c_tgt = ""
-        p_epg = ""
+        c_tgt = ""; p_epg = ""
     
     st.write("")
     desc = st.text_area("Note", height=60, key="desc_transaction")
     
-    # Bouton d'enregistrement
     if st.button("✅ Enregistrer", use_container_width=True, type="primary", key="btn_enregistrer_transaction"):
         if not cat_finale: 
             st.error("Veuillez sélectionner ou créer une catégorie")
         elif not c_src and type_op != "Revenu":
             st.error("Veuillez sélectionner un compte source")
         else:
-            if not titre_op: 
-                titre_op = cat_finale
+            if not titre_op: titre_op = cat_finale
             
-            # Sauvegarde automatique de la nouvelle catégorie
+            # SAUVEGARDE UNIVERSELLE CATÉGORIE
             if type_op != "Virement Interne" and cat_finale not in cats_memoire.get(type_op, []):
-                if type_op not in cats_memoire: 
-                    cats_memoire[type_op] = []
+                if type_op not in cats_memoire: cats_memoire[type_op] = []
                 cats_memoire[type_op].append(cat_finale)
                 save_config_cats(cats_memoire)
             
@@ -533,27 +468,11 @@ with tabs[1]:
                 projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
                 save_projets_targets(projets_config)
             
-            new_row = {
-                "Date": date_op, 
-                "Mois": date_op.month, 
-                "Annee": date_op.year, 
-                "Qui_Connecte": user_actuel, 
-                "Type": type_op, 
-                "Categorie": cat_finale, 
-                "Titre": titre_op, 
-                "Description": desc, 
-                "Montant": montant_op, 
-                "Paye_Par": p_par, 
-                "Imputation": imput, 
-                "Compte_Cible": c_tgt, 
-                "Projet_Epargne": p_epg, 
-                "Compte_Source": c_src
-            }
+            new_row = {"Date": date_op, "Mois": date_op.month, "Annee": date_op.year, "Qui_Connecte": user_actuel, "Type": type_op, "Categorie": cat_finale, "Titre": titre_op, "Description": desc, "Montant": montant_op, "Paye_Par": p_par, "Imputation": imput, "Compte_Cible": c_tgt, "Projet_Epargne": p_epg, "Compte_Source": c_src}
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             save_data_to_sheet(TAB_DATA, df)
             st.success("✅ Transaction enregistrée !")
-            time.sleep(1)
-            st.rerun()
+            time.sleep(1); st.rerun()
 
 # 2. TRESORERIE
 with tabs[2]:
@@ -572,494 +491,164 @@ with tabs[2]:
 with tabs[3]:
     page_header("Rapports & Tendances", "Analysez vos flux et l'évolution de vos dépenses")
     vue = st.radio("Vue", ["Flux (Sankey)", "Tendances (Ligne)"], horizontal=True)
-    
     if vue == "Flux (Sankey)":
         if not df_mois.empty:
-            st.markdown("### 💰 Flux financiers du mois")
-            st.caption("Visualisez vos entrées (revenus) en vert et vos sorties (dépenses) en rouge")
-            
-            # Préparer les données
-            df_rev = df_mois[df_mois["Type"] == "Revenu"].copy()
-            df_dep = df_mois[df_mois["Type"] == "Dépense"].copy()
-            
-            # Créer les flux revenus -> comptes
+            df_rev = df_mois[df_mois["Type"] == "Revenu"]
             rev_flows = df_rev.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
-            # Créer les flux comptes -> dépenses
+            df_dep = df_mois[df_mois["Type"] == "Dépense"]
             dep_flows = df_dep.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
-            
-            # Construire les labels uniques
-            all_labels = (
-                list(rev_flows["Categorie"].unique()) + 
-                list(rev_flows["Compte_Source"].unique()) + 
-                list(dep_flows["Compte_Source"].unique()) + 
-                list(dep_flows["Categorie"].unique())
-            )
-            unique_labels = list(dict.fromkeys(all_labels))  # Préserve l'ordre
+            all_labels = list(rev_flows["Categorie"].unique()) + list(rev_flows["Compte_Source"].unique()) + list(dep_flows["Compte_Source"].unique()) + list(dep_flows["Categorie"].unique())
+            unique_labels = list(dict.fromkeys(all_labels))
             label_map = {name: i for i, name in enumerate(unique_labels)}
-            
-            # Créer les liens
-            sources = []
-            targets = []
-            values = []
-            link_colors = []
-            
-            # Liens revenus (vert)
+            sources = []; targets = []; values = []; colors = []
             for _, row in rev_flows.iterrows():
-                sources.append(label_map[row["Categorie"]])
-                targets.append(label_map[row["Compte_Source"]])
-                values.append(row["Montant"])
-                link_colors.append("rgba(16, 185, 129, 0.4)")  # Vert transparent
-            
-            # Liens dépenses (rouge)
+                sources.append(label_map[row["Categorie"]]); targets.append(label_map[row["Compte_Source"]]); values.append(row["Montant"]); colors.append("#10B981")
             for _, row in dep_flows.iterrows():
                 if row["Compte_Source"] in label_map and row["Categorie"] in label_map:
-                    sources.append(label_map[row["Compte_Source"]])
-                    targets.append(label_map[row["Categorie"]])
-                    values.append(row["Montant"])
-                    link_colors.append("rgba(239, 68, 68, 0.4)")  # Rouge transparent
-            
+                    sources.append(label_map[row["Compte_Source"]]); targets.append(label_map[row["Categorie"]]); values.append(row["Montant"]); colors.append("#EF4444")
             if values:
-                # Couleurs des nœuds
-                node_colors = []
-                for label in unique_labels:
-                    # Revenus en vert
-                    if label in rev_flows["Categorie"].values:
-                        node_colors.append("#10B981")
-                    # Dépenses en rouge
-                    elif label in dep_flows["Categorie"].values:
-                        node_colors.append("#EF4444")
-                    # Comptes en bleu
-                    else:
-                        node_colors.append("#3B82F6")
-                
-                # Créer le diagramme avec un style amélioré
-                fig = go.Figure(data=[go.Sankey(
-                    arrangement='snap',
-                    node=dict(
-                        pad=25,
-                        thickness=30,
-                        line=dict(color="white", width=2),
-                        label=unique_labels,
-                        color=node_colors,
-                        customdata=[f"{val:,.0f}€" for val in 
-                                   [rev_flows[rev_flows["Categorie"]==l]["Montant"].sum() if l in rev_flows["Categorie"].values 
-                                    else dep_flows[dep_flows["Categorie"]==l]["Montant"].sum() if l in dep_flows["Categorie"].values
-                                    else 0 for l in unique_labels]],
-                        hovertemplate='%{label}<br>%{value:,.0f}€<extra></extra>'
-                    ),
-                    link=dict(
-                        source=sources,
-                        target=targets,
-                        value=values,
-                        color=link_colors,
-                        hovertemplate='%{source.label} → %{target.label}<br>%{value:,.0f}€<extra></extra>'
-                    )
-                )])
-                
-                # Configuration du layout
-                fig.update_layout(
-                    title={
-                        'text': f"Flux financiers - {mois_nom} {annee_selection}",
-                        'x': 0.5,
-                        'xanchor': 'center',
-                        'font': {'size': 20, 'color': '#1F2937', 'family': 'Inter'}
-                    },
-                    font=dict(size=13, family='Inter', color='#1F2937'),
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    height=600,
-                    margin=dict(l=20, r=20, t=80, b=20)
-                )
-                
+                fig = go.Figure(data=[go.Sankey(node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=unique_labels, color="#1A1A2E"), link=dict(source=sources, target=targets, value=values, color=colors))])
                 st.plotly_chart(fig, use_container_width=True)
-                
-                # Légende explicative
-                col_leg1, col_leg2, col_leg3 = st.columns(3)
-                with col_leg1:
-                    st.markdown("🟢 **Revenus** : Sources d'argent")
-                with col_leg2:
-                    st.markdown("🔵 **Comptes** : Vos comptes bancaires")
-                with col_leg3:
-                    st.markdown("🔴 **Dépenses** : Catégories de sortie")
-            else:
-                st.warning("⚠️ Pas assez de données pour afficher les flux")
-        else:
-            st.info("📊 Aucune transaction ce mois-ci")
-    
+            else: st.warning("Pas assez de données")
     else:
         if not df.empty:
-            st.markdown("### 📈 Évolution des dépenses")
             df_t = df[df["Type"] == "Dépense"].copy()
             df_t["Periode"] = df_t["Annee"].astype(str) + "-" + df_t["Mois"].astype(str).str.zfill(2)
             df_chart = df_t.groupby(["Periode", "Categorie"])["Montant"].sum().reset_index()
-            
-            fig = px.line(
-                df_chart, 
-                x="Periode", 
-                y="Montant", 
-                color="Categorie", 
-                markers=True,
-                color_discrete_sequence=px.colors.qualitative.Set3,
-                title=f"Tendances de dépenses par catégorie"
-            )
-            
-            fig.update_layout(
-                font=dict(size=13, family='Inter'),
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                height=500,
-                xaxis_title="Période",
-                yaxis_title="Montant (€)",
-                hovermode='x unified',
-                legend=dict(
-                    orientation="v",
-                    yanchor="top",
-                    y=1,
-                    xanchor="left",
-                    x=1.02
-                ),
-                xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
-                yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
-            )
-            
+            fig = px.line(df_chart, x="Periode", y="Montant", color="Categorie", markers=True, color_discrete_sequence=px.colors.qualitative.Prism)
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("📊 Aucune donnée disponible")
 
-# 4. BUDGET - AVEC CONFIGURATION DES OBJECTIFS
+# 4. BUDGET
 with tabs[4]:
     page_header(f"Suivi Budgétaire {mois_nom}", "Comparez vos dépenses réelles à vos objectifs")
-    
-    # Configuration des objectifs en haut
     with st.expander("⚙️ Configurer mes objectifs budgétaires", expanded=False):
         st.markdown("**Ajouter un objectif**")
         with st.form("add_objectif_budget"):
             c_obj1, c_obj2, c_obj3, c_obj4 = st.columns([2, 2, 2, 1])
-            # Permettre de choisir la personne ou Commun
-            scope_options = ["Commun", "Pierre", "Elie"]
-            scope_new = c_obj1.selectbox("Pour qui ?", scope_options, key="scope_new_obj")
+            scope_new = c_obj1.selectbox("Pour qui ?", ["Commun", "Pierre", "Elie"], key="scope_new_obj")
             cat_new = c_obj2.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_new_obj")
             montant_new = c_obj3.number_input("Montant (€)", min_value=0.0, step=10.0, key="montant_new_obj")
-            
             if c_obj4.form_submit_button("➕ Ajouter", use_container_width=True):
                 if cat_new and montant_new > 0:
-                    # Check if already exists
-                    existing = False
-                    for obj in objectifs_list:
-                        if obj["Scope"] == scope_new and obj["Categorie"] == cat_new:
-                            existing = True
-                            break
-                    
-                    if existing:
-                        st.warning(f"Un objectif existe déjà pour {scope_new} - {cat_new}")
-                    else:
-                        objectifs_list.append({"Scope": scope_new, "Categorie": cat_new, "Montant": montant_new})
-                        save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                        st.success(f"✅ Objectif ajouté : {scope_new} / {cat_new} = {montant_new}€")
-                        time.sleep(0.5)
-                        st.rerun()
-        
+                    objectifs_list.append({"Scope": scope_new, "Categorie": cat_new, "Montant": montant_new})
+                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                    st.success("Objectif ajouté !"); time.sleep(0.5); st.rerun()
         st.markdown("---")
-        st.markdown("**Mes objectifs actuels**")
-        
         if objectifs_list:
-            # Group by scope
             for scope in ["Commun", "Pierre", "Elie"]:
                 scope_objs = [obj for obj in objectifs_list if obj.get("Scope") == scope]
                 if scope_objs:
                     st.markdown(f"**{scope}**")
                     for idx, obj in enumerate(scope_objs):
                         col_o1, col_o2, col_o3, col_o4 = st.columns([3, 2, 1, 1])
-                        
-                        with col_o1:
-                            st.write(obj['Categorie'])
-                        with col_o2:
-                            # Editable amount
-                            new_amount = st.number_input(
-                                "Montant", 
-                                value=float(obj['Montant']), 
-                                min_value=0.0, 
-                                step=10.0,
-                                key=f"edit_obj_{scope}_{idx}",
-                                label_visibility="collapsed"
-                            )
+                        with col_o1: st.write(obj['Categorie'])
+                        with col_o2: 
+                            new_amount = st.number_input("Montant", value=float(obj['Montant']), min_value=0.0, step=10.0, key=f"edit_obj_{scope}_{idx}", label_visibility="collapsed")
                         with col_o3:
                             if new_amount != float(obj['Montant']):
-                                if st.button("💾", key=f"save_obj_{scope}_{idx}", help="Sauvegarder"):
-                                    # Find and update
+                                if st.button("💾", key=f"save_obj_{scope}_{idx}"):
                                     for i, o in enumerate(objectifs_list):
-                                        if o['Scope'] == scope and o['Categorie'] == obj['Categorie']:
-                                            objectifs_list[i]['Montant'] = new_amount
-                                            break
-                                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                                    st.success("Modifié !")
-                                    time.sleep(0.5)
-                                    st.rerun()
+                                        if o['Scope'] == scope and o['Categorie'] == obj['Categorie']: objectifs_list[i]['Montant'] = new_amount; break
+                                    save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
                         with col_o4:
-                            if st.button("✕", key=f"del_obj_{scope}_{idx}", help="Supprimer"):
-                                # Find and remove
+                            if st.button("✕", key=f"del_obj_{scope}_{idx}"):
                                 for i, o in enumerate(objectifs_list):
-                                    if o['Scope'] == scope and o['Categorie'] == obj['Categorie']:
-                                        objectifs_list.pop(i)
-                                        break
-                                save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                                st.success("Supprimé !")
-                                time.sleep(0.5)
-                                st.rerun()
+                                    if o['Scope'] == scope and o['Categorie'] == obj['Categorie']: objectifs_list.pop(i); break
+                                save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
                     st.markdown("---")
-        else:
-            st.caption("Aucun objectif configuré")
-    
+
     st.markdown("---")
-    
-    # Affichage du suivi budgétaire
     df_budget = pd.DataFrame(objectifs_list)
     if not df_budget.empty:
         budget_data = []
         for _, row in df_budget.iterrows():
             scope = row["Scope"]; cat = row["Categorie"]; cible = float(row["Montant"])
             mask = (df_mois["Type"] == "Dépense") & (df_mois["Categorie"] == cat)
-            
-            # Adapter le filtre selon le scope
-            if scope == "Commun": 
-                mask = mask & (df_mois["Imputation"] == "Commun (50/50)")
-            elif scope in ["Pierre", "Elie"]:
-                mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == scope)
-            else:  # Fallback pour ancien format "Perso"
-                mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
-            
+            if scope == "Commun": mask = mask & (df_mois["Imputation"] == "Commun (50/50)")
+            elif scope in ["Pierre", "Elie"]: mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == scope)
+            else: mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
             reel = df_mois[mask]["Montant"].sum()
             ratio = reel / cible if cible > 0 else 0
-            budget_data.append({"Catégorie": cat, "Scope": scope, "Budget": cible, "Réel": reel, "Reste": cible - reel, "Progression": min(ratio, 1.0)})
-        
+            # FIX: Ajout de la colonne % pour affichage
+            budget_data.append({"Catégorie": cat, "Scope": scope, "Budget": cible, "Réel": reel, "Reste": cible - reel, "Progression": min(ratio, 1.0), "%": f"{ratio*100:.0f}%"})
         df_display = pd.DataFrame(budget_data)
-        
-        # Afficher par scope
-        df_c = df_display[df_display["Scope"] == "Commun"]
-        df_pierre = df_display[df_display["Scope"] == "Pierre"]
-        df_elie = df_display[df_display["Scope"] == "Elie"]
-        df_perso = df_display[df_display["Scope"] == "Perso"]  # Ancien format
-        
-        # Affichage en 2 colonnes
         col_budget = st.columns(2)
         
+        # Configuration des colonnes pour affichage
+        cfg = {
+            "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1),
+            "Budget": st.column_config.NumberColumn(format="%.0f€"),
+            "Réel": st.column_config.NumberColumn(format="%.0f€"),
+            "Reste": st.column_config.NumberColumn(format="%.0f€"),
+            "%": st.column_config.TextColumn("Niveau") # Affichage texte du %
+        }
+        
         with col_budget[0]:
-            if not df_c.empty:
-                st.markdown("**🏠 Commun**")
-                st.dataframe(df_c, column_config={
-                    "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
-                    "Budget": st.column_config.NumberColumn(format="%.0f€"), 
-                    "Réel": st.column_config.NumberColumn(format="%.0f€"), 
-                    "Reste": st.column_config.NumberColumn(format="%.0f€")
-                }, hide_index=True, use_container_width=True)
-            
-            # Affichage Perso (ancien format) dans la 1ère colonne
-            if not df_perso.empty:
-                st.markdown(f"**👤 Perso ({user_actuel})**")
-                st.dataframe(df_perso, column_config={
-                    "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
-                    "Budget": st.column_config.NumberColumn(format="%.0f€"), 
-                    "Réel": st.column_config.NumberColumn(format="%.0f€"), 
-                    "Reste": st.column_config.NumberColumn(format="%.0f€")
-                }, hide_index=True, use_container_width=True)
-        
+            st.markdown("**🏠 Commun**"); df_c = df_display[df_display["Scope"] == "Commun"]
+            if not df_c.empty: st.dataframe(df_c, column_config=cfg, hide_index=True, use_container_width=True)
+            df_perso = df_display[df_display["Scope"] == "Perso"]
+            if not df_perso.empty: st.markdown(f"**👤 Perso ({user_actuel})**"); st.dataframe(df_perso, column_config=cfg, hide_index=True, use_container_width=True)
         with col_budget[1]:
-            if not df_pierre.empty:
-                st.markdown("**👤 Pierre**")
-                st.dataframe(df_pierre, column_config={
-                    "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
-                    "Budget": st.column_config.NumberColumn(format="%.0f€"), 
-                    "Réel": st.column_config.NumberColumn(format="%.0f€"), 
-                    "Reste": st.column_config.NumberColumn(format="%.0f€")
-                }, hide_index=True, use_container_width=True)
-        
-        # Elie en pleine largeur si présent
-        if not df_elie.empty:
-            st.markdown("**👤 Elie**")
-            st.dataframe(df_elie, column_config={
-                "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
-                "Budget": st.column_config.NumberColumn(format="%.0f€"), 
-                "Réel": st.column_config.NumberColumn(format="%.0f€"), 
-                "Reste": st.column_config.NumberColumn(format="%.0f€")
-            }, hide_index=True, use_container_width=True)
-    else: 
-        st.info("Aucun budget configuré. Utilisez le bouton ci-dessus pour configurer vos objectifs.")
+            st.markdown("**👤 Pierre**"); df_p = df_display[df_display["Scope"] == "Pierre"]
+            if not df_p.empty: st.dataframe(df_p, column_config=cfg, hide_index=True, use_container_width=True)
+            st.markdown("**👤 Elie**"); df_e = df_display[df_display["Scope"] == "Elie"]
+            if not df_e.empty: st.dataframe(df_e, column_config=cfg, hide_index=True, use_container_width=True)
+    else: st.info("Aucun budget configuré.")
 
-# 5. CHARGES FIXES - SYSTÈME REVU
+# 5. CHARGES FIXES
 with tabs[5]:
     page_header("Charges Fixes & Abonnements", "Gérez vos dépenses récurrentes")
-    
-    # Affichage et gestion des abonnements existants
     if not df_abonnements.empty:
         st.markdown("### 📋 Mes Abonnements")
-        
-        # Filtrer selon l'utilisateur et les abonnements communs
-        my_abos = df_abonnements[
-            (df_abonnements["Proprietaire"] == user_actuel) | 
-            (df_abonnements["Imputation"].str.contains("Commun", na=False))
-        ].copy()
-        
+        my_abos = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))].copy()
         if not my_abos.empty:
-            # Affichage des abonnements avec boutons de suppression
             for idx, row in my_abos.iterrows():
                 col_abo = st.columns([3, 1, 1, 1, 1, 1])
-                
-                with col_abo[0]:
-                    st.write(f"**{row['Nom']}**")
-                    st.caption(f"{row['Categorie']}")
-                
-                with col_abo[1]:
-                    st.write(f"**{row['Montant']:.2f}€**")
-                
-                with col_abo[2]:
-                    st.write(f"Jour {row['Jour']}")
-                
-                with col_abo[3]:
-                    freq_display = row.get('Frequence', 'Mensuel')
-                    st.write(freq_display)
-                
-                with col_abo[4]:
-                    # Badge d'imputation
-                    if "Commun" in str(row['Imputation']):
-                        st.markdown("🏠 Commun")
-                    else:
-                        st.markdown("👤 Perso")
-                
+                with col_abo[0]: st.write(f"**{row['Nom']}**"); st.caption(f"{row['Categorie']}")
+                with col_abo[1]: st.write(f"**{row['Montant']:.2f}€**")
+                with col_abo[2]: st.write(f"Jour {row['Jour']}")
+                with col_abo[3]: st.write(row.get('Frequence', 'Mensuel'))
+                with col_abo[4]: st.markdown("🏠 Commun") if "Commun" in str(row['Imputation']) else st.markdown("👤 Perso")
                 with col_abo[5]:
-                    # Bouton supprimer
-                    if st.button("🗑️", key=f"del_abo_{idx}", help="Supprimer cet abonnement"):
-                        df_abonnements = df_abonnements.drop(idx)
-                        save_abonnements(df_abonnements)
-                        st.success("Abonnement supprimé !")
-                        time.sleep(0.5)
-                        st.rerun()
-                
+                    if st.button("🗑️", key=f"del_abo_{idx}"):
+                        df_abonnements = df_abonnements.drop(idx); save_abonnements(df_abonnements); st.success("Supprimé"); time.sleep(0.5); st.rerun()
                 st.markdown("---")
-            
-            st.markdown("---")
-            
-            # Bouton pour générer les dépenses du mois
             col_gen1, col_gen2 = st.columns([3, 1])
-            with col_gen1:
-                st.info(f"💡 Cliquez pour générer automatiquement les dépenses récurrentes de **{mois_nom} {annee_selection}**")
+            with col_gen1: st.info(f"💡 Cliquez pour générer les dépenses de **{mois_nom} {annee_selection}**")
             with col_gen2:
                 if st.button("🔄 Générer ce mois", type="primary", use_container_width=True):
                     new_rows = []
-                    
                     for _, row in my_abos.iterrows():
                         freq = row.get("Frequence", "Mensuel")
-                        
-                        # Vérifier si on doit générer ce mois
-                        should_generate = False
-                        if freq == "Mensuel":
-                            should_generate = True
-                        elif freq == "Trimestriel":
-                            should_generate = mois_selection in [1, 4, 7, 10]
-                        elif freq == "Annuel":
-                            should_generate = mois_selection == 1
-                        elif freq == "Hebdomadaire":
-                            should_generate = True  # On génère quand même une fois par mois
-                        
-                        if should_generate:
-                            # Calculer la date
-                            try: 
-                                d = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
-                            except: 
-                                d = datetime(annee_selection, mois_selection, 28).date()
-                            
-                            # Vérifier si la dépense n'existe pas déjà
+                        should_gen = False
+                        if freq == "Mensuel": should_gen = True
+                        elif freq == "Trimestriel": should_gen = mois_selection in [1, 4, 7, 10]
+                        elif freq == "Annuel": should_gen = mois_selection == 1
+                        elif freq == "Hebdomadaire": should_gen = True
+                        if should_gen:
+                            try: d = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
+                            except: d = datetime(annee_selection, mois_selection, 28).date()
                             exists = False
-                            if not df.empty:
-                                exists = not df[
-                                    (df["Date"] == d) &
-                                    (df["Titre"] == row["Nom"]) &
-                                    (df["Montant"] == float(row["Montant"])) &
-                                    (df["Description"].str.contains("Abonnement", na=False))
-                                ].empty
-                            
+                            if not df.empty: exists = not df[(df["Date"] == d) & (df["Titre"] == row["Nom"]) & (df["Montant"] == float(row["Montant"]))].empty
                             if not exists:
-                                # Déterminer qui paye
-                                imputation = row["Imputation"]
-                                if "Commun" in str(imputation):
-                                    paye_par = "Commun"
-                                else:
-                                    paye_par = row["Proprietaire"]
-                                
-                                new_rows.append({
-                                    "Date": d, 
-                                    "Mois": mois_selection, 
-                                    "Annee": annee_selection, 
-                                    "Qui_Connecte": row["Proprietaire"], 
-                                    "Type": "Dépense", 
-                                    "Categorie": row["Categorie"], 
-                                    "Titre": row["Nom"], 
-                                    "Description": f"Abonnement {freq} (Auto)", 
-                                    "Montant": float(row["Montant"]), 
-                                    "Paye_Par": paye_par, 
-                                    "Imputation": imputation, 
-                                    "Compte_Cible": "", 
-                                    "Projet_Epargne": "", 
-                                    "Compte_Source": row["Compte_Source"]
-                                })
-                    
-                    if new_rows:
-                        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-                        save_data_to_sheet(TAB_DATA, df)
-                        st.success(f"✅ {len(new_rows)} dépense(s) générée(s) pour {mois_nom} !")
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.warning("Toutes les dépenses de ce mois ont déjà été générées !")
-        else:
-            st.info("Aucun abonnement visible pour cet utilisateur")
-    else:
-        st.info("Aucun abonnement configuré")
-    
+                                paye = "Commun" if "Commun" in str(row["Imputation"]) else row["Proprietaire"]
+                                new_rows.append({"Date": d, "Mois": mois_selection, "Annee": annee_selection, "Qui_Connecte": row["Proprietaire"], "Type": "Dépense", "Categorie": row["Categorie"], "Titre": row["Nom"], "Description": f"Abonnement {freq} (Auto)", "Montant": float(row["Montant"]), "Paye_Par": paye, "Imputation": row["Imputation"], "Compte_Cible": "", "Projet_Epargne": "", "Compte_Source": row["Compte_Source"]})
+                    if new_rows: df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True); save_data_to_sheet(TAB_DATA, df); st.success(f"✅ {len(new_rows)} générés !"); time.sleep(1); st.rerun()
+                    else: st.warning("Déjà générés !")
+        else: st.info("Aucun abonnement visible")
+    else: st.info("Aucun abonnement configuré")
     st.markdown("---")
-    
-    # Formulaire d'ajout
     with st.expander("➕ Ajouter un nouvel abonnement", expanded=False):
-        st.markdown("**Créer une charge fixe récurrente**")
-        
         c1, c2, c3, c4 = st.columns(4)
-        nom_abo = c1.text_input("Nom de l'abonnement", placeholder="Ex: Netflix, EDF...", key="nom_abo")
-        mt_abo = c2.number_input("Montant (€)", min_value=0.0, step=0.01, key="mt_abo")
-        j_abo = c3.number_input("Jour de prélèvement", min_value=1, max_value=31, value=1, key="j_abo")
-        freq_abo = c4.selectbox("Fréquence", FREQUENCES, key="freq_abo")
-        
+        nom_abo = c1.text_input("Nom", key="nom_abo"); mt_abo = c2.number_input("Montant", key="mt_abo"); j_abo = c3.number_input("Jour", 1, 31, 1, key="j_abo"); freq_abo = c4.selectbox("Fréquence", FREQUENCES, key="freq_abo")
         c5, c6, c7 = st.columns(3)
-        cat_abo = c5.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_abo")
-        cpt_abo = c6.selectbox("Compte", comptes_disponibles, key="cpt_abo")
-        imp_abo = c7.radio("Imputation", IMPUTATIONS, key="imp_abo")
-        
-        # Gestion du pourcentage pour Commun (Autre %)
+        cat_abo = c5.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_abo"); cpt_abo = c6.selectbox("Compte", comptes_disponibles, key="cpt_abo"); imp_abo = c7.radio("Imputation", IMPUTATIONS, key="imp_abo")
         if imp_abo == "Commun (Autre %)":
-            st.markdown("**📊 Répartition personnalisée**")
-            pct_abo_col1, pct_abo_col2 = st.columns(2)
-            pct_pierre_abo = pct_abo_col1.slider("% Pierre", min_value=0, max_value=100, value=60, step=5, key="pct_pierre_abo")
-            pct_elie_abo = 100 - pct_pierre_abo
-            pct_abo_col2.metric("% Elie", f"{pct_elie_abo}%")
-            imp_abo = f"Commun ({pct_pierre_abo}/{pct_elie_abo})"
-        
-        if st.button("✅ Créer l'abonnement", use_container_width=True, type="primary", key="btn_add_abo"):
-            if nom_abo and mt_abo > 0 and cat_abo:
-                row = pd.DataFrame([{
-                    "Nom": nom_abo, 
-                    "Montant": mt_abo, 
-                    "Jour": j_abo, 
-                    "Categorie": cat_abo, 
-                    "Compte_Source": cpt_abo, 
-                    "Proprietaire": user_actuel, 
-                    "Imputation": imp_abo, 
-                    "Frequence": freq_abo
-                }])
-                df_abonnements = pd.concat([df_abonnements, row], ignore_index=True)
-                save_abonnements(df_abonnements)
-                st.success(f"✅ Abonnement '{nom_abo}' créé !")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("⚠️ Veuillez remplir tous les champs obligatoires")
+            pct_col1, pct_col2 = st.columns(2); p_pierre = pct_col1.slider("% Pierre", 0, 100, 60, 5, key="pct_p_abo"); imp_abo = f"Commun ({p_pierre}/{100-p_pierre})"
+        if st.button("✅ Créer", type="primary", use_container_width=True, key="btn_add_abo"):
+            if nom_abo and mt_abo > 0:
+                row = pd.DataFrame([{"Nom": nom_abo, "Montant": mt_abo, "Jour": j_abo, "Categorie": cat_abo, "Compte_Source": cpt_abo, "Proprietaire": user_actuel, "Imputation": imp_abo, "Frequence": freq_abo}])
+                df_abonnements = pd.concat([df_abonnements, row], ignore_index=True); save_abonnements(df_abonnements); st.success("Créé !"); time.sleep(1); st.rerun()
 
 # 6. JOURNAL
 with tabs[6]:
@@ -1087,21 +676,17 @@ with tabs[7]:
             cible = c2.number_input("Cible (€)", step=100.0)
             d_fin = c3.date_input("Date Fin", datetime.today() + relativedelta(years=1))
             if st.form_submit_button("Sauvegarder"):
-                projets_config[p_nom] = {"Cible": cible, "Date_Fin": str(d_fin)}
-                save_projets_targets(projets_config); st.rerun()
+                projets_config[p_nom] = {"Cible": cible, "Date_Fin": str(d_fin)}; save_projets_targets(projets_config); st.rerun()
     if projets_config:
         for p, data in projets_config.items():
-            target = data["Cible"]
-            saved = df[(df["Projet_Epargne"] == p) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0.0
+            target = data["Cible"]; saved = df[(df["Projet_Epargne"] == p) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0.0
             st.markdown(f"### {p}")
             c_j1, c_j2 = st.columns([3, 1])
             with c_j1:
                 df_p = df[(df["Projet_Epargne"] == p) & (df["Type"] == "Épargne")].copy()
                 if not df_p.empty:
-                    df_p = df_p.sort_values("Date")
-                    df_p["Cumul"] = df_p["Montant"].cumsum()
-                    fig = px.area(df_p, x="Date", y="Cumul", title="Progression")
-                    fig.add_hline(y=target, line_dash="dot", annotation_text="Cible")
+                    df_p = df_p.sort_values("Date"); df_p["Cumul"] = df_p["Montant"].cumsum()
+                    fig = px.area(df_p, x="Date", y="Cumul", title="Progression"); fig.add_hline(y=target, line_dash="dot", annotation_text="Cible")
                     st.plotly_chart(fig, use_container_width=True)
                 else: st.info("Pas encore d'épargne.")
             with c_j2:
@@ -1109,71 +694,32 @@ with tabs[7]:
                 pct = saved/target if target > 0 else 0
                 st.progress(min(pct, 1.0))
 
-# 8. CONFIG - SIMPLIFIE SANS OBJECTIFS
+# 8. CONFIG
 with tabs[8]:
     page_header("Configuration & Budgets", "Gérez vos comptes et catégories")
-    
     st.markdown("### 1. Gestion des Catégories")
-    st.info("💡 Ajoutez, supprimez ou réorganisez vos catégories par type de transaction")
-    
     type_cat_selected = st.selectbox("Type de transaction", TYPES, key="type_cat_manage")
-    
-    # Get current categories for this type
     current_cats = cats_memoire.get(type_cat_selected, [])
-    
     col_add1, col_add2 = st.columns([3, 1])
-    with col_add1:
-        new_cat_name = st.text_input("Nouvelle catégorie", key="new_cat_input", placeholder="Ex: Cadeaux, Voyages...")
-    with col_add2:
-        st.write("")  # Spacing
+    with col_add1: new_cat_name = st.text_input("Nouvelle catégorie", key="new_cat_input", placeholder="Ex: Cadeaux...")
+    with col_add2: 
+        st.write("")
         if st.button("➕ Ajouter", use_container_width=True, key="add_cat_btn"):
             if new_cat_name and new_cat_name not in current_cats:
-                if type_cat_selected not in cats_memoire:
-                    cats_memoire[type_cat_selected] = []
-                cats_memoire[type_cat_selected].append(new_cat_name)
-                save_config_cats(cats_memoire)
-                st.success(f"✅ '{new_cat_name}' ajoutée !")
-                time.sleep(0.5)
-                st.rerun()
-    
+                if type_cat_selected not in cats_memoire: cats_memoire[type_cat_selected] = []
+                cats_memoire[type_cat_selected].append(new_cat_name); save_config_cats(cats_memoire); st.success("Ajouté !"); time.sleep(0.5); st.rerun()
     st.markdown("---")
-    st.markdown(f"**Catégories actuelles** ({len(current_cats)})")
-    
-    # Display categories with simple list
     if current_cats:
         for idx, cat in enumerate(current_cats):
             col_cat1, col_cat2, col_cat3, col_cat4 = st.columns([1, 5, 1, 1])
-            
-            with col_cat1:
-                st.write(f"**{idx+1}**")
-            
-            with col_cat2:
-                st.write(cat)
-            
-            with col_cat3:
-                # Move up button
-                if idx > 0:
-                    if st.button("↑", key=f"up_{type_cat_selected}_{idx}", help="Monter"):
-                        cats_memoire[type_cat_selected][idx], cats_memoire[type_cat_selected][idx-1] = \
-                            cats_memoire[type_cat_selected][idx-1], cats_memoire[type_cat_selected][idx]
-                        save_config_cats(cats_memoire)
-                        st.rerun()
-            
+            with col_cat1: st.write(f"**{idx+1}**")
+            with col_cat2: st.write(cat)
             with col_cat4:
-                # Delete button
-                if st.button("✕", key=f"del_{type_cat_selected}_{cat}", help="Supprimer"):
-                    cats_memoire[type_cat_selected].remove(cat)
-                    save_config_cats(cats_memoire)
-                    st.success(f"'{cat}' supprimée")
-                    time.sleep(0.5)
-                    st.rerun()
-    else:
-        st.caption("Aucune catégorie personnalisée pour ce type")
+                if st.button("✕", key=f"del_{type_cat_selected}_{cat}"):
+                    cats_memoire[type_cat_selected].remove(cat); save_config_cats(cats_memoire); st.success("Supprimé"); time.sleep(0.5); st.rerun()
+    else: st.caption("Aucune catégorie")
     
-    st.markdown("---")
     st.markdown("### 2. Gestion des Comptes")
-    
-    # Formulaire ajout propre
     with st.form("add_account_clean"):
         c_add1, c_add2, c_add3, c_add4 = st.columns([2, 1, 1, 1])
         n = c_add1.text_input("Nom du compte")
@@ -1182,34 +728,19 @@ with tabs[8]:
         if c_add4.form_submit_button("Ajouter", use_container_width=True):
             if n and n not in comptes_structure.get(p, []): 
                 if p not in comptes_structure: comptes_structure[p] = []
-                comptes_structure[p].append(n)
-                comptes_types_map[n] = t
+                comptes_structure[p].append(n); comptes_types_map[n] = t
                 save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
-
-    st.write("") # Spacer
-    
-    # Liste propre en 3 colonnes
+    st.write("")
     col_p, col_e, col_c = st.columns(3)
-    
     def display_accounts_list(owner_name, col):
         with col:
             st.markdown(f"**{owner_name}**")
             accounts = comptes_structure.get(owner_name, [])
             if accounts:
                 for acc in accounts:
-                    # Layout row: Name + Delete button
                     c_row1, c_row2 = st.columns([4, 1])
                     c_row1.caption(acc)
-                    if c_row2.button("✕", key=f"del_acc_{acc}", help="Supprimer"):
-                        comptes_structure[owner_name].remove(acc)
-                        save_comptes_struct(comptes_structure, comptes_types_map)
-                        st.rerun()
-            else:
-                st.caption("Aucun compte")
-
-    display_accounts_list("Pierre", col_p)
-    display_accounts_list("Elie", col_e)
-    display_accounts_list("Commun", col_c)
-    
-    st.markdown("---")
-    st.info("💡 Les objectifs budgétaires se configurent dans l'onglet 'Suivi Budgétaire'")
+                    if c_row2.button("✕", key=f"del_acc_{acc}"):
+                        comptes_structure[owner_name].remove(acc); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+            else: st.caption("Aucun compte")
+    display_accounts_list("Pierre", col_p); display_accounts_list("Elie", col_e); display_accounts_list("Commun", col_c)
