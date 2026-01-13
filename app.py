@@ -365,7 +365,7 @@ with st.sidebar:
     st.markdown(f"**ÉPARGNE** <span style='float:right; font-size:12px; color:#6B7280;'>{total_epargne:,.0f}€</span>", unsafe_allow_html=True)
     for name, val in list_epargne: draw_account_card(name, val, True)
     st.markdown("---")
-    if st.button(" Actualiser"): clear_cache(); st.rerun()
+    if st.button("🔄 Actualiser"): clear_cache(); st.rerun()
 
 # --- MAIN ---
 c_filt1, c_filt2, c_filt3 = st.columns([1, 1, 4])
@@ -717,11 +717,10 @@ with tabs[3]:
                     y=1,
                     xanchor="left",
                     x=1.02
-                )
+                ),
+                xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)'),
+                yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
             )
-            
-            fig.update_xaxis(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
-            fig.update_yaxis(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
             
             st.plotly_chart(fig, use_container_width=True)
         else:
