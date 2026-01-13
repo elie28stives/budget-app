@@ -454,6 +454,18 @@ with tabs[1]:
             p_epg = ""
         else:
             p_epg = p_sel
+        
+        # Ajout récurrence
+        st.markdown("**🔄 Récurrence (optionnel)**")
+        rec_col1, rec_col2, rec_col3 = st.columns(3)
+        recurrence_epargne = rec_col1.selectbox("Fréquence", ["Aucune", "Mensuel", "Trimestriel", "Annuel"], key="rec_epargne")
+        if recurrence_epargne != "Aucune":
+            jour_rec_epargne = rec_col2.number_input("Jour du mois", min_value=1, max_value=31, value=1, key="jour_rec_epargne")
+            date_fin_rec_epargne = rec_col3.date_input("Jusqu'au", value=datetime.today() + relativedelta(years=1), key="date_fin_rec_epargne")
+        else:
+            jour_rec_epargne = None
+            date_fin_rec_epargne = None
+        
         p_par = user_actuel
         imput = "Perso"
         
@@ -462,6 +474,18 @@ with tabs[1]:
         cv1, cv2 = st.columns(2)
         c_src = cv1.selectbox("Compte Débit", comptes_disponibles, key="virement_src")
         c_tgt = cv2.selectbox("Compte Crédit", comptes_disponibles, key="virement_tgt")
+        
+        # Ajout récurrence
+        st.markdown("**🔄 Récurrence (optionnel)**")
+        rec_v_col1, rec_v_col2, rec_v_col3 = st.columns(3)
+        recurrence_virement = rec_v_col1.selectbox("Fréquence", ["Aucune", "Mensuel", "Trimestriel", "Annuel"], key="rec_virement")
+        if recurrence_virement != "Aucune":
+            jour_rec_virement = rec_v_col2.number_input("Jour du mois", min_value=1, max_value=31, value=1, key="jour_rec_virement")
+            date_fin_rec_virement = rec_v_col3.date_input("Jusqu'au", value=datetime.today() + relativedelta(years=1), key="date_fin_rec_virement")
+        else:
+            jour_rec_virement = None
+            date_fin_rec_virement = None
+        
         p_epg = ""
         p_par = "Virement"
         imput = "Neutre"
@@ -548,32 +572,160 @@ with tabs[2]:
 with tabs[3]:
     page_header("Rapports & Tendances", "Analysez vos flux et l'évolution de vos dépenses")
     vue = st.radio("Vue", ["Flux (Sankey)", "Tendances (Ligne)"], horizontal=True)
+    
     if vue == "Flux (Sankey)":
         if not df_mois.empty:
-            df_rev = df_mois[df_mois["Type"] == "Revenu"]
+            st.markdown("### 💰 Flux financiers du mois")
+            st.caption("Visualisez vos entrées (revenus) en vert et vos sorties (dépenses) en rouge")
+            
+            # Préparer les données
+            df_rev = df_mois[df_mois["Type"] == "Revenu"].copy()
+            df_dep = df_mois[df_mois["Type"] == "Dépense"].copy()
+            
+            # Créer les flux revenus -> comptes
             rev_flows = df_rev.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
-            df_dep = df_mois[df_mois["Type"] == "Dépense"]
+            # Créer les flux comptes -> dépenses
             dep_flows = df_dep.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
-            all_labels = list(rev_flows["Categorie"].unique()) + list(rev_flows["Compte_Source"].unique()) + list(dep_flows["Compte_Source"].unique()) + list(dep_flows["Categorie"].unique())
-            unique_labels = list(set(all_labels))
+            
+            # Construire les labels uniques
+            all_labels = (
+                list(rev_flows["Categorie"].unique()) + 
+                list(rev_flows["Compte_Source"].unique()) + 
+                list(dep_flows["Compte_Source"].unique()) + 
+                list(dep_flows["Categorie"].unique())
+            )
+            unique_labels = list(dict.fromkeys(all_labels))  # Préserve l'ordre
             label_map = {name: i for i, name in enumerate(unique_labels)}
-            sources = []; targets = []; values = []; colors = []
+            
+            # Créer les liens
+            sources = []
+            targets = []
+            values = []
+            link_colors = []
+            
+            # Liens revenus (vert)
             for _, row in rev_flows.iterrows():
-                sources.append(label_map[row["Categorie"]]); targets.append(label_map[row["Compte_Source"]]); values.append(row["Montant"]); colors.append("#10B981")
+                sources.append(label_map[row["Categorie"]])
+                targets.append(label_map[row["Compte_Source"]])
+                values.append(row["Montant"])
+                link_colors.append("rgba(16, 185, 129, 0.4)")  # Vert transparent
+            
+            # Liens dépenses (rouge)
             for _, row in dep_flows.iterrows():
                 if row["Compte_Source"] in label_map and row["Categorie"] in label_map:
-                    sources.append(label_map[row["Compte_Source"]]); targets.append(label_map[row["Categorie"]]); values.append(row["Montant"]); colors.append("#EF4444")
+                    sources.append(label_map[row["Compte_Source"]])
+                    targets.append(label_map[row["Categorie"]])
+                    values.append(row["Montant"])
+                    link_colors.append("rgba(239, 68, 68, 0.4)")  # Rouge transparent
+            
             if values:
-                fig = go.Figure(data=[go.Sankey(node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=unique_labels, color="#1A1A2E"), link=dict(source=sources, target=targets, value=values, color=colors))])
+                # Couleurs des nœuds
+                node_colors = []
+                for label in unique_labels:
+                    # Revenus en vert
+                    if label in rev_flows["Categorie"].values:
+                        node_colors.append("#10B981")
+                    # Dépenses en rouge
+                    elif label in dep_flows["Categorie"].values:
+                        node_colors.append("#EF4444")
+                    # Comptes en bleu
+                    else:
+                        node_colors.append("#3B82F6")
+                
+                # Créer le diagramme avec un style amélioré
+                fig = go.Figure(data=[go.Sankey(
+                    arrangement='snap',
+                    node=dict(
+                        pad=25,
+                        thickness=30,
+                        line=dict(color="white", width=2),
+                        label=unique_labels,
+                        color=node_colors,
+                        customdata=[f"{val:,.0f}€" for val in 
+                                   [rev_flows[rev_flows["Categorie"]==l]["Montant"].sum() if l in rev_flows["Categorie"].values 
+                                    else dep_flows[dep_flows["Categorie"]==l]["Montant"].sum() if l in dep_flows["Categorie"].values
+                                    else 0 for l in unique_labels]],
+                        hovertemplate='%{label}<br>%{value:,.0f}€<extra></extra>'
+                    ),
+                    link=dict(
+                        source=sources,
+                        target=targets,
+                        value=values,
+                        color=link_colors,
+                        hovertemplate='%{source.label} → %{target.label}<br>%{value:,.0f}€<extra></extra>'
+                    )
+                )])
+                
+                # Configuration du layout
+                fig.update_layout(
+                    title={
+                        'text': f"Flux financiers - {mois_nom} {annee_selection}",
+                        'x': 0.5,
+                        'xanchor': 'center',
+                        'font': {'size': 20, 'color': '#1F2937', 'family': 'Inter'}
+                    },
+                    font=dict(size=13, family='Inter', color='#1F2937'),
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    height=600,
+                    margin=dict(l=20, r=20, t=80, b=20)
+                )
+                
                 st.plotly_chart(fig, use_container_width=True)
-            else: st.warning("Pas assez de données")
+                
+                # Légende explicative
+                col_leg1, col_leg2, col_leg3 = st.columns(3)
+                with col_leg1:
+                    st.markdown("🟢 **Revenus** : Sources d'argent")
+                with col_leg2:
+                    st.markdown("🔵 **Comptes** : Vos comptes bancaires")
+                with col_leg3:
+                    st.markdown("🔴 **Dépenses** : Catégories de sortie")
+            else:
+                st.warning("⚠️ Pas assez de données pour afficher les flux")
+        else:
+            st.info("📊 Aucune transaction ce mois-ci")
+    
     else:
         if not df.empty:
+            st.markdown("### 📈 Évolution des dépenses")
             df_t = df[df["Type"] == "Dépense"].copy()
             df_t["Periode"] = df_t["Annee"].astype(str) + "-" + df_t["Mois"].astype(str).str.zfill(2)
             df_chart = df_t.groupby(["Periode", "Categorie"])["Montant"].sum().reset_index()
-            fig = px.line(df_chart, x="Periode", y="Montant", color="Categorie", markers=True, color_discrete_sequence=px.colors.qualitative.Prism)
+            
+            fig = px.line(
+                df_chart, 
+                x="Periode", 
+                y="Montant", 
+                color="Categorie", 
+                markers=True,
+                color_discrete_sequence=px.colors.qualitative.Set3,
+                title=f"Tendances de dépenses par catégorie"
+            )
+            
+            fig.update_layout(
+                font=dict(size=13, family='Inter'),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                height=500,
+                xaxis_title="Période",
+                yaxis_title="Montant (€)",
+                hovermode='x unified',
+                legend=dict(
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02
+                )
+            )
+            
+            fig.update_xaxis(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+            fig.update_yaxis(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.05)')
+            
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("📊 Aucune donnée disponible")
 
 # 4. BUDGET - AVEC CONFIGURATION DES OBJECTIFS
 with tabs[4]:
@@ -687,13 +839,25 @@ with tabs[4]:
         df_c = df_display[df_display["Scope"] == "Commun"]
         df_pierre = df_display[df_display["Scope"] == "Pierre"]
         df_elie = df_display[df_display["Scope"] == "Elie"]
+        df_perso = df_display[df_display["Scope"] == "Perso"]  # Ancien format
         
+        # Affichage en 2 colonnes
         col_budget = st.columns(2)
         
         with col_budget[0]:
             if not df_c.empty:
                 st.markdown("**🏠 Commun**")
                 st.dataframe(df_c, column_config={
+                    "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
+                    "Budget": st.column_config.NumberColumn(format="%.0f€"), 
+                    "Réel": st.column_config.NumberColumn(format="%.0f€"), 
+                    "Reste": st.column_config.NumberColumn(format="%.0f€")
+                }, hide_index=True, use_container_width=True)
+            
+            # Affichage Perso (ancien format) dans la 1ère colonne
+            if not df_perso.empty:
+                st.markdown(f"**👤 Perso ({user_actuel})**")
+                st.dataframe(df_perso, column_config={
                     "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
                     "Budget": st.column_config.NumberColumn(format="%.0f€"), 
                     "Réel": st.column_config.NumberColumn(format="%.0f€"), 
@@ -710,6 +874,7 @@ with tabs[4]:
                     "Reste": st.column_config.NumberColumn(format="%.0f€")
                 }, hide_index=True, use_container_width=True)
         
+        # Elie en pleine largeur si présent
         if not df_elie.empty:
             st.markdown("**👤 Elie**")
             st.dataframe(df_elie, column_config={
@@ -721,29 +886,181 @@ with tabs[4]:
     else: 
         st.info("Aucun budget configuré. Utilisez le bouton ci-dessus pour configurer vos objectifs.")
 
-# 5. CHARGES FIXES
+# 5. CHARGES FIXES - SYSTÈME REVU
 with tabs[5]:
-    page_header("Charges Fixes & Abonnements", "Automatisez vos dépenses récurrentes")
-    with st.expander("➕ Créer"):
-        with st.form("new_abo"):
-            c1, c2, c3, c4 = st.columns(4)
-            nom = c1.text_input("Nom"); mt = c2.number_input("Montant"); j = c3.number_input("Jour", 1, 31, 1); freq = c4.selectbox("Fréquence", FREQUENCES)
-            c5, c6, c7 = st.columns(3)
-            cat = c5.selectbox("Catégorie", cats_memoire.get("Dépense", [])); cpt = c6.selectbox("Compte", comptes_disponibles); imp = c7.radio("Imputation", IMPUTATIONS)
-            if st.form_submit_button("Ajouter"):
-                row = pd.DataFrame([{"Nom": nom, "Montant": mt, "Jour": j, "Categorie": cat, "Compte_Source": cpt, "Proprietaire": user_actuel, "Imputation": imp, "Frequence": freq}])
-                df_abonnements = pd.concat([df_abonnements, row], ignore_index=True); save_abonnements(df_abonnements); st.rerun()
+    page_header("Charges Fixes & Abonnements", "Gérez vos dépenses récurrentes")
+    
+    # Affichage et gestion des abonnements existants
     if not df_abonnements.empty:
-        my_abos = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"] == "Commun (50/50)")]
-        st.dataframe(my_abos, use_container_width=True, hide_index=True)
-        if st.button("Générer dépenses du mois"):
-            new_rows = []
-            for _, row in my_abos.iterrows():
-                if row.get("Frequence") == "Mensuel" or not row.get("Frequence"):
-                    try: d = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
-                    except: d = datetime(annee_selection, mois_selection, 28).date()
-                    new_rows.append({"Date": d, "Mois": mois_selection, "Annee": annee_selection, "Qui_Connecte": user_actuel, "Type": "Dépense", "Categorie": row["Categorie"], "Titre": row["Nom"], "Description": "Abonnement Auto", "Montant": float(row["Montant"]), "Paye_Par": user_actuel, "Imputation": row["Imputation"], "Compte_Cible": "", "Projet_Epargne": "", "Compte_Source": row["Compte_Source"]})
-            df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True); save_data_to_sheet(TAB_DATA, df); st.success("Généré"); time.sleep(1); st.rerun()
+        st.markdown("### 📋 Mes Abonnements")
+        
+        # Filtrer selon l'utilisateur et les abonnements communs
+        my_abos = df_abonnements[
+            (df_abonnements["Proprietaire"] == user_actuel) | 
+            (df_abonnements["Imputation"].str.contains("Commun", na=False))
+        ].copy()
+        
+        if not my_abos.empty:
+            # Affichage des abonnements avec boutons de suppression
+            for idx, row in my_abos.iterrows():
+                col_abo = st.columns([3, 1, 1, 1, 1, 1])
+                
+                with col_abo[0]:
+                    st.write(f"**{row['Nom']}**")
+                    st.caption(f"{row['Categorie']}")
+                
+                with col_abo[1]:
+                    st.write(f"**{row['Montant']:.2f}€**")
+                
+                with col_abo[2]:
+                    st.write(f"Jour {row['Jour']}")
+                
+                with col_abo[3]:
+                    freq_display = row.get('Frequence', 'Mensuel')
+                    st.write(freq_display)
+                
+                with col_abo[4]:
+                    # Badge d'imputation
+                    if "Commun" in str(row['Imputation']):
+                        st.markdown("🏠 Commun")
+                    else:
+                        st.markdown("👤 Perso")
+                
+                with col_abo[5]:
+                    # Bouton supprimer
+                    if st.button("🗑️", key=f"del_abo_{idx}", help="Supprimer cet abonnement"):
+                        df_abonnements = df_abonnements.drop(idx)
+                        save_abonnements(df_abonnements)
+                        st.success("Abonnement supprimé !")
+                        time.sleep(0.5)
+                        st.rerun()
+                
+                st.markdown("---")
+            
+            st.markdown("---")
+            
+            # Bouton pour générer les dépenses du mois
+            col_gen1, col_gen2 = st.columns([3, 1])
+            with col_gen1:
+                st.info(f"💡 Cliquez pour générer automatiquement les dépenses récurrentes de **{mois_nom} {annee_selection}**")
+            with col_gen2:
+                if st.button("🔄 Générer ce mois", type="primary", use_container_width=True):
+                    new_rows = []
+                    
+                    for _, row in my_abos.iterrows():
+                        freq = row.get("Frequence", "Mensuel")
+                        
+                        # Vérifier si on doit générer ce mois
+                        should_generate = False
+                        if freq == "Mensuel":
+                            should_generate = True
+                        elif freq == "Trimestriel":
+                            should_generate = mois_selection in [1, 4, 7, 10]
+                        elif freq == "Annuel":
+                            should_generate = mois_selection == 1
+                        elif freq == "Hebdomadaire":
+                            should_generate = True  # On génère quand même une fois par mois
+                        
+                        if should_generate:
+                            # Calculer la date
+                            try: 
+                                d = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
+                            except: 
+                                d = datetime(annee_selection, mois_selection, 28).date()
+                            
+                            # Vérifier si la dépense n'existe pas déjà
+                            exists = False
+                            if not df.empty:
+                                exists = not df[
+                                    (df["Date"] == d) &
+                                    (df["Titre"] == row["Nom"]) &
+                                    (df["Montant"] == float(row["Montant"])) &
+                                    (df["Description"].str.contains("Abonnement", na=False))
+                                ].empty
+                            
+                            if not exists:
+                                # Déterminer qui paye
+                                imputation = row["Imputation"]
+                                if "Commun" in str(imputation):
+                                    paye_par = "Commun"
+                                else:
+                                    paye_par = row["Proprietaire"]
+                                
+                                new_rows.append({
+                                    "Date": d, 
+                                    "Mois": mois_selection, 
+                                    "Annee": annee_selection, 
+                                    "Qui_Connecte": row["Proprietaire"], 
+                                    "Type": "Dépense", 
+                                    "Categorie": row["Categorie"], 
+                                    "Titre": row["Nom"], 
+                                    "Description": f"Abonnement {freq} (Auto)", 
+                                    "Montant": float(row["Montant"]), 
+                                    "Paye_Par": paye_par, 
+                                    "Imputation": imputation, 
+                                    "Compte_Cible": "", 
+                                    "Projet_Epargne": "", 
+                                    "Compte_Source": row["Compte_Source"]
+                                })
+                    
+                    if new_rows:
+                        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+                        save_data_to_sheet(TAB_DATA, df)
+                        st.success(f"✅ {len(new_rows)} dépense(s) générée(s) pour {mois_nom} !")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.warning("Toutes les dépenses de ce mois ont déjà été générées !")
+        else:
+            st.info("Aucun abonnement visible pour cet utilisateur")
+    else:
+        st.info("Aucun abonnement configuré")
+    
+    st.markdown("---")
+    
+    # Formulaire d'ajout
+    with st.expander("➕ Ajouter un nouvel abonnement", expanded=False):
+        st.markdown("**Créer une charge fixe récurrente**")
+        
+        c1, c2, c3, c4 = st.columns(4)
+        nom_abo = c1.text_input("Nom de l'abonnement", placeholder="Ex: Netflix, EDF...", key="nom_abo")
+        mt_abo = c2.number_input("Montant (€)", min_value=0.0, step=0.01, key="mt_abo")
+        j_abo = c3.number_input("Jour de prélèvement", min_value=1, max_value=31, value=1, key="j_abo")
+        freq_abo = c4.selectbox("Fréquence", FREQUENCES, key="freq_abo")
+        
+        c5, c6, c7 = st.columns(3)
+        cat_abo = c5.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_abo")
+        cpt_abo = c6.selectbox("Compte", comptes_disponibles, key="cpt_abo")
+        imp_abo = c7.radio("Imputation", IMPUTATIONS, key="imp_abo")
+        
+        # Gestion du pourcentage pour Commun (Autre %)
+        if imp_abo == "Commun (Autre %)":
+            st.markdown("**📊 Répartition personnalisée**")
+            pct_abo_col1, pct_abo_col2 = st.columns(2)
+            pct_pierre_abo = pct_abo_col1.slider("% Pierre", min_value=0, max_value=100, value=60, step=5, key="pct_pierre_abo")
+            pct_elie_abo = 100 - pct_pierre_abo
+            pct_abo_col2.metric("% Elie", f"{pct_elie_abo}%")
+            imp_abo = f"Commun ({pct_pierre_abo}/{pct_elie_abo})"
+        
+        if st.button("✅ Créer l'abonnement", use_container_width=True, type="primary", key="btn_add_abo"):
+            if nom_abo and mt_abo > 0 and cat_abo:
+                row = pd.DataFrame([{
+                    "Nom": nom_abo, 
+                    "Montant": mt_abo, 
+                    "Jour": j_abo, 
+                    "Categorie": cat_abo, 
+                    "Compte_Source": cpt_abo, 
+                    "Proprietaire": user_actuel, 
+                    "Imputation": imp_abo, 
+                    "Frequence": freq_abo
+                }])
+                df_abonnements = pd.concat([df_abonnements, row], ignore_index=True)
+                save_abonnements(df_abonnements)
+                st.success(f"✅ Abonnement '{nom_abo}' créé !")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("⚠️ Veuillez remplir tous les champs obligatoires")
 
 # 6. JOURNAL
 with tabs[6]:
