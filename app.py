@@ -481,4 +481,7 @@ with tabs[1]:
                 st.download_button(
                     label="⬇️ Télécharger",
                     data=excel_data,
-                    file_name=f"transactions_{datetime.now().strftime('%Y%m%
+                    file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_excel"
+                )
