@@ -23,7 +23,7 @@ USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
 # AJOUT DU CHOIX DE POURCENTAGE DANS IMPUTATIONS
 IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
-FREQUENCES = ["Hebdomadaire", "Mensuel", "Trimestriel", "Annuel"]
+FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
@@ -365,7 +365,7 @@ with st.sidebar:
     st.markdown(f"**ÉPARGNE** <span style='float:right; font-size:12px; color:#6B7280;'>{total_epargne:,.0f}€</span>", unsafe_allow_html=True)
     for name, val in list_epargne: draw_account_card(name, val, True)
     st.markdown("---")
-    if st.button("🔄 Actualiser"): clear_cache(); st.rerun()
+    if st.button(" Actualiser"): clear_cache(); st.rerun()
 
 # --- MAIN ---
 c_filt1, c_filt2, c_filt3 = st.columns([1, 1, 4])
@@ -410,108 +410,126 @@ with tabs[0]:
 # 1. SAISIR - AVEC CORRECTIONS
 with tabs[1]:
     page_header("Nouvelle Transaction", "Enregistrez une dépense, un revenu ou un virement")
-    with st.form("add_op", clear_on_submit=True):
-        c1, c2, c3 = st.columns(3)
-        date_op = c1.date_input("Date", datetime.today())
-        type_op = c2.selectbox("Type", TYPES)
-        montant_op = c3.number_input("Montant (€)", min_value=0.0, step=0.01)
-        c4, c5 = st.columns(2)
-        titre_op = c4.text_input("Titre", placeholder="Libellé...")
+    
+    # Pas de st.form pour permettre les widgets conditionnels
+    c1, c2, c3 = st.columns(3)
+    date_op = c1.date_input("Date", datetime.today(), key="date_transaction")
+    type_op = c2.selectbox("Type", TYPES, key="type_transaction")
+    montant_op = c3.number_input("Montant (€)", min_value=0.0, step=0.01, key="montant_transaction")
+    
+    c4, c5 = st.columns(2)
+    titre_op = c4.text_input("Titre", placeholder="Libellé...", key="titre_transaction")
+    
+    # CORRECTION 3: GESTION "AUTRE" AVEC SAUVEGARDE AUTOMATIQUE
+    cat_finale = ""
+    if type_op == "Virement Interne": 
+        c5.info("Virement de fonds")
+        cat_finale = "Virement"
+    else:
+        cats = cats_memoire.get(type_op, [])
+        cat_sel = c5.selectbox("Catégorie", cats + ["➕ Autre (nouvelle)"], key="cat_transaction")
         
-        # CORRECTION 2: GESTION "AUTRE" AVEC SAUVEGARDE AUTOMATIQUE
-        cat_finale = ""
-        if type_op == "Virement Interne": 
-            c5.info("Virement de fonds")
-            cat_finale = "Virement"
+        if cat_sel == "➕ Autre (nouvelle)":
+            cat_finale = c5.text_input("Nom de la catégorie", placeholder="Ex: Cadeaux, Voyages...", key="cat_autre_transaction")
         else:
-            cats = cats_memoire.get(type_op, [])
-            cat_sel = c5.selectbox("Catégorie", cats + ["➕ Autre (nouvelle)"])
-            
-            if cat_sel == "➕ Autre (nouvelle)":
-                cat_finale = c5.text_input("Nom de la catégorie", placeholder="Ex: Cadeaux, Voyages...")
-            else:
-                cat_finale = cat_sel
+            cat_finale = cat_sel
+    
+    st.write("")
+    
+    # Initialize variables
+    c_src = ""; c_tgt = ""; p_epg = ""; p_par = user_actuel; imput = "Perso"
+    
+    # CORRECTION 2: VIREMENT ET EPARGNE
+    if type_op == "Épargne":
+        st.markdown("**💰 Mouvement d'Épargne**")
+        ce1, ce2, ce3 = st.columns(3)
+        c_src = ce1.selectbox("Compte Source (Débit)", comptes_disponibles, key="epargne_src")
+        c_tgt = ce2.selectbox("Compte Cible (Destination)", comptes_disponibles, key="epargne_tgt")
+        projs = list(projets_config.keys()) + ["Nouveau", "Aucun projet"]
+        p_sel = ce3.selectbox("Projet lié", projs, key="epargne_projet")
         
-        st.write("")
-        if type_op == "Épargne":
-            st.markdown("**💰 Mouvement d'Épargne**")
-            ce1, ce2, ce3 = st.columns(3)
-            c_src = ce1.selectbox("Compte Source (Débit)", comptes_disponibles)
-            # Permettre tous les comptes comme destination
-            c_tgt = ce2.selectbox("Compte Cible (Destination)", comptes_disponibles)
-            projs = list(projets_config.keys()) + ["Nouveau", "Aucun projet"]
-            p_sel = ce3.selectbox("Projet lié", projs)
-            if p_sel == "Nouveau":
-                p_epg = st.text_input("Nom Nouveau Projet")
-            elif p_sel == "Aucun projet":
-                p_epg = ""
-            else:
-                p_epg = p_sel
-            p_par = user_actuel; imput = "Perso"
-        elif type_op == "Virement Interne":
-            st.markdown("**🔄 Virement Interne**")
-            cv1, cv2 = st.columns(2)
-            c_src = cv1.selectbox("Compte Débit", comptes_disponibles)
-            c_tgt = cv2.selectbox("Compte Crédit", comptes_disponibles)
-            p_epg = ""; p_par = "Virement"; imput = "Neutre"
+        if p_sel == "Nouveau":
+            p_epg = st.text_input("Nom Nouveau Projet", key="epargne_nouveau_projet")
+        elif p_sel == "Aucun projet":
+            p_epg = ""
         else:
-            st.markdown("**💳 Détails Paiement**")
-            cc1, cc2, cc3 = st.columns(3)
-            c_src = cc1.selectbox("Compte", comptes_disponibles)
-            p_par = cc2.selectbox("Payé par", ["Pierre", "Elie", "Commun"])
-            imput = cc3.radio("Imputation", IMPUTATIONS)
-            
-            # CORRECTION 1: GESTION DU POURCENTAGE
-            if imput == "Commun (Autre %)":
-                st.markdown("**📊 Répartition personnalisée**")
-                pct_col1, pct_col2 = st.columns(2)
-                pct_pierre = pct_col1.slider("% Pierre", min_value=0, max_value=100, value=60, step=5)
-                pct_elie = 100 - pct_pierre
-                pct_col2.metric("% Elie", f"{pct_elie}%")
-                imput = f"Commun ({pct_pierre}/{pct_elie})"
-            
-            c_tgt = ""; p_epg = ""
-            
-        st.write("")
-        desc = st.text_area("Note", height=60)
+            p_epg = p_sel
+        p_par = user_actuel
+        imput = "Perso"
         
-        if st.form_submit_button("✅ Enregistrer", use_container_width=True):
-            if not cat_finale: 
-                st.error("Veuillez sélectionner ou créer une catégorie")
-            else:
-                if not titre_op: titre_op = cat_finale
-                
-                # Sauvegarde automatique de la nouvelle catégorie
-                if type_op != "Virement Interne" and cat_finale not in cats_memoire.get(type_op, []):
-                    if type_op not in cats_memoire: cats_memoire[type_op] = []
-                    cats_memoire[type_op].append(cat_finale)
-                    save_config_cats(cats_memoire)
-                
-                if type_op == "Épargne" and p_epg and p_epg not in projets_config:
-                    projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
-                    save_projets_targets(projets_config)
-                
-                new_row = {
-                    "Date": date_op, 
-                    "Mois": date_op.month, 
-                    "Annee": date_op.year, 
-                    "Qui_Connecte": user_actuel, 
-                    "Type": type_op, 
-                    "Categorie": cat_finale, 
-                    "Titre": titre_op, 
-                    "Description": desc, 
-                    "Montant": montant_op, 
-                    "Paye_Par": p_par, 
-                    "Imputation": imput, 
-                    "Compte_Cible": c_tgt, 
-                    "Projet_Epargne": p_epg, 
-                    "Compte_Source": c_src
-                }
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                save_data_to_sheet(TAB_DATA, df)
-                st.success("✅ Transaction enregistrée !")
-                time.sleep(1)
-                st.rerun()
+    elif type_op == "Virement Interne":
+        st.markdown("**🔄 Virement Interne**")
+        cv1, cv2 = st.columns(2)
+        c_src = cv1.selectbox("Compte Débit", comptes_disponibles, key="virement_src")
+        c_tgt = cv2.selectbox("Compte Crédit", comptes_disponibles, key="virement_tgt")
+        p_epg = ""
+        p_par = "Virement"
+        imput = "Neutre"
+        
+    else:
+        st.markdown("**💳 Détails Paiement**")
+        cc1, cc2, cc3 = st.columns(3)
+        c_src = cc1.selectbox("Compte", comptes_disponibles, key="depense_compte")
+        p_par = cc2.selectbox("Payé par", ["Pierre", "Elie", "Commun"], key="depense_par")
+        imput = cc3.radio("Imputation", IMPUTATIONS, key="depense_imput")
+        
+        # CORRECTION 1: GESTION DU POURCENTAGE
+        if imput == "Commun (Autre %)":
+            st.markdown("**📊 Répartition personnalisée**")
+            pct_col1, pct_col2 = st.columns(2)
+            pct_pierre = pct_col1.slider("% Pierre", min_value=0, max_value=100, value=60, step=5, key="pct_pierre")
+            pct_elie = 100 - pct_pierre
+            pct_col2.metric("% Elie", f"{pct_elie}%")
+            imput = f"Commun ({pct_pierre}/{pct_elie})"
+        
+        c_tgt = ""
+        p_epg = ""
+    
+    st.write("")
+    desc = st.text_area("Note", height=60, key="desc_transaction")
+    
+    # Bouton d'enregistrement
+    if st.button("✅ Enregistrer", use_container_width=True, type="primary", key="btn_enregistrer_transaction"):
+        if not cat_finale: 
+            st.error("Veuillez sélectionner ou créer une catégorie")
+        elif not c_src and type_op != "Revenu":
+            st.error("Veuillez sélectionner un compte source")
+        else:
+            if not titre_op: 
+                titre_op = cat_finale
+            
+            # Sauvegarde automatique de la nouvelle catégorie
+            if type_op != "Virement Interne" and cat_finale not in cats_memoire.get(type_op, []):
+                if type_op not in cats_memoire: 
+                    cats_memoire[type_op] = []
+                cats_memoire[type_op].append(cat_finale)
+                save_config_cats(cats_memoire)
+            
+            if type_op == "Épargne" and p_epg and p_epg not in projets_config:
+                projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
+                save_projets_targets(projets_config)
+            
+            new_row = {
+                "Date": date_op, 
+                "Mois": date_op.month, 
+                "Annee": date_op.year, 
+                "Qui_Connecte": user_actuel, 
+                "Type": type_op, 
+                "Categorie": cat_finale, 
+                "Titre": titre_op, 
+                "Description": desc, 
+                "Montant": montant_op, 
+                "Paye_Par": p_par, 
+                "Imputation": imput, 
+                "Compte_Cible": c_tgt, 
+                "Projet_Epargne": p_epg, 
+                "Compte_Source": c_src
+            }
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            save_data_to_sheet(TAB_DATA, df)
+            st.success("✅ Transaction enregistrée !")
+            time.sleep(1)
+            st.rerun()
 
 # 2. TRESORERIE
 with tabs[2]:
@@ -557,31 +575,151 @@ with tabs[3]:
             fig = px.line(df_chart, x="Periode", y="Montant", color="Categorie", markers=True, color_discrete_sequence=px.colors.qualitative.Prism)
             st.plotly_chart(fig, use_container_width=True)
 
-# 4. BUDGET
+# 4. BUDGET - AVEC CONFIGURATION DES OBJECTIFS
 with tabs[4]:
     page_header(f"Suivi Budgétaire {mois_nom}", "Comparez vos dépenses réelles à vos objectifs")
+    
+    # Configuration des objectifs en haut
+    with st.expander("⚙️ Configurer mes objectifs budgétaires", expanded=False):
+        st.markdown("**Ajouter un objectif**")
+        with st.form("add_objectif_budget"):
+            c_obj1, c_obj2, c_obj3, c_obj4 = st.columns([2, 2, 2, 1])
+            # Permettre de choisir la personne ou Commun
+            scope_options = ["Commun", "Pierre", "Elie"]
+            scope_new = c_obj1.selectbox("Pour qui ?", scope_options, key="scope_new_obj")
+            cat_new = c_obj2.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_new_obj")
+            montant_new = c_obj3.number_input("Montant (€)", min_value=0.0, step=10.0, key="montant_new_obj")
+            
+            if c_obj4.form_submit_button("➕ Ajouter", use_container_width=True):
+                if cat_new and montant_new > 0:
+                    # Check if already exists
+                    existing = False
+                    for obj in objectifs_list:
+                        if obj["Scope"] == scope_new and obj["Categorie"] == cat_new:
+                            existing = True
+                            break
+                    
+                    if existing:
+                        st.warning(f"Un objectif existe déjà pour {scope_new} - {cat_new}")
+                    else:
+                        objectifs_list.append({"Scope": scope_new, "Categorie": cat_new, "Montant": montant_new})
+                        save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                        st.success(f"✅ Objectif ajouté : {scope_new} / {cat_new} = {montant_new}€")
+                        time.sleep(0.5)
+                        st.rerun()
+        
+        st.markdown("---")
+        st.markdown("**Mes objectifs actuels**")
+        
+        if objectifs_list:
+            # Group by scope
+            for scope in ["Commun", "Pierre", "Elie"]:
+                scope_objs = [obj for obj in objectifs_list if obj.get("Scope") == scope]
+                if scope_objs:
+                    st.markdown(f"**{scope}**")
+                    for idx, obj in enumerate(scope_objs):
+                        col_o1, col_o2, col_o3, col_o4 = st.columns([3, 2, 1, 1])
+                        
+                        with col_o1:
+                            st.write(obj['Categorie'])
+                        with col_o2:
+                            # Editable amount
+                            new_amount = st.number_input(
+                                "Montant", 
+                                value=float(obj['Montant']), 
+                                min_value=0.0, 
+                                step=10.0,
+                                key=f"edit_obj_{scope}_{idx}",
+                                label_visibility="collapsed"
+                            )
+                        with col_o3:
+                            if new_amount != float(obj['Montant']):
+                                if st.button("💾", key=f"save_obj_{scope}_{idx}", help="Sauvegarder"):
+                                    # Find and update
+                                    for i, o in enumerate(objectifs_list):
+                                        if o['Scope'] == scope and o['Categorie'] == obj['Categorie']:
+                                            objectifs_list[i]['Montant'] = new_amount
+                                            break
+                                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                                    st.success("Modifié !")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                        with col_o4:
+                            if st.button("✕", key=f"del_obj_{scope}_{idx}", help="Supprimer"):
+                                # Find and remove
+                                for i, o in enumerate(objectifs_list):
+                                    if o['Scope'] == scope and o['Categorie'] == obj['Categorie']:
+                                        objectifs_list.pop(i)
+                                        break
+                                save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                                st.success("Supprimé !")
+                                time.sleep(0.5)
+                                st.rerun()
+                    st.markdown("---")
+        else:
+            st.caption("Aucun objectif configuré")
+    
+    st.markdown("---")
+    
+    # Affichage du suivi budgétaire
     df_budget = pd.DataFrame(objectifs_list)
     if not df_budget.empty:
         budget_data = []
         for _, row in df_budget.iterrows():
             scope = row["Scope"]; cat = row["Categorie"]; cible = float(row["Montant"])
             mask = (df_mois["Type"] == "Dépense") & (df_mois["Categorie"] == cat)
-            if scope == "Commun": mask = mask & (df_mois["Imputation"] == "Commun (50/50)")
-            else: mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
+            
+            # Adapter le filtre selon le scope
+            if scope == "Commun": 
+                mask = mask & (df_mois["Imputation"] == "Commun (50/50)")
+            elif scope in ["Pierre", "Elie"]:
+                mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == scope)
+            else:  # Fallback pour ancien format "Perso"
+                mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
+            
             reel = df_mois[mask]["Montant"].sum()
             ratio = reel / cible if cible > 0 else 0
             budget_data.append({"Catégorie": cat, "Scope": scope, "Budget": cible, "Réel": reel, "Reste": cible - reel, "Progression": min(ratio, 1.0)})
+        
         df_display = pd.DataFrame(budget_data)
+        
+        # Afficher par scope
         df_c = df_display[df_display["Scope"] == "Commun"]
-        df_p = df_display[df_display["Scope"] == "Perso"]
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("**🏠 Commun**")
-            st.dataframe(df_c, column_config={"Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), "Budget": st.column_config.NumberColumn(format="%.0f€"), "Réel": st.column_config.NumberColumn(format="%.0f€"), "Reste": st.column_config.NumberColumn(format="%.0f€")}, hide_index=True, use_container_width=True)
-        with c2:
-            st.markdown(f"**👤 Perso ({user_actuel})**")
-            st.dataframe(df_p, column_config={"Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), "Budget": st.column_config.NumberColumn(format="%.0f€"), "Réel": st.column_config.NumberColumn(format="%.0f€"), "Reste": st.column_config.NumberColumn(format="%.0f€")}, hide_index=True, use_container_width=True)
-    else: st.info("Aucun budget configuré.")
+        df_pierre = df_display[df_display["Scope"] == "Pierre"]
+        df_elie = df_display[df_display["Scope"] == "Elie"]
+        
+        col_budget = st.columns(2)
+        
+        with col_budget[0]:
+            if not df_c.empty:
+                st.markdown("**🏠 Commun**")
+                st.dataframe(df_c, column_config={
+                    "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
+                    "Budget": st.column_config.NumberColumn(format="%.0f€"), 
+                    "Réel": st.column_config.NumberColumn(format="%.0f€"), 
+                    "Reste": st.column_config.NumberColumn(format="%.0f€")
+                }, hide_index=True, use_container_width=True)
+        
+        with col_budget[1]:
+            if not df_pierre.empty:
+                st.markdown("**👤 Pierre**")
+                st.dataframe(df_pierre, column_config={
+                    "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
+                    "Budget": st.column_config.NumberColumn(format="%.0f€"), 
+                    "Réel": st.column_config.NumberColumn(format="%.0f€"), 
+                    "Reste": st.column_config.NumberColumn(format="%.0f€")
+                }, hide_index=True, use_container_width=True)
+        
+        if not df_elie.empty:
+            st.markdown("**👤 Elie**")
+            st.dataframe(df_elie, column_config={
+                "Progression": st.column_config.ProgressColumn("Conso", format="%.0f%%", min_value=0, max_value=1), 
+                "Budget": st.column_config.NumberColumn(format="%.0f€"), 
+                "Réel": st.column_config.NumberColumn(format="%.0f€"), 
+                "Reste": st.column_config.NumberColumn(format="%.0f€")
+            }, hide_index=True, use_container_width=True)
+    else: 
+        st.info("Aucun budget configuré. Utilisez le bouton ci-dessus pour configurer vos objectifs.")
 
 # 5. CHARGES FIXES
 with tabs[5]:
@@ -655,13 +793,9 @@ with tabs[7]:
                 pct = saved/target if target > 0 else 0
                 st.progress(min(pct, 1.0))
 
-# 8. CONFIG - CORRECTION 3: INTERFACE SIMPLE CATEGORIES
+# 8. CONFIG - SIMPLIFIE SANS OBJECTIFS
 with tabs[8]:
-    page_header("Configuration & Budgets", "Gérez vos comptes, catégories et objectifs budgétaires")
-    
-    # Initialize session state for category order if not exists
-    if 'category_order' not in st.session_state:
-        st.session_state.category_order = {}
+    page_header("Configuration & Budgets", "Gérez vos comptes et catégories")
     
     st.markdown("### 1. Gestion des Catégories")
     st.info("💡 Ajoutez, supprimez ou réorganisez vos catégories par type de transaction")
@@ -670,10 +804,6 @@ with tabs[8]:
     
     # Get current categories for this type
     current_cats = cats_memoire.get(type_cat_selected, [])
-    
-    # Initialize order for this type if needed
-    if type_cat_selected not in st.session_state.category_order:
-        st.session_state.category_order[type_cat_selected] = current_cats.copy()
     
     col_add1, col_add2 = st.columns([3, 1])
     with col_add1:
@@ -693,7 +823,7 @@ with tabs[8]:
     st.markdown("---")
     st.markdown(f"**Catégories actuelles** ({len(current_cats)})")
     
-    # Display categories with delete buttons
+    # Display categories with simple list
     if current_cats:
         for idx, cat in enumerate(current_cats):
             col_cat1, col_cat2, col_cat3, col_cat4 = st.columns([1, 5, 1, 1])
@@ -702,12 +832,7 @@ with tabs[8]:
                 st.write(f"**{idx+1}**")
             
             with col_cat2:
-                st.markdown(f"""
-                <div class="category-item">
-                    <span class="drag-handle">⋮⋮</span>
-                    <span class="category-name">{cat}</span>
-                </div>
-                """, unsafe_allow_html=True)
+                st.write(cat)
             
             with col_cat3:
                 # Move up button
@@ -769,76 +894,6 @@ with tabs[8]:
     display_accounts_list("Pierre", col_p)
     display_accounts_list("Elie", col_e)
     display_accounts_list("Commun", col_c)
-
-    st.markdown("---")
-    st.markdown("### 3. Objectifs Budgétaires")
-    st.info("💡 Définissez vos budgets mensuels par catégorie de dépenses")
-    
-    # Interface simplifiée pour ajouter un objectif
-    with st.form("add_objectif"):
-        st.markdown("**Ajouter un objectif**")
-        c_obj1, c_obj2, c_obj3, c_obj4 = st.columns([2, 2, 2, 1])
-        scope_new = c_obj1.selectbox("Scope", ["Perso", "Commun"], key="scope_new_obj")
-        cat_new = c_obj2.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="cat_new_obj")
-        montant_new = c_obj3.number_input("Montant (€)", min_value=0.0, step=10.0, key="montant_new_obj")
-        
-        if c_obj4.form_submit_button("➕ Ajouter", use_container_width=True):
-            if cat_new and montant_new > 0:
-                # Check if already exists
-                existing = False
-                for obj in objectifs_list:
-                    if obj["Scope"] == scope_new and obj["Categorie"] == cat_new:
-                        existing = True
-                        break
-                
-                if existing:
-                    st.warning(f"Un objectif existe déjà pour {scope_new} - {cat_new}")
-                else:
-                    objectifs_list.append({"Scope": scope_new, "Categorie": cat_new, "Montant": montant_new})
-                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                    st.success(f"✅ Objectif ajouté : {cat_new} = {montant_new}€")
-                    time.sleep(0.5)
-                    st.rerun()
     
     st.markdown("---")
-    st.markdown("**Objectifs actuels**")
-    
-    if objectifs_list:
-        # Display as cards with edit/delete
-        for idx, obj in enumerate(objectifs_list):
-            col_o1, col_o2, col_o3, col_o4, col_o5 = st.columns([2, 2, 2, 1, 1])
-            
-            with col_o1:
-                st.write(f"**{obj['Scope']}**")
-            with col_o2:
-                st.write(obj['Categorie'])
-            with col_o3:
-                # Editable amount
-                new_amount = st.number_input(
-                    "Montant", 
-                    value=float(obj['Montant']), 
-                    min_value=0.0, 
-                    step=10.0,
-                    key=f"edit_obj_{idx}",
-                    label_visibility="collapsed"
-                )
-                if new_amount != float(obj['Montant']):
-                    if st.button("💾", key=f"save_obj_{idx}", help="Sauvegarder"):
-                        objectifs_list[idx]['Montant'] = new_amount
-                        save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                        st.success("Modifié !")
-                        time.sleep(0.5)
-                        st.rerun()
-            with col_o4:
-                st.metric("", f"{obj['Montant']}€", label_visibility="collapsed")
-            with col_o5:
-                if st.button("✕", key=f"del_obj_{idx}", help="Supprimer"):
-                    objectifs_list.pop(idx)
-                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                    st.success("Supprimé !")
-                    time.sleep(0.5)
-                    st.rerun()
-            
-            st.markdown("---")
-    else:
-        st.caption("Aucun objectif budgétaire configuré")
+    st.info("💡 Les objectifs budgétaires se configurent dans l'onglet 'Suivi Budgétaire'")
