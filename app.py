@@ -26,14 +26,14 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# --- STYLE CSS (GOOGLE MATERIAL DESIGN) ---
+# --- STYLE CSS (GOOGLE MATERIAL) ---
 def apply_custom_style():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
         
         :root {
-            --primary: #DA7756; /* Orange Claude */
+            --primary: #DA7756;
             --bg-light: #F8F9FA;
             --text-dark: #202124;
             --text-grey: #5F6368;
@@ -45,7 +45,6 @@ def apply_custom_style():
             color: var(--text-dark);
         }
         
-        /* Layout Full Width */
         .main .block-container {
             padding-top: 1rem !important;
             padding-left: 2rem !important;
@@ -55,13 +54,12 @@ def apply_custom_style():
         
         #MainMenu, footer, header {visibility: hidden;}
 
-        /* --- NAVIGATION GOOGLE STYLE --- */
+        /* TABS GOOGLE STYLE */
         .stTabs [data-baseweb="tab-list"] {
             gap: 20px;
             border-bottom: 1px solid #E0E0E0;
             padding-bottom: 0px;
         }
-        
         .stTabs [data-baseweb="tab"] {
             height: 48px;
             background-color: transparent;
@@ -73,37 +71,28 @@ def apply_custom_style():
             letter-spacing: 0.5px;
             padding: 0 10px;
         }
-        
         .stTabs [data-baseweb="tab"]:hover {
             color: var(--primary);
             background-color: rgba(218, 119, 86, 0.04);
         }
-        
         .stTabs [aria-selected="true"] {
             color: var(--primary) !important;
             border-bottom: 3px solid var(--primary) !important;
         }
 
-        /* --- HEADERS --- */
-        h1, h2, h3 {
-            color: var(--text-dark) !important;
-            font-family: 'Roboto', sans-serif;
-        }
+        h1, h2, h3 { color: var(--text-dark) !important; font-family: 'Roboto', sans-serif; }
         
-        /* --- CARTES --- */
         div[data-testid="stMetric"], div.stDataFrame, div.stForm, div.block-container > div {
             border: 1px solid #E0E0E0 !important;
             border-radius: 8px !important;
             box-shadow: none !important;
         }
         
-        /* --- SIDEBAR --- */
         section[data-testid="stSidebar"] {
             background-color: #F8F9FA;
             border-right: 1px solid #E0E0E0;
         }
         
-        /* --- INPUTS --- */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
             background-color: #F1F3F4 !important;
             border: none !important;
@@ -111,7 +100,6 @@ def apply_custom_style():
             height: 40px;
         }
         
-        /* --- BOUTONS --- */
         div.stButton > button {
             background-color: var(--primary) !important;
             color: white !important;
@@ -268,7 +256,7 @@ def save_projets_targets(d):
 
 
 # --- APP START ---
-st.set_page_config(page_title="Budget App", layout="wide", page_icon="🏦")
+st.set_page_config(page_title="Ma Banque V51", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -281,21 +269,10 @@ def get_comptes_autorises(user): return comptes_structure.get(user, []) + compte
 all_my_accounts = get_comptes_autorises("Pierre") + get_comptes_autorises("Elie")
 SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accounts)))
 
-# --- SIDEBAR AVEC DATE (V50) ---
+# --- SIDEBAR (V51: PERIOD EN BAS) ---
 with st.sidebar:
     st.markdown("<h3 style='margin-bottom:20px; font-weight:bold;'>Menu</h3>", unsafe_allow_html=True)
-    user_actuel = st.selectbox("Utilisateur", USERS)
-    
-    st.markdown("---")
-    st.markdown("**Période**")
-    date_jour = datetime.now()
-    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
-    mois_selection = MOIS_FR.index(mois_nom) + 1
-    annee_selection = st.number_input("Année", value=date_jour.year)
-    
-    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
-    
-    st.markdown("---")
+    user_actuel = st.selectbox("Utilisateur", USERS, label_visibility="collapsed")
     comptes_disponibles = get_comptes_autorises(user_actuel)
     
     total_courant = 0; total_epargne = 0
@@ -307,6 +284,7 @@ with st.sidebar:
         if ctype == "Épargne": total_epargne += val; list_epargne.append((cpt, val))
         else: total_courant += val; list_courant.append((cpt, val))
 
+    st.markdown("---")
     def draw_account_card(name, val, is_saving=False):
         color_bar = "#10B981" if val >= 0 else "#EF4444"
         bg_card = "#FFFFFF"
@@ -319,6 +297,15 @@ with st.sidebar:
     st.markdown(f"**EPARGNE ({total_epargne:,.0f}€)**")
     for name, val in list_epargne: draw_account_card(name, val, True)
     
+    st.markdown("---")
+    st.markdown("**Période**")
+    date_jour = datetime.now()
+    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
+    mois_selection = MOIS_FR.index(mois_nom) + 1
+    annee_selection = st.number_input("Année", value=date_jour.year)
+    
+    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
+    
     st.write("")
     if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
 
@@ -329,7 +316,6 @@ tabs = st.tabs(["Synthèse", "Transactions", "Analyse & Budget", "Patrimoine", "
 with tabs[0]:
     page_header("Synthèse du mois")
     
-    # KPI
     rev = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Revenu")]["Montant"].sum()
     dep = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Dépense") & (df_mois["Imputation"] == "Perso")]["Montant"].sum()
     epg = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Épargne")]["Montant"].sum()
@@ -342,8 +328,6 @@ with tabs[0]:
     k4.metric("Épargne", f"{epg:,.0f} €")
     
     st.markdown("---")
-    
-    # GRAPHS
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Répartition")
@@ -354,14 +338,18 @@ with tabs[0]:
     
     with c2:
         st.subheader("Alertes Budget")
-        objs = objectifs.get("Perso", {})
+        # FIX V51: Utilisation de la liste au lieu du dict manquant
+        objs_perso = [o for o in objectifs_list if o["Scope"] == "Perso" or (o["Scope"] in USERS and o["Scope"] == user_actuel)]
         mask = (df_mois["Type"] == "Dépense") & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
         df_f = df_mois[mask]
+        
         alerts = []
-        for c, b in objs.items():
-            if b > 0:
-                r = df_f[df_f["Categorie"] == c]["Montant"].sum()
-                if r/b > 0.75: alerts.append((c, r, b, r/b))
+        for obj in objs_perso:
+            cat = obj["Categorie"]
+            budget = float(obj["Montant"])
+            if budget > 0:
+                r = df_f[df_f["Categorie"] == cat]["Montant"].sum()
+                if r/budget > 0.75: alerts.append((cat, r, budget, r/budget))
         
         if alerts:
             for c, r, b, p in alerts:
