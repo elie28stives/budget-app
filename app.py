@@ -286,49 +286,45 @@ SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accoun
 with st.sidebar:
     st.markdown("<h3 style='margin-bottom:20px;'>Menu</h3>", unsafe_allow_html=True)
     user_actuel = st.selectbox("Utilisateur", USERS)
+    
+    st.markdown("---")
+    st.markdown("**Période**")
+    date_jour = datetime.now()
+    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
+    mois_selection = MOIS_FR.index(mois_nom) + 1
+    annee_selection = st.number_input("Année", value=date_jour.year)
+    
+    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
+    
+    st.markdown("---")
+    comptes_disponibles = get_comptes_autorises(user_actuel)
+    total_courant = 0; total_epargne = 0
+    list_courant = []; list_epargne = []
+    
+    for cpt in comptes_disponibles:
+        if cpt == "Autre / Externe": continue
+        val = SOLDES_ACTUELS.get(cpt, 0.0)
+        ctype = comptes_types_map.get(cpt, "Courant")
+        if ctype == "Épargne": total_epargne += val; list_epargne.append((cpt, val))
+        else: total_courant += val; list_courant.append((cpt, val))
 
-  st.markdown("---")
-
-comptes_disponibles = get_comptes_autorises(user_actuel)
-total_courant = 0
-total_epargne = 0
-list_courant = []
-list_epargne = []
-
-for cpt in comptes_disponibles:
-    if cpt == "Autre / Externe":
-        continue
-    val = SOLDES_ACTUELS.get(cpt, 0.0)
-    ctype = comptes_types_map.get(cpt, "Courant")
-    if ctype == "Épargne":
-        total_epargne += val
-        list_epargne.append((cpt, val))
-    else:
-        total_courant += val
-        list_courant.append((cpt, val))
-
-
-def draw_account_card(name, val, is_saving=False):
-    color_bar = "#10B981" if val >= 0 else "#EF4444"
-    bg_card = "#FFFFFF"
-    if is_saving:
-        color_bar = "#DA7756"
-        bg_card = "#FFFBF9"
-
-    st.markdown(
-        f"""
+    def draw_account_card(name, val, is_saving=False):
+        color_bar = "#10B981" if val >= 0 else "#EF4444"
+        bg_card = "#FFFFFF"
+        if is_saving: color_bar = "#DA7756"; bg_card = "#FFFBF9"
+        st.markdown(f"""
         <div style="background-color: {bg_card}; border-radius: 8px; border: 1px solid #E5E7EB; padding: 10px 12px; margin-bottom: 8px; border-left: 4px solid {color_bar}; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
             <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">{name}</div>
             <div style="font-size: 16px; font-weight: 800; color: #1F2937; margin-top: 2px;">{val:,.2f} €</div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        """, unsafe_allow_html=True)
 
+    st.markdown(f"**COMPTES ({total_courant:,.0f}€)**")
+    for name, val in list_courant: draw_account_card(name, val, False)
+    st.write("")
+    st.markdown(f"**ÉPARGNE ({total_epargne:,.0f}€)**")
+    for name, val in list_epargne: draw_account_card(name, val, True)
 
-st.markdown(f"**COMPTES ({total_courant:,.0f}€)**")
-for name, val in list_coura_
-    
     st.markdown("---")
     if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
 
@@ -686,5 +682,3 @@ with tabs[4]:
             col_a, col_b = st.columns([4,1])
             col_a.text(c)
             if col_b.button("X", key=f"del_cat_{typ}_{c}"): cats_memoire[typ].remove(c); save_config_cats(cats_memoire); st.rerun()
-
-
