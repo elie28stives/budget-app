@@ -759,7 +759,7 @@ with tabs[1]:
             excel_data = to_excel_download(df_e)
             
             col_export.download_button(
-                label="📥 Export",
+                label="Export",
                 data=excel_data,
                 file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -777,7 +777,7 @@ with tabs[1]:
         st.markdown("### 💳 Mes Abonnements")
         
         # Bouton Nouveau en haut
-        with st.expander("➕ Nouvel Abonnement", expanded=False):
+        with st.expander("Nouvel Abonnement", expanded=False):
             with st.form("new_abo_form"):
                 col1, col2, col3, col4 = st.columns(4)
                 nom_abo = col1.text_input("Nom", key="na")
@@ -794,7 +794,7 @@ with tabs[1]:
                     pc_abo = st.slider("% Pierre", 0, 100, 50, key="pa")
                     imp_abo = f"Commun ({pc_abo}/{100-pc_abo})"
                 
-                if st.form_submit_button("✅ Ajouter", type="primary", use_container_width=True):
+                if st.form_submit_button("Ajouter", type="primary", use_container_width=True):
                     new_abo = pd.DataFrame([{
                         "Nom": nom_abo,
                         "Montant": montant_abo,
@@ -849,7 +849,7 @@ with tabs[1]:
                 
                 # Bouton génération en masse
                 if to_generate:
-                    if st.button(f"🔄 Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
+                    if st.button(f"Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
                         new_transactions = []
                         for row in to_generate:
                             try:
@@ -885,7 +885,7 @@ with tabs[1]:
                     st.markdown("---")
                 
                 # Affichage en vignettes 4 par ligne
-                st.markdown("#### 📋 Liste des abonnements")
+                st.markdown("#### Liste des abonnements")
                 
                 for i in range(0, len(abo_list), 4):
                     cols = st.columns(4)
@@ -925,16 +925,16 @@ with tabs[1]:
                                     time.sleep(1)
                                     st.rerun()
             else:
-                st.info("👋 Aucun abonnement pour le moment. Créez-en un ci-dessus !")
+                st.info("Aucun abonnement pour le moment. Créez-en un ci-dessus !")
         else:
-            st.info("👋 Aucun abonnement configuré. Commencez par en ajouter un !")
+            st.info("Aucun abonnement configuré. Commencez par en ajouter un !")
 
 # 3. ANALYSE & BUDGET
 with tabs[2]:
     page_header("Analyses & Budget")
     
     # ===== MODULE 2: MODE COMPARAISON M vs M-1 =====
-    st.subheader("📊 Comparaison Mensuelle")
+    st.subheader("Comparaison Mensuelle")
     
     date_mois_actuel = datetime(annee_selection, mois_selection, 1)
     date_mois_precedent = date_mois_actuel - relativedelta(months=1)
@@ -1068,7 +1068,7 @@ with tabs[3]:
 with tabs[4]:
     page_header("Équilibre du Couple")
     
-    st.subheader("💰 Qui a payé quoi ?")
+    st.subheader("Qui a payé quoi ?")
     
     # Calcul des dépenses communes
     df_commun = df_mois[df_mois["Imputation"].str.contains("Commun", na=False)]
@@ -1125,7 +1125,7 @@ with tabs[5]:
 
     if revenus_mensuels == 0:
         st.info(
-            "💡 **Conseil** : Pour activer l'épargne de précaution, "
+            "**Conseil** : Pour activer l'épargne de précaution, "
             "enregistrez d'abord vos revenus (Transactions → Nouvelle Saisie → Type: **Revenu**)."
         )
     else:
@@ -1331,11 +1331,11 @@ with tabs[6]:
     
    # COMPTES
     with config_tabs[0]:
-        st.markdown("### 🏦 Gestion des Comptes Bancaires")
+        st.markdown("### Gestion des Comptes Bancaires")
         st.caption(f"Vous gérez les comptes de **{user_actuel}**")
         
         # Formulaire d'ajout avec toggle pour compte commun
-        with st.expander("➕ Ajouter un Nouveau Compte", expanded=False):
+        with st.expander("Ajouter un Nouveau Compte", expanded=False):
             with st.form("add_compte_form"):
                 compte_col1, compte_col2 = st.columns(2)
                 
@@ -1353,12 +1353,12 @@ with tabs[6]:
                 
                 # Option compte commun (optionnel)
                 est_commun = st.checkbox(
-                    "🤝 Ce compte est partagé avec l'autre personne (Commun)",
+                    "Ce compte est partagé avec l'autre personne (Commun)",
                     value=False,
                     key="commun_check"
                 )
                 
-                if st.form_submit_button("✅ Créer le Compte", type="primary", use_container_width=True):
+                if st.form_submit_button("Créer le Compte", type="primary", use_container_width=True):
                     if nom_compte:
                         # Déterminer le propriétaire
                         proprio = "Commun" if est_commun else user_actuel
@@ -1501,7 +1501,7 @@ with tabs[6]:
         
         if comptes_communs:
             st.markdown("---")
-            st.markdown("#### 🤝 Comptes Communs")
+            st.markdown("#### Comptes Communs")
             st.caption("Ces comptes sont partagés entre Pierre et Elie")
             
             for i in range(0, len(comptes_communs), 2):
@@ -1621,7 +1621,7 @@ with tabs[6]:
     
     # MODULE 4: Gestion des mots-clés
     with config_tabs[2]:
-        st.subheader("🤖 Mots-Clés Automatiques")
+        st.subheader("Mots-Clés Automatiques")
         st.info("Quand vous tapez un mot-clé dans le titre, l'app remplit automatiquement la catégorie et le compte.")
         
         with st.form("add_mc"):
@@ -1651,3 +1651,4 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
