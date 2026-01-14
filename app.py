@@ -1113,85 +1113,83 @@ with tabs[4]:
 # 6. PATRIMOINE
 with tabs[5]:
     page_header("Patrimoine & Projets", "Gérez votre épargne et vos objectifs financiers")
-    
-# ===== SECTION 1: PYRAMIDE DE L'ÉPARGNE =====
-st.markdown("### Pyramide de l'Épargne")
 
-total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"])
+    # ===== SECTION 1: PYRAMIDE DE L'ÉPARGNE =====
+    st.markdown("### Pyramide de l'Épargne")
 
-# Calcul des revenus mensuels avec gestion des NaN
-revenus_par_mois = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum()
-revenus_mensuels = revenus_par_mois.mean() if len(revenus_par_mois) > 0 else 0
+    total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"])
 
-# Si aucun revenu n'est enregistré, afficher un message informatif simple
-if revenus_mensuels == 0:
-    st.info(
-        "💡 **Conseil** : Pour activer l’épargne de précaution, "
-        "enregistrez d’abord vos revenus (Transactions → Nouvelle Saisie → Type: **Revenu**)."
-    )
-else:
-    epargne_precaution_cible = revenus_mensuels * 3
-    epargne_precaution = min(total_epargne_user, epargne_precaution_cible)
-    epargne_projets = max(0, total_epargne_user - epargne_precaution_cible)
+    # Calcul des revenus mensuels
+    revenus_par_mois = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum()
+    revenus_mensuels = revenus_par_mois.mean() if len(revenus_par_mois) > 0 else 0
 
-    # Calcul du pourcentage d'épargne de précaution atteint
-    precaution_pct = (epargne_precaution / epargne_precaution_cible * 100) if epargne_precaution_cible > 0 else 0
-
-    # Cards pyramide avec gradients
-    pyr1, pyr2, pyr3 = st.columns(3)
-
-    with pyr1:
-        gradient_prec = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if precaution_pct >= 100 else "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
-        st.markdown(f"""
-        <div style="background: {gradient_prec}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 240px;">
-            <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 1</div>
-            <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Épargne de Précaution</div>
-            <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_precaution:,.0f} €</div>
-            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 12px;">Objectif : {epargne_precaution_cible:,.0f} €</div>
-            <div style="background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 8px;">
-                <div style="background: white; height: 100%; width: {min(precaution_pct, 100):.1f}%; border-radius: 10px; transition: width 0.3s;"></div>
-            </div>
-            <div style="font-size: 13px; color: rgba(255,255,255,0.95); font-weight: 600;">{precaution_pct:.0f}% atteint</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with pyr2:
-        gradient_proj = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"
-        st.markdown(f"""
-        <div style="background: {gradient_proj}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 240px;">
-            <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 2</div>
-            <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Projets Court Terme</div>
-            <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_projets:,.0f} €</div>
-            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">Voyages, équipements, loisirs</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with pyr3:
-        investissement = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Investissement")]["Montant"].sum()
-        gradient_inv = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
-        st.markdown(f"""
-        <div style="background: {gradient_inv}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 240px;">
-            <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 3</div>
-            <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Investissements</div>
-            <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{investissement:,.0f} €</div>
-            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">Bourse, Crypto, Immobilier</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Conseil personnalisé
-    st.write("")
-    if epargne_precaution < epargne_precaution_cible:
-        manquant = epargne_precaution_cible - epargne_precaution
-        st.warning(f"**Conseil** : Il vous manque **{manquant:,.0f}€** pour sécuriser 3 mois de salaire. Priorisez cette épargne de précaution !")
-    elif epargne_projets > revenus_mensuels * 6:
-        st.success(f"**Bravo !** Excellente santé financière. Vous pourriez diversifier vers des investissements long terme.")
+    if revenus_mensuels == 0:
+        st.info(
+            "💡 **Conseil** : Pour activer l'épargne de précaution, "
+            "enregistrez d'abord vos revenus (Transactions → Nouvelle Saisie → Type: **Revenu**)."
+        )
     else:
-        st.info(f"**Bien joué !** Votre épargne de précaution est sécurisée. Continuez à épargner pour vos projets !")
+        epargne_precaution_cible = revenus_mensuels * 3
+        epargne_precaution = min(total_epargne_user, epargne_precaution_cible)
+        epargne_projets = max(0, total_epargne_user - epargne_precaution_cible)
+        precaution_pct = (epargne_precaution / epargne_precaution_cible * 100) if epargne_precaution_cible > 0 else 0
 
-    
+        # Cards pyramide
+        pyr1, pyr2, pyr3 = st.columns(3)
+
+        with pyr1:
+            gradient_prec = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if precaution_pct >= 100 else "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+            st.markdown(f"""
+            <div style="background: {gradient_prec}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); min-height: 240px;">
+                <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px;">Niveau 1</div>
+                <div style="font-size: 16px; font-weight: 700; color: white; margin-bottom: 12px;">Épargne de Précaution</div>
+                <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_precaution:,.0f} €</div>
+                <div style="font-size: 14px; color: rgba(255,255,255,0.9); margin-bottom: 12px;">Objectif : {epargne_precaution_cible:,.0f} €</div>
+                <div style="background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin-bottom: 8px;">
+                    <div style="background: white; height: 100%; width: {precaution_pct:.1f}%; border-radius: 10px;"></div>
+                </div>
+                <div style="font-size: 13px; color: white;">{precaution_pct:.0f}% atteint</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with pyr2:
+            gradient_proj = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"
+            st.markdown(f"""
+            <div style="background: {gradient_proj}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); min-height: 240px;">
+                <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px;">Niveau 2</div>
+                <div style="font-size: 16px; font-weight: 700; color: white; margin-bottom: 12px;">Projets Court Terme</div>
+                <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_projets:,.0f} €</div>
+                <div style="font-size: 14px; color: rgba(255,255,255,0.9);">Voyages, équipements, loisirs</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with pyr3:
+            investissement = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Investissement")]["Montant"].sum()
+            gradient_inv = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
+            st.markdown(f"""
+            <div style="background: {gradient_inv}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); min-height: 240px;">
+                <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px;">Niveau 3</div>
+                <div style="font-size: 16px; font-weight: 700; color: white; margin-bottom: 12px;">Investissements</div>
+                <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{investissement:,.0f} €</div>
+                <div style="font-size: 14px; color: rgba(255,255,255,0.9);">Bourse, Crypto, Immobilier</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Conseil personnalisé
+        st.write("")
+        if epargne_precaution < epargne_precaution_cible:
+            manquant = epargne_precaution_cible - epargne_precaution
+            st.warning(f"**Conseil** : Il vous manque **{manquant:,.0f}€** pour sécuriser 3 mois de salaire. Priorisez cette épargne de précaution !")
+        elif epargne_projets > revenus_mensuels * 6:
+            st.success(f"**Bravo !** Excellente santé financière. Vous pourriez diversifier vers des investissements long terme.")
+        else:
+            st.info(f"**Bien joué !** Votre épargne de précaution est sécurisée. Continuez à épargner pour vos projets !")
+
+    st.markdown("---")
+
     # ===== SECTION 2: PROJETS D'ÉPARGNE =====
     st.markdown("### Mes Projets d'Épargne")
-    
+
     col_add, col_space = st.columns([3, 1])
     with col_add:
         with st.expander("Créer un Nouveau Projet", expanded=False):
@@ -1199,7 +1197,7 @@ else:
                 proj_col1, proj_col2 = st.columns(2)
                 nom_projet = proj_col1.text_input("Nom du projet", placeholder="Ex: Voyage en Italie", key="np")
                 cible_projet = proj_col2.number_input("Montant cible (€)", min_value=0.0, step=100.0, key="tp")
-                
+
                 if st.form_submit_button("Créer le Projet", type="primary", use_container_width=True):
                     if nom_projet:
                         projets_config[nom_projet] = {"Cible": cible_projet, "Date_Fin": ""}
@@ -1207,24 +1205,24 @@ else:
                         st.success(f"Projet '{nom_projet}' créé !")
                         time.sleep(1)
                         st.rerun()
-    
+
     st.write("")
-    
+
     # Affichage des projets en cards cliquables (3 par ligne)
     if projets_config:
         projets_list = list(projets_config.items())
-        
+
         for i in range(0, len(projets_list), 3):
             cols = st.columns(3)
-            
+
             for j, col in enumerate(cols):
                 if i + j < len(projets_list):
                     projet_nom, projet_data = projets_list[i + j]
-                    
+
                     saved = df[(df["Projet_Epargne"] == projet_nom) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0
                     target = float(projet_data["Cible"])
                     progression = (saved / target * 100) if target > 0 else 0
-                    
+
                     # Couleur selon progression
                     if progression >= 100:
                         gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
@@ -1242,7 +1240,7 @@ else:
                         gradient = "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
                         badge = "Démarrage"
                         badge_color = "#EF4444"
-                    
+
                     # Message d'aide si aucune épargne
                     if saved == 0:
                         help_text = """
@@ -1256,7 +1254,7 @@ else:
                         """
                     else:
                         help_text = ""
-                    
+
                     with col:
                         st.markdown(f"""
                         <div style="background: {gradient}; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; min-height: 260px; position: relative; overflow: hidden;">
@@ -1264,7 +1262,7 @@ else:
                             <div style="font-size: 20px; font-weight: 800; color: white; margin-bottom: 10px; line-height: 1.3;">{projet_nom}</div>
                             <div style="font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px;">{saved:,.0f} €</div>
                             <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 14px;">sur {target:,.0f} €</div>
-                            
+
                             <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
                                 <div style="background: white; height: 100%; width: {max(min(progression, 100), 0):.1f}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
                             </div>
@@ -1272,7 +1270,7 @@ else:
                             {help_text}
                         </div>
                         """, unsafe_allow_html=True)
-                        
+
                         if st.button(f"Supprimer", key=f"del_proj_{i}_{j}", use_container_width=True):
                             del projets_config[projet_nom]
                             save_projets_targets(projets_config)
@@ -1281,19 +1279,19 @@ else:
                             st.rerun()
     else:
         st.info("Aucun projet d'épargne. Créez-en un ci-dessus pour commencer à suivre vos objectifs !")
-    
+
     st.markdown("---")
-    
+
     # ===== SECTION 3: RELEVÉ DE COMPTES =====
     st.markdown("### Ajustement des Soldes")
     st.caption("Synchronisez vos soldes réels avec vos relevés bancaires")
-    
+
     with st.form("releve_form", clear_on_submit=True):
         col1, col2, col3 = st.columns(3)
         date_releve = col1.date_input("Date du relevé", datetime.today(), key="dr")
         compte_releve = col2.selectbox("Compte", comptes_disponibles, key="cr")
         montant_releve = col3.number_input("Solde réel (€)", step=0.01, key="mr")
-        
+
         if st.form_submit_button("Enregistrer le Relevé", type="primary", use_container_width=True):
             new_releve = pd.DataFrame([{
                 "Date": date_releve,
@@ -1378,4 +1376,5 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
