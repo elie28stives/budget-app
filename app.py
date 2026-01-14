@@ -1191,52 +1191,96 @@ with tabs[5]:
             st.rerun()
 
 # 5. CONFIG
+# 5. CONFIGURATION
 with tabs[6]:
     page_header("Configuration")
     
-    config_tabs = st.tabs(["Comptes", "Catégories", "Mots-Clés Auto"])
+    config_tabs = st.tabs(["Comptes", "Categories", "Mots-Cles"])
     
-    # COMPTES
+    # --- GESTION DES COMPTES ---
     with config_tabs[0]:
-        st.markdown("### Gestion des Comptes Bancaires")
+        st.markdown("### Gestion des Comptes")
         
         # Formulaire d'ajout
-        with st.expander("Ajouter un Nouveau Compte", expanded=False):
+        with st.expander("Ajouter un compte", expanded=False):
             with st.form("add_compte_form"):
-                compte_col1, compte_col2 = st.columns(2)
-                nom_compte = compte_col1.text_input("Nom du Compte", placeholder="Ex: Compte Courant BNP")
-                type_compte = compte_col2.selectbox("Type de Compte", TYPES_COMPTE)
-                est_commun = st.checkbox("Ce compte est partagé avec l'autre personne (Commun)", value=False)
+                c1, c2 = st.columns(2)
+                nom_c = c1.text_input("Nom du compte", placeholder="Ex: Boursorama")
+                type_c = c2.selectbox("Type", TYPES_COMPTE)
+                is_common = st.checkbox("Compte Commun ?")
                 
-                if st.form_submit_button("Créer le Compte", type="primary", use_container_width=True):
-                    if nom_compte:
-                        proprio = "Commun" if est_commun else user_actuel
-                        if proprio not in comptes_structure: comptes_structure[proprio] = []
-                        
-                        if nom_compte not in comptes_structure[proprio]:
-                            comptes_structure[proprio].append(nom_compte)
-                            comptes_types_map[nom_compte] = type_compte
+                if st.form_submit_button("Valider"):
+                    if nom_c:
+                        prop = "Commun" if is_common else user_actuel
+                        if prop not in comptes_structure: comptes_structure[prop] = []
+                        if nom_c not in comptes_structure[prop]:
+                            comptes_structure[prop].append(nom_c)
+                            comptes_types_map[nom_c] = type_c
                             save_comptes_struct(comptes_structure, comptes_types_map)
-                            st.success(f"Compte '{nom_compte}' créé !")
+                            st.success(f"Compte {nom_c} ajoute !")
                             time.sleep(1)
                             st.rerun()
-                        else: st.error(f"Ce compte existe déjà")
-                    else: st.error("Nom requis")
+                        else: st.error("Ce compte existe deja.")
         
         st.markdown("---")
+        st.markdown("#### Vos comptes actifs")
         
-        # Gestion suppression comptes
-        for user_key, account_list in comptes_structure.items():
-            if account_list:
-                st.markdown(f"**Comptes de {user_key}**")
-                for acc in account_list:
-                    c1, c2 = st.columns([3, 1])
-                    c1.write(f"- {acc} ({comptes_types_map.get(acc, 'Courant')})")
-                    if c2.button(f"Supprimer", key=f"del_acc_list_{acc}"):
-                        comptes_structure[user_key].remove(acc)
-                        if acc in comptes_types_map: del comptes_types_map[acc]
-                        save_comptes_struct(comptes_structure, comptes_types_map)
-                        st.rerun()
+        # Affichage et suppression propre
+        for prop, l_comptes in comptes_structure.items():
+            if l_comptes:
+                st.markdown(f"**{prop}**")
+                for acc in l_comptes:
+                    col_txt, col_btn = st.columns([4, 1])
+                    with col_txt:
+                        st.write(f"- {acc} ({comptes_types_map.get(acc, 'Courant')})")
+                    with col_btn:
+                        if st.button("Supprimer", key=f"btn_del_{acc}"):
+                            comptes_structure[prop].remove(acc)
+                            if acc in comptes_types_map: del comptes_types_map[acc]
+                            save_comptes_struct(comptes_structure, comptes_types_map)
+                            st.rerun()
+
+    # --- GESTION DES CATÉGORIES ---
+    with config_tabs[1]:
+        st.subheader("Categories")
+        col_t, col_n, col_b = st.columns([2, 3, 1])
+        typ = col_t.selectbox("Type", TYPES, key="sc_type")
+        new_c = col_n.text_input("Nouvelle categorie", key="sc_new")
+        if col_b.button("Ajouter", key="sc_btn"):
+            if typ not in cats_memoire: cats_memoire[typ] = []
+            cats_memoire[typ].append(new_c)
+            save_config_cats(cats_memoire)
+            st.success("OK")
+            time.sleep(0.5)
+            st.rerun()
+            
+        st.write(f"**Liste actuelle ({typ}) :**")
+        st.write(", ".join(cats_memoire.get(typ, [])))
+
+    # --- GESTION DES MOTS-CLÉS ---
+    with config_tabs[2]:
+        st.subheader("Automatisation")
+        st.caption("Associez un mot-cle a une categorie et un compte.")
+        
+        with st.form("auto_kw"):
+            c1, c2 = st.columns(2)
+            mot = c1.text_input("Si le titre contient...", placeholder="Ex: Netflix")
+            cat_cible = c2.selectbox("Alors mettre la categorie", [c for l in cats_memoire.values() for c in l])
+            
+            c3, c4 = st.columns(2)
+            typ_cible = c3.selectbox("Type", TYPES)
+            cpt_cible = c4.selectbox("Compte a utiliser", comptes_disponibles)
+            
+            if st.form_submit_button("Creer la regle"):
+                mots_cles_map[mot.lower()] = {"Categorie": cat_cible, "Type": typ_cible, "Compte": cpt_cible}
+                save_mots_cles(mots_cles_map)
+                st.success("Regle enregistree !")
+                time.sleep(1)
+                st.rerun()
+        
+        if mots_cles_map:
+            st.write("Règles actives :")
+            st.json(mots_cles_map)
 
     # CATÉGORIES
     with config_tabs[1]:
@@ -1285,4 +1329,5 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
