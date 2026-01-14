@@ -28,30 +28,34 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-def get_company_logo(company_name):
+def get_company_logo_url(company_name):
     """
-    Récupère le logo d'une entreprise via Clearbit Logo API
-    Retourne l'URL du logo ou un emoji par défaut
+    Récupère l'URL du logo d'une entreprise
+    Compatible avec st.image() de Streamlit
     """
     if not company_name:
         return None
     
-    # Nettoyage du nom pour l'URL
     company_clean = company_name.lower().strip()
     
-    # Mapping des noms communs vers les domaines
+    # Mapping des entreprises vers leurs domaines
     domain_mapping = {
+        # Streaming
         "netflix": "netflix.com",
         "spotify": "spotify.com",
         "amazon": "amazon.com",
-        "amazon prime": "amazon.com",
-        "disney": "disney.com",
+        "amazon prime": "primevideo.com",
+        "disney": "disneyplus.com",
         "disney+": "disneyplus.com",
-        "apple": "apple.com",
-        "google": "google.com",
+        "apple tv": "tv.apple.com",
+        "apple music": "music.apple.com",
         "youtube": "youtube.com",
-        "microsoft": "microsoft.com",
-        "adobe": "adobe.com",
+        "deezer": "deezer.com",
+        "canal+": "canalplus.com",
+        "canal plus": "canalplus.com",
+        "hbo": "hbo.com",
+        
+        # Banques françaises
         "bnp": "bnpparibas.com",
         "bnp paribas": "bnpparibas.com",
         "société générale": "societegenerale.com",
@@ -60,30 +64,43 @@ def get_company_logo(company_name):
         "credit agricole": "credit-agricole.fr",
         "lcl": "lcl.fr",
         "boursorama": "boursorama.com",
+        "fortuneo": "fortuneo.fr",
+        "hello bank": "hellobank.fr",
+        "caisse d'épargne": "caisse-epargne.fr",
+        "banque postale": "labanquepostale.fr",
+        "cic": "cic.fr",
+        "crédit mutuel": "creditmutuel.fr",
+        
+        # Néobanques
         "revolut": "revolut.com",
         "n26": "n26.com",
+        "qonto": "qonto.com",
+        
+        # Telecom
         "orange": "orange.fr",
         "free": "free.fr",
         "sfr": "sfr.fr",
         "bouygues": "bouyguestelecom.fr",
+        
+        # Énergie
         "edf": "edf.fr",
         "engie": "engie.fr",
-        "veolia": "veolia.com",
-        "deezer": "deezer.com",
-        "canal+": "canalplus.com",
-        "canal plus": "canalplus.com",
-        "ocs": "ocs.fr",
-        "salto": "salto.fr",
-        "figaro": "lefigaro.fr",
-        "le monde": "lemonde.fr",
-        "linkedin": "linkedin.com",
+        "total": "totalenergies.fr",
+        
+        # Transport
         "uber": "uber.com",
         "deliveroo": "deliveroo.com",
-        "ubereats": "uber.com",
         "bolt": "bolt.eu",
         "sncf": "sncf.com",
+        
+        # Voyage
         "airbnb": "airbnb.com",
         "booking": "booking.com",
+        
+        # Tech
+        "google": "google.com",
+        "microsoft": "microsoft.com",
+        "adobe": "adobe.com",
         "github": "github.com",
         "dropbox": "dropbox.com",
         "notion": "notion.so",
@@ -92,25 +109,22 @@ def get_company_logo(company_name):
         "canva": "canva.com",
         "openai": "openai.com",
         "chatgpt": "openai.com",
-        "anthropic": "anthropic.com",
-        "claude": "anthropic.com",
     }
     
     # Chercher le domaine
     domain = None
-    for key, value in domain_mapping.items():
+    for key, dom in domain_mapping.items():
         if key in company_clean:
-            domain = value
+            domain = dom
             break
     
-    # Si pas trouvé, essayer d'ajouter .com
+    # Si pas trouvé, essayer le premier mot + .com
     if not domain:
-        # Extraire le premier mot
         first_word = company_clean.split()[0] if company_clean else ""
-        if first_word:
+        if first_word and len(first_word) > 2:
             domain = f"{first_word}.com"
     
-    # Retourner l'URL du logo via Clearbit
+    # Retourner l'URL Clearbit (fonctionne sans clé API)
     if domain:
         return f"https://logo.clearbit.com/{domain}"
     
@@ -861,7 +875,7 @@ with tabs[1]:
                 save_data_to_sheet(TAB_DATA, ed[ed["Suppr"]==False].drop(columns=["Suppr"])); st.rerun()
 
     # --- ABONNEMENTS ---
-    with subtabs[2]:
+  with subtabs[2]:
         st.markdown("### 💳 Mes Abonnements")
         
         # Bouton Nouveau en haut
@@ -975,11 +989,11 @@ with tabs[1]:
                     
                     st.markdown("---")
                 
-                # Affichage en vignettes 4 par ligne
+                # Affichage en vignettes 3 par ligne (pour avoir plus d'espace)
                 st.markdown("#### 📋 Liste des abonnements")
                 
-                for i in range(0, len(abo_list), 4):
-                    cols = st.columns(4)
+                for i in range(0, len(abo_list), 3):
+                    cols = st.columns(3)
                     
                     for j, col in enumerate(cols):
                         if i + j < len(abo_list):
@@ -995,35 +1009,37 @@ with tabs[1]:
                                 badge = "⏳ En attente"
                                 badge_color = "#F59E0B"
                             
-                            # Logo de l'entreprise
-                            logo_url = get_company_logo(abo["nom"])
-                            
                             with col:
-                                # Card avec logo d'entreprise
+                                # Card avec header pour le logo
+                                st.markdown(f"""
+                                <div style="background: {gradient}; border-radius: 16px; padding: 0; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
+                                    <div style="background: white; padding: 16px; text-align: center; border-bottom: 2px solid rgba(0,0,0,0.1);">
+                                """, unsafe_allow_html=True)
+                                
+                                # Logo avec st.image (MÉTHODE QUI FONCTIONNE)
+                                logo_url = get_company_logo_url(abo["nom"])
                                 if logo_url:
-                                    st.markdown(f"""
-                                    <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 220px; position: relative;">
-                                        <div style="position: absolute; top: 12px; right: 12px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                                            <img src="{logo_url}" style="width: 40px; height: 40px; object-fit: contain;" onerror="this.style.display='none'">
-                                        </div>
-                                        <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
-                                        <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px; padding-right: 50px;">{abo['nom']}</div>
-                                        <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
-                                        <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
-                                        <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    try:
+                                        st.image(logo_url, width=80)
+                                    except:
+                                        st.markdown(f"<div style='font-size: 48px;'>💳</div>", unsafe_allow_html=True)
                                 else:
-                                    # Fallback sans logo
-                                    st.markdown(f"""
-                                    <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 220px; position: relative;">
+                                    st.markdown(f"<div style='font-size: 48px;'>💳</div>", unsafe_allow_html=True)
+                                
+                                st.markdown("""
+                                    </div>
+                                    <div style="padding: 20px;">
+                                """, unsafe_allow_html=True)
+                                
+                                st.markdown(f"""
                                         <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
                                         <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px;">{abo['nom']}</div>
                                         <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
                                         <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
                                         <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
                                     </div>
-                                    """, unsafe_allow_html=True)
+                                </div>
+                                """, unsafe_allow_html=True)
                                 
                                 # Bouton Modifier
                                 if st.button(f"✏️ Modifier", key=f"edit_abo_{abo['idx']}", use_container_width=True):
@@ -1788,6 +1804,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
