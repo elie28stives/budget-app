@@ -128,18 +128,73 @@ def apply_custom_style():
 
         /* INPUTS - Minimalistes */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
-            background: var(--bg-main) !important;
+            background: var(--bg-card) !important;
             border: 1.5px solid var(--border) !important;
             border-radius: 12px !important;
             font-size: 15px !important;
-            font-weight: 500 !important;
+            font-weight: 600 !important;
+            color: var(--text-primary) !important;
             padding: 12px 16px !important;
             transition: all 0.2s;
         }
         
-        .stTextInput input:focus, .stNumberInput input:focus {
+        .stTextInput input:focus, .stNumberInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within > div {
             border-color: var(--primary) !important;
             box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+        }
+        
+        /* SELECTBOX - Texte sélectionné et options */
+        .stSelectbox div[data-baseweb="select"] span {
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+        }
+        
+        .stSelectbox [role="option"] {
+            color: var(--text-primary) !important;
+            font-weight: 500 !important;
+        }
+        
+        .stSelectbox [role="option"]:hover {
+            background: rgba(255, 107, 53, 0.1) !important;
+        }
+        
+        /* RADIO BUTTONS - Meilleure visibilité */
+        .stRadio label {
+            color: var(--text-primary) !important;
+            font-weight: 500 !important;
+        }
+        
+        .stRadio div[role="radiogroup"] label {
+            color: var(--text-primary) !important;
+            font-weight: 500 !important;
+        }
+        
+        /* DATE INPUT */
+        .stDateInput input {
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+        }
+        
+        /* TEXT AREA */
+        .stTextArea textarea {
+            background: var(--bg-card) !important;
+            border: 1.5px solid var(--border) !important;
+            border-radius: 12px !important;
+            color: var(--text-primary) !important;
+            font-weight: 500 !important;
+        }
+        
+        /* SLIDER */
+        .stSlider label {
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+        }
+        
+        /* LABELS - Tous les labels d'inputs */
+        .stTextInput label, .stNumberInput label, .stSelectbox label, .stDateInput label {
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
         }
 
         /* BOUTONS - Style Revolut */
