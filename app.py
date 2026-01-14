@@ -28,11 +28,11 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# --- DEFINITION VARIABLES GLOBALES (Pour stabilité) ---
+# --- DEFINITION VARIABLES GLOBALES ---
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 
-# --- STYLE CSS (PROPRE & SANS EMOJIS) ---
+# --- STYLE CSS ---
 def apply_custom_style():
     st.markdown("""
     <style>
@@ -64,7 +64,7 @@ def apply_custom_style():
         
         #MainMenu, footer, header {visibility: hidden;}
 
-        /* TABS SOBRES */
+        /* TABS */
         .stTabs [data-baseweb="tab-list"] {
             gap: 20px;
             background: transparent;
@@ -160,7 +160,6 @@ def save_data_to_sheet(tab_name, df):
     st.cache_data.clear()
 
 def process_configs():
-    # Chargement unique pour stabilité
     data = (
         load_data_from_sheet(TAB_CONFIG, ["Type", "Categorie"]),
         load_data_from_sheet(TAB_COMPTES, ["Proprietaire", "Compte", "Type"]),
@@ -182,9 +181,9 @@ def process_configs():
             comptes[r["Proprietaire"]].append(r["Compte"])
             c_types[r["Compte"]] = r.get("Type", "Courant")
             
-    projets = {}
+    projets = {} # Variable corrigée ici (projets au lieu de projects)
     if not data[4].empty:
-        for _, r in data[4].iterrows(): projects[r["Projet"]] = {"Cible": float(r["Cible"]), "Date_Fin": r["Date_Fin"]}
+        for _, r in data[4].iterrows(): projects = {}; projets[r["Projet"]] = {"Cible": float(r["Cible"]), "Date_Fin": r["Date_Fin"]}
         
     mots = {r["Mot_Cle"].lower(): {"Categorie": r["Categorie"], "Type": r["Type"], "Compte": r["Compte"]} for _, r in data[5].iterrows()} if not data[5].empty else {}
     
@@ -255,7 +254,7 @@ with st.sidebar:
     comptes_disponibles = list(set(comptes_user + ["Autre / Externe"]))
     soldes = calculer_soldes_reels(df, df_patrimoine, comptes_disponibles)
     
-    # Affichage Soldes (Texte simple)
+    # Affichage Soldes
     st.markdown("**COMPTES COURANTS**")
     for cpt in comptes_user:
         if comptes_types_map.get(cpt) == "Courant":
@@ -321,7 +320,7 @@ with tabs[0]:
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
                     <div>
                         <div style="font-weight:bold;">{r['Titre']}</div>
-                        <div style="font-size:12px; color:grey;">{r['Date']} • {r['Categorie']}</div>
+                        <div style="font-size:12px; color:grey;">{r['Date']} - {r['Categorie']}</div>
                     </div>
                     <div style="color:{col_mt}; font-weight:bold;">{sig}{r['Montant']:.2f}€</div>
                 </div>
@@ -387,7 +386,7 @@ with tabs[1]:
             to_gen = []
             for idx, r in my_abos.iterrows():
                 paid = not df_mois[(df_mois["Titre"]==r["Nom"])&(df_mois["Montant"]==float(r["Montant"]))].empty
-                st.write(f"{'✅' if paid else '⏳'} **{r['Nom']}** - {r['Montant']}€ (Jour {r['Jour']})")
+                st.write(f"{'OK' if paid else '...'} **{r['Nom']}** - {r['Montant']}€ (Jour {r['Jour']})")
                 if not paid: to_gen.append(r)
             
             if to_gen and st.button(f"Générer {len(to_gen)} manquants"):
@@ -397,6 +396,13 @@ with tabs[1]:
                     except: d = datetime(annee_selection, mois_selection, 28).date()
                     new_t.append({"Date": d, "Mois": mois_selection, "Annee": annee_selection, "Qui_Connecte": r["Proprietaire"], "Type": "Dépense", "Categorie": r["Categorie"], "Titre": r["Nom"], "Description": "Auto", "Montant": float(r["Montant"]), "Paye_Par": r["Proprietaire"], "Imputation": r["Imputation"], "Compte_Cible": "", "Projet_Epargne": "", "Compte_Source": r["Compte_Source"]})
                 df = pd.concat([df, pd.DataFrame(new_t)], ignore_index=True); save_data_to_sheet(TAB_DATA, df); st.rerun()
+        
+        with st.expander("Nouveau"):
+            with st.form("new_abo"):
+                n = st.text_input("Nom"); m = st.number_input("Montant"); j = st.number_input("Jour", 1, 31)
+                c = st.selectbox("Cat", cats_memoire.get("Dépense", [])); cp = st.selectbox("Cpt", comptes_user); imp = st.selectbox("Imp", IMPUTATIONS)
+                if st.form_submit_button("Ajouter"):
+                    df_abonnements = pd.concat([df_abonnements, pd.DataFrame([{"Nom": n, "Montant": m, "Jour": j, "Categorie": c, "Compte_Source": cp, "Proprietaire": user_actuel, "Imputation": imp, "Frequence": "Mensuel"}])], ignore_index=True); save_abonnements(df_abonnements); st.rerun()
 
 # 3. ANALYSES
 with tabs[2]:
