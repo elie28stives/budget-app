@@ -875,7 +875,7 @@ with tabs[1]:
                 save_data_to_sheet(TAB_DATA, ed[ed["Suppr"]==False].drop(columns=["Suppr"])); st.rerun()
 
     # --- ABONNEMENTS ---
-  with subtabs[2]:
+    with subtabs[2]:
         st.markdown("### 💳 Mes Abonnements")
         
         # Bouton Nouveau en haut
@@ -1804,6 +1804,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
