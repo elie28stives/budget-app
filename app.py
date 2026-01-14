@@ -471,7 +471,7 @@ with st.sidebar:
     if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
 
 # --- MAIN ---
-tabs = st.tabs(["Synthèse", "Transactions", "Analyse & Budget", "Prévisionnel", "Équilibre", "Patrimoine", "Configuration"])
+tabs = st.tabs(["Transactions", "Synthèse", "Analyse & Budget", "Prévisionnel", "Équilibre", "Patrimoine", "Configuration"])
 
 # 1. SYNTHESE
 with tabs[0]:
@@ -557,24 +557,32 @@ with tabs[1]:
         c4, c5 = st.columns(2)
         titre_op = c4.text_input("Titre", placeholder="Libellé...", key="tit_op")
         
-        # MODULE 4: Auto-complétion par mots-clés
+        # MODULE 4: Auto-complétion conditionnelle par mots-clés
         cat_finale = "Autre"
         compte_auto = None
-        if titre_op:
+        suggestion_active = False
+        
+        if titre_op and mots_cles_map:
             for mc, data in mots_cles_map.items():
-                if mc in titre_op.lower():
+                if mc in titre_op.lower() and data["Type"] == type_op:  # Vérification du type
                     cat_finale = data["Categorie"]
                     compte_auto = data["Compte"]
-                    c5.success(f"✨ Auto: {cat_finale}")
+                    suggestion_active = True
                     break
+        
+        if suggestion_active:
+            c5.success(f"✨ Suggestion : {cat_finale}")
         
         if type_op == "Virement Interne": 
             c5.info("Virement de fonds"); cat_finale = "Virement"
         else:
             cats = cats_memoire.get(type_op, [])
-            cat_sel = c5.selectbox("Catégorie", cats + ["Autre (nouvelle)"], index=cats.index(cat_finale) if cat_finale in cats else 0, key="c_sel")
-            if cat_sel == "Autre (nouvelle)": cat_finale = c5.text_input("Nom catégorie", key="c_new")
-            else: cat_finale = cat_sel
+            default_idx = cats.index(cat_finale) if cat_finale in cats else 0
+            cat_sel = c5.selectbox("Catégorie", cats + ["Autre (nouvelle)"], index=default_idx, key="c_sel")
+            if cat_sel == "Autre (nouvelle)": 
+                cat_finale = c5.text_input("Nom catégorie", key="c_new")
+            else: 
+                cat_finale = cat_sel
         
         st.write("")
         c_src = ""; c_tgt = ""; p_epg = ""; p_par = user_actuel; imput = "Perso"
@@ -597,7 +605,10 @@ with tabs[1]:
         else:
             st.markdown("**Détails**")
             cc1, cc2, cc3 = st.columns(3)
-            c_src = cc1.selectbox("Compte", comptes_disponibles, index=comptes_disponibles.index(compte_auto) if compte_auto and compte_auto in comptes_disponibles else 0, key="src_d")
+            default_compte_idx = 0
+            if compte_auto and compte_auto in comptes_disponibles:
+                default_compte_idx = comptes_disponibles.index(compte_auto)
+            c_src = cc1.selectbox("Compte", comptes_disponibles, index=default_compte_idx, key="src_d")
             p_par = cc2.selectbox("Payé par", ["Pierre", "Elie", "Commun"], key="par_d")
             imput = cc3.radio("Imputation", IMPUTATIONS, key="imp_d")
             if imput == "Commun (Autre %)":
