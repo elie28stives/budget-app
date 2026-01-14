@@ -1,3 +1,4 @@
+voila mon code : 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -335,25 +336,6 @@ def apply_custom_style():
             border: none !important;
             box-shadow: var(--shadow-lg) !important;
         }
-        
-        /* Amélioration des boutons d'action */
-        .stButton > button[kind="secondary"] {
-            background: rgba(255,255,255,0.2) !important;
-            border: 1px solid rgba(255,255,255,0.4) !important;
-            color: white !important;
-            font-size: 12px !important;
-            padding: 4px 8px !important;
-        }
-
-        /* Cards comptes */
-        .account-card {
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .account-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
-        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -428,26 +410,6 @@ def save_data_to_sheet(tab_name, df):
     if not df_save.empty: ws.update([df_save.columns.values.tolist()] + df_save.values.tolist())
     else: ws.update([df_save.columns.values.tolist()])
     clear_cache()
-
-def safe_save_to_sheet(tab_name, df, max_retries=3):
-    """Sauvegarde avec retry en cas d'erreur de quota"""
-    for attempt in range(max_retries):
-        try:
-            save_data_to_sheet(tab_name, df)
-            return True
-        except Exception as e:
-            if "RESOURCE_EXHAUSTED" in str(e) and attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 5
-                time.sleep(wait_time)
-                continue
-            elif "Quota exceeded" in str(e) and attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 10
-                time.sleep(wait_time)
-                continue
-            else:
-                st.error(f"Erreur lors de la sauvegarde : {e}")
-                return False
-    return False
 
 # --- LOGIC ---
 def to_excel_download(df):
@@ -562,10 +524,6 @@ def save_mots_cles(d):
 st.set_page_config(page_title="Ma Banque V52", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
-# Initialisation session_state
-if 'editing_accounts' not in st.session_state:
-    st.session_state.editing_accounts = {}
-
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
 df = load_data_from_sheet(TAB_DATA, COLS_DATA)
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
@@ -573,6 +531,8 @@ df_patrimoine = load_data_from_sheet(TAB_PATRIMOINE, COLS_PAT)
 
 cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_configs()
 def get_comptes_autorises(user): return comptes_structure.get(user, []) + comptes_structure.get("Commun", []) + ["Autre / Externe"]
+all_my_accounts = get_comptes_autorises("Pierre") + get_comptes_autorises("Elie")
+SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accounts)))
 
 # --- SIDEBAR (COMPTES PUIS PÉRIODE) ---
 with st.sidebar:
@@ -584,61 +544,34 @@ with st.sidebar:
     total_courant = 0; total_epargne = 0
     list_courant = []; list_epargne = []
     
-    # Filtrer uniquement les comptes visibles par l'utilisateur
     for cpt in comptes_disponibles:
         if cpt == "Autre / Externe": continue
-        # Vérifier que l'utilisateur a le droit de voir ce compte
-        is_my_personal = cpt in comptes_structure.get(user_actuel, [])
-        is_common = cpt in comptes_structure.get("Commun", [])
-        is_other_user = any(cpt in comptes_structure.get(other, []) for other in USERS if other != user_actuel)
-        
-        # Ne montrer que ses comptes personnels et les comptes communs
-        if is_other_user and not is_common:
-            continue
-            
         val = SOLDES_ACTUELS.get(cpt, 0.0)
         ctype = comptes_types_map.get(cpt, "Courant")
-        if ctype == "Épargne": 
-            total_epargne += val
-            list_epargne.append((cpt, val, is_common))
-        else: 
-            total_courant += val
-            list_courant.append((cpt, val, is_common))
+        if ctype == "Épargne": total_epargne += val; list_epargne.append((cpt, val))
+        else: total_courant += val; list_courant.append((cpt, val))
 
-    def draw_account_card(name, val, is_saving=False, is_common=False):
+    def draw_account_card(name, val, is_saving=False):
         if is_saving:
             gradient = "linear-gradient(135deg, #0066FF 0%, #00D4FF 100%)"
             icon = "💎"
-            badge = "Épargne"
-        elif is_common:
-            gradient = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
-            icon = "🤝"
-            badge = "Commun"
         else:
             gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if val >= 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
             icon = "💳"
-            badge = "Courant"
         
         st.markdown(f"""
         <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; overflow: hidden;">
             <div style="position: absolute; top: 10px; right: 15px; font-size: 32px; opacity: 0.3;">{icon}</div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">{name}</div>
-                <div style="background: rgba(255,255,255,0.25); color: white; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px;">{badge}</div>
-            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">{name}</div>
             <div style="font-size: 28px; font-weight: 800; color: white;">{val:,.2f} €</div>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown(f"**COMPTES COURANT ({total_courant:,.0f}€)**")
-    for name, val, is_common in list_courant: 
-        draw_account_card(name, val, False, is_common)
-    
+    st.markdown(f"**COMPTES ({total_courant:,.0f}€)**")
+    for name, val in list_courant: draw_account_card(name, val, False)
     st.write("")
-    
-    st.markdown(f"**COMPTES ÉPARGNE ({total_epargne:,.0f}€)**")
-    for name, val, is_common in list_epargne: 
-        draw_account_card(name, val, True, is_common)
+    st.markdown(f"**ÉPARGNE ({total_epargne:,.0f}€)**")
+    for name, val in list_epargne: draw_account_card(name, val, True)
 
     st.markdown("---")
     st.markdown("**Période**")
@@ -652,18 +585,13 @@ with st.sidebar:
     st.markdown("---")
     if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
 
-# Calculer les soldes actuels APRÈS avoir défini user_actuel
-all_my_accounts = get_comptes_autorises(user_actuel)
-SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accounts)))
-
 # --- MAIN ---
 tabs = st.tabs(["Transactions", "Synthèse", "Analyse & Budget", "Prévisionnel", "Équilibre", "Patrimoine", "Configuration"])
 
 # 1. SYNTHESE
-with tabs[1]:
+with tabs[0]:
     page_header("Synthèse du mois")
     
-    # Filtrer uniquement les données de l'utilisateur actuel
     rev = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Revenu")]["Montant"].sum()
     dep = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Dépense") & (df_mois["Imputation"] == "Perso")]["Montant"].sum()
     epg = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Épargne")]["Montant"].sum()
@@ -703,19 +631,10 @@ with tabs[1]:
     with c1:
         st.subheader("Répartition")
         if not df_mois.empty:
-            # Filtrer uniquement les dépenses de l'utilisateur
-            df_depenses_user = df_mois[(df_mois["Type"]=="Dépense") & 
-                                       (df_mois["Qui_Connecte"] == user_actuel) &
-                                       (df_mois["Imputation"] == "Perso")]
-            if not df_depenses_user.empty:
-                fig_pie = px.pie(df_depenses_user, values="Montant", names="Categorie", hole=0.6, 
-                                color_discrete_sequence=['#DA7756', '#202124', '#5F6368', '#9CA3AF', '#D1D5DB'])
-                fig_pie.update_layout(showlegend=True)
-                st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.info("Pas de dépenses personnelles ce mois-ci")
-        else: 
-            st.info("Pas de données")
+            fig_pie = px.pie(df_mois[df_mois["Type"]=="Dépense"], values="Montant", names="Categorie", hole=0.6, color_discrete_sequence=['#DA7756', '#202124', '#5F6368', '#9CA3AF', '#D1D5DB'])
+            fig_pie.update_layout(showlegend=True)
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else: st.info("Pas de données")
     
     with c2:
         st.subheader("Alertes Budget")
@@ -740,7 +659,7 @@ with tabs[1]:
             st.success("Tout est sous contrôle !")
 
 # 2. TRANSACTIONS
-with tabs[0]:
+with tabs[1]:
     subtabs = st.tabs(["Nouvelle Saisie", "Journal", "Abonnements"])
     
     # --- SAISIE ---
@@ -834,9 +753,7 @@ with tabs[0]:
         search = col_search.text_input("Rechercher transaction...", placeholder="Ex: Auchan", key="search_j")
         
         if not df.empty:
-            # Filtrer uniquement les transactions de l'utilisateur actuel
-            df_user = df[df["Qui_Connecte"] == user_actuel].copy()
-            df_e = df_user.sort_values(by="Date", ascending=False)
+            df_e = df.copy().sort_values(by="Date", ascending=False)
             if search: df_e = df_e[df_e.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)]
             
             # ===== MODULE 3: EXPORT EXCEL CORRIGÉ =====
@@ -854,12 +771,7 @@ with tabs[0]:
             df_e.insert(0, "Suppr", False)
             ed = st.data_editor(df_e, use_container_width=True, hide_index=True, column_config={"Suppr": st.column_config.CheckboxColumn("Suppr", width="small")}, key="ed_j")
             if st.button("Supprimer sélection", type="primary", key="del_j"):
-                # Garder les transactions des autres utilisateurs
-                df_others = df[df["Qui_Connecte"] != user_actuel]
-                df_updated = pd.concat([df_others, ed[ed["Suppr"]==False].drop(columns=["Suppr"])], ignore_index=True)
-                save_data_to_sheet(TAB_DATA, df_updated)
-                df = df_updated
-                st.rerun()
+                save_data_to_sheet(TAB_DATA, ed[ed["Suppr"]==False].drop(columns=["Suppr"])); st.rerun()
 
     # --- ABONNEMENTS ---
     with subtabs[2]:
@@ -1053,10 +965,7 @@ with tabs[2]:
     st.markdown("---")
     st.subheader("1. Flux Financiers (Sankey)")
     if not df_mois.empty:
-        # Filtrer uniquement les données de l'utilisateur
-        df_rev = df_mois[(df_mois["Type"] == "Revenu") & (df_mois["Qui_Connecte"] == user_actuel)]
-        df_dep = df_mois[(df_mois["Type"] == "Dépense") & (df_mois["Qui_Connecte"] == user_actuel)]
-        
+        df_rev = df_mois[df_mois["Type"] == "Revenu"]; df_dep = df_mois[df_mois["Type"] == "Dépense"]
         rev_flows = df_rev.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
         dep_flows = df_dep.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
         
@@ -1065,11 +974,9 @@ with tabs[2]:
         label_map = {name: i for i, name in enumerate(unique_labels)}
         
         src = []; tgt = []; val = []; cols = []
-        for _, r in rev_flows.iterrows(): 
-            src.append(label_map[r["Categorie"]]); tgt.append(label_map[r["Compte_Source"]]); val.append(r["Montant"]); cols.append("green")
+        for _, r in rev_flows.iterrows(): src.append(label_map[r["Categorie"]]); tgt.append(label_map[r["Compte_Source"]]); val.append(r["Montant"]); cols.append("green")
         for _, r in dep_flows.iterrows():
-            if r["Compte_Source"] in label_map and r["Categorie"] in label_map: 
-                src.append(label_map[r["Compte_Source"]]); tgt.append(label_map[r["Categorie"]]); val.append(r["Montant"]); cols.append("red")
+            if r["Compte_Source"] in label_map and r["Categorie"] in label_map: src.append(label_map[r["Compte_Source"]]); tgt.append(label_map[r["Categorie"]]); val.append(r["Montant"]); cols.append("red")
             
         if val:
             fig = go.Figure(data=[go.Sankey(node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=unique_labels, color="grey"), link=dict(source=src, target=tgt, value=val, color=cols))])
@@ -1082,48 +989,25 @@ with tabs[2]:
     with st.expander("Configurer Budget"):
         with st.form("conf_bud"):
             c1, c2, c3, c4 = st.columns([2,2,2,1])
-            s = c1.selectbox("Scope", ["Perso", "Commun"], key="s_b")
-            ca = c2.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="ca_b")
-            mo = c3.number_input("Budget max (€)", key="mo_b")
+            s = c1.selectbox("Scope", ["Commun", "Pierre", "Elie"], key="s_b"); ca = c2.selectbox("Cat", cats_memoire.get("Dépense", []), key="ca_b"); mo = c3.number_input("Max €", key="mo_b")
             if c4.form_submit_button("Ajouter"):
-                scope_to_save = user_actuel if s == "Perso" else "Commun"
-                objectifs_list.append({"Scope": scope_to_save, "Categorie": ca, "Montant": mo})
-                save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                st.rerun()
+                objectifs_list.append({"Scope": s, "Categorie": ca, "Montant": mo}); save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
                 
-        # Afficher et permettre la suppression uniquement des budgets de l'utilisateur
-        user_objectifs = [o for o in objectifs_list if o["Scope"] == user_actuel or o["Scope"] == "Commun"]
-        if user_objectifs:
+        if objectifs_list:
             for i, o in enumerate(objectifs_list):
-                if o["Scope"] == user_actuel or o["Scope"] == "Commun":
-                    c1, c2 = st.columns([4,1])
-                    scope_display = "Perso" if o["Scope"] == user_actuel else "Commun"
-                    c1.text(f"{scope_display} - {o['Categorie']} : {o['Montant']}€")
-                    if c2.button("X", key=f"del_obj_{i}"): 
-                        objectifs_list.pop(i)
-                        save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                        st.rerun()
+                c1, c2 = st.columns([4,1])
+                c1.text(f"{o['Scope']} - {o['Categorie']} : {o['Montant']}€")
+                if c2.button("X", key=f"del_obj_{i}"): objectifs_list.pop(i); save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
 
-    # Filtrer les objectifs de l'utilisateur
-    df_b = pd.DataFrame([o for o in objectifs_list if o["Scope"] == user_actuel or o["Scope"] == "Commun"])
+    df_b = pd.DataFrame(objectifs_list)
     if not df_b.empty:
         b_data = []
         for _, r in df_b.iterrows():
             mask = (df_mois["Type"] == "Dépense") & (df_mois["Categorie"] == r["Categorie"])
-            if r["Scope"] == "Commun": 
-                mask = mask & (df_mois["Imputation"] == "Commun (50/50)")
-            else: 
-                mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
-            
+            if r["Scope"] == "Commun": mask = mask & (df_mois["Imputation"] == "Commun (50/50)")
+            else: mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == (r["Scope"] if r["Scope"] in USERS else user_actuel))
             real = df_mois[mask]["Montant"].sum()
-            b_data.append({
-                "Catégorie": r["Categorie"], 
-                "Scope": "Commun" if r["Scope"] == "Commun" else "Perso", 
-                "Budget": r["Montant"], 
-                "Réel": real, 
-                "Progression": min(real/r["Montant"] if r["Montant"]>0 else 0, 1.0), 
-                "%": f"{(real/r['Montant']*100 if r['Montant']>0 else 0):.0f}%"
-            })
+            b_data.append({"Cat": r["Categorie"], "Scope": r["Scope"], "Budget": r["Montant"], "Réel": real, "Progression": min(real/r["Montant"] if r["Montant"]>0 else 0, 1.0), "%": f"{(real/r['Montant']*100 if r['Montant']>0 else 0):.0f}%"})
         
         st.dataframe(pd.DataFrame(b_data), column_config={"Progression": st.column_config.ProgressColumn("Etat", format="%.2f", min_value=0, max_value=1)}, use_container_width=True, hide_index=True)
 
@@ -1133,11 +1017,10 @@ with tabs[3]:
     
     st.subheader("📈 Projection jusqu'à fin de mois")
     
-    # Calcul du solde actuel (uniquement comptes courants personnels)
-    solde_depart = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_structure.get(user_actuel, []) 
-                       if c != "Autre / Externe" and comptes_types_map.get(c) == "Courant"])
+    # Calcul du solde actuel
+    solde_depart = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if c != "Autre / Externe" and comptes_types_map.get(c) == "Courant"])
     
-    # Abonnements restants (uniquement ceux de l'utilisateur)
+    # Abonnements restants
     abos_restants = 0
     if not df_abonnements.empty:
         abos_user = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))]
@@ -1188,7 +1071,7 @@ with tabs[4]:
     
     st.subheader("💰 Qui a payé quoi ?")
     
-    # Calcul des dépenses communes (toujours visible aux deux)
+    # Calcul des dépenses communes
     df_commun = df_mois[df_mois["Imputation"].str.contains("Commun", na=False)]
     
     total_pierre = df_commun[df_commun["Paye_Par"] == "Pierre"]["Montant"].sum()
@@ -1235,8 +1118,7 @@ with tabs[5]:
     # ===== SECTION 1: PYRAMIDE DE L'ÉPARGNE =====
     st.markdown("### Pyramide de l'Épargne")
 
-    total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_structure.get(user_actuel, []) 
-                              if comptes_types_map.get(c) == "Épargne"])
+    total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"])
 
     # Calcul des revenus mensuels
     revenus_par_mois = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum()
@@ -1338,7 +1220,7 @@ with tabs[5]:
                 if i + j < len(projets_list):
                     projet_nom, projet_data = projets_list[i + j]
 
-                    saved = df[(df["Projet_Epargne"] == projet_nom) & (df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0
+                    saved = df[(df["Projet_Epargne"] == projet_nom) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0
                     target = float(projet_data["Cible"])
                     progression = (saved / target * 100) if target > 0 else 0
 
@@ -1424,9 +1306,7 @@ with tabs[5]:
     with st.form("releve_form", clear_on_submit=True):
         col1, col2, col3 = st.columns(3)
         date_releve = col1.date_input("Date du relevé", datetime.today(), key="dr")
-        # Filtrer uniquement les comptes de l'utilisateur
-        user_accounts = comptes_structure.get(user_actuel, [])
-        compte_releve = col2.selectbox("Compte", user_accounts, key="cr")
+        compte_releve = col2.selectbox("Compte", comptes_disponibles, key="cr")
         montant_releve = col3.number_input("Solde réel (€)", step=0.01, key="mr")
 
         if st.form_submit_button("Enregistrer le Relevé", type="primary", use_container_width=True):
@@ -1444,267 +1324,28 @@ with tabs[5]:
             time.sleep(1)
             st.rerun()
 
-# 7. CONFIG
+# 5. CONFIG
 with tabs[6]:
     page_header("Configuration")
     
     config_tabs = st.tabs(["Comptes", "Catégories", "Mots-Clés Auto"])
     
-    # COMPTES - Version améliorée
+    # COMPTES
     with config_tabs[0]:
-        st.subheader("📁 Gestion des Comptes Bancaires")
-        st.info(f"Vous gérez uniquement vos comptes personnels et les comptes communs.")
+        st.subheader("Comptes")
+        with st.form("add_cpt"):
+            n = st.text_input("Nom", key="nc"); p = st.selectbox("Proprio", ["Pierre", "Elie", "Commun"], key="pc"); t = st.selectbox("Type", TYPES_COMPTE, key="tc")
+            if st.form_submit_button("Ajouter"):
+                if p not in comptes_structure: comptes_structure[p] = []
+                comptes_structure[p].append(n); comptes_types_map[n] = t; save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
         
-        # Formulaire d'ajout de compte
-        with st.container():
-            st.markdown("### ➕ Ajouter un nouveau compte")
-            with st.form("add_account_form", clear_on_submit=True):
-                col_name, col_type, col_owner = st.columns(3)
-                
-                # Nom du compte
-                with col_name:
-                    account_name = st.text_input(
-                        "Nom du compte*",
-                        placeholder="Ex: Compte Courant BNP",
-                        help="Nom complet de votre compte bancaire",
-                        key="account_name_input"
-                    )
-                
-                # Type de compte
-                with col_type:
-                    account_type = st.selectbox(
-                        "Type de compte*",
-                        TYPES_COMPTE,
-                        help="Courant pour dépenses quotidiennes, Épargne pour économies",
-                        key="account_type_select"
-                    )
-                
-                # Propriétaire (sélection intelligente)
-                with col_owner:
-                    owner_options = [user_actuel, "Commun"]
-                    account_owner = st.selectbox(
-                        "Propriétaire*",
-                        owner_options,
-                        help=f"Votre compte personnel ou un compte commun",
-                        key="account_owner_select"
-                    )
-                
-                # Bouton d'ajout
-                col_submit, _ = st.columns([1, 3])
-                with col_submit:
-                    submit_account = st.form_submit_button(
-                        "✅ Ajouter ce compte",
-                        type="primary",
-                        use_container_width=True
-                    )
-                
-                if submit_account:
-                    if not account_name:
-                        st.error("Le nom du compte est obligatoire")
-                    elif account_name in [acc for accs in comptes_structure.values() for acc in accs]:
-                        st.error(f"Le compte '{account_name}' existe déjà")
-                    else:
-                        # Ajout du compte
-                        if account_owner not in comptes_structure:
-                            comptes_structure[account_owner] = []
-                        
-                        comptes_structure[account_owner].append(account_name)
-                        comptes_types_map[account_name] = account_type
-                        
-                        # Sauvegarde
-                        rows = []
-                        for owner, accounts in comptes_structure.items():
-                            for account in accounts:
-                                rows.append({
-                                    "Proprietaire": owner,
-                                    "Compte": account,
-                                    "Type": comptes_types_map.get(account, "Courant")
-                                })
-                        
-                        if safe_save_to_sheet(TAB_COMPTES, pd.DataFrame(rows)):
-                            st.success(f"✅ Compte '{account_name}' ajouté avec succès !")
-                            time.sleep(1)
-                            st.rerun()
-        
-        st.markdown("---")
-        
-        # Affichage des comptes par section
-        st.markdown("### 📋 Mes Comptes")
-        
-        # Section 1: Comptes personnels
-        my_personal_accounts = comptes_structure.get(user_actuel, [])
-        if my_personal_accounts:
-            st.markdown(f"#### 👤 Vos comptes personnels ({len(my_personal_accounts)})")
-            
-            for account in my_personal_accounts:
-                account_type = comptes_types_map.get(account, "Courant")
-                solde = SOLDES_ACTUELS.get(account, 0.0)
-                
-                # Couleur selon le type
-                if account_type == "Épargne":
-                    gradient = "linear-gradient(135deg, #0066FF 0%, #00D4FF 100%)"
-                    icon = "💎"
-                    type_badge = "Épargne"
-                else:
-                    gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if solde >= 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
-                    icon = "💳"
-                    type_badge = "Courant"
-                
-                with st.container():
-                    col1, col2, col3 = st.columns([4, 1, 1])
-                    
-                    with col1:
-                        st.markdown(f"""
-                        <div style="background: {gradient}; border-radius: 12px; padding: 16px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="font-size: 24px;">{icon}</div>
-                                <div>
-                                    <div style="font-size: 16px; font-weight: 700; color: white;">{account}</div>
-                                    <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
-                                        <div style="background: rgba(255,255,255,0.2); color: white; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px;">{type_badge}</div>
-                                        <div style="font-size: 12px; color: rgba(255,255,255,0.9);">Solde: {solde:,.2f} €</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col2:
-                        # Bouton Modifier
-                        if st.button("✏️", key=f"edit_{account}", help="Modifier", use_container_width=True):
-                            st.session_state[f"editing_{account}"] = True
-                    
-                    with col3:
-                        # Bouton Supprimer
-                        if st.button("🗑️", key=f"delete_{account}", help="Supprimer", use_container_width=True):
-                            # Vérifier qu'il n'y a pas de transactions associées
-                            transactions_count = len(df[df["Compte_Source"] == account]) + len(df[df["Compte_Cible"] == account])
-                            if transactions_count > 0:
-                                st.warning(f"⚠️ Ce compte a {transactions_count} transactions. Impossible de le supprimer.")
-                            else:
-                                comptes_structure[user_actuel].remove(account)
-                                del comptes_types_map[account]
-                                
-                                rows = []
-                                for owner, accounts in comptes_structure.items():
-                                    for acc in accounts:
-                                        rows.append({
-                                            "Proprietaire": owner,
-                                            "Compte": acc,
-                                            "Type": comptes_types_map.get(acc, "Courant")
-                                        })
-                                
-                                if safe_save_to_sheet(TAB_COMPTES, pd.DataFrame(rows)):
-                                    st.success(f"✅ Compte '{account}' supprimé")
-                                    time.sleep(1)
-                                    st.rerun()
-                    
-                    # Édition inline
-                    if st.session_state.get(f"editing_{account}", False):
-                        with st.expander(f"Modifier {account}", expanded=True):
-                            edit_col1, edit_col2 = st.columns(2)
-                            new_name = edit_col1.text_input("Nouveau nom", value=account, key=f"new_name_{account}")
-                            new_type = edit_col2.selectbox("Type", TYPES_COMPTE, 
-                                                         index=TYPES_COMPTE.index(account_type) if account_type in TYPES_COMPTE else 0,
-                                                         key=f"new_type_{account}")
-                            
-                            edit_col3, edit_col4 = st.columns(2)
-                            if edit_col3.button("✅ Enregistrer", key=f"save_edit_{account}"):
-                                # Mettre à jour les transactions existantes
-                                df["Compte_Source"] = df["Compte_Source"].replace(account, new_name)
-                                df["Compte_Cible"] = df["Compte_Cible"].replace(account, new_name)
-                                df_patrimoine["Compte"] = df_patrimoine["Compte"].replace(account, new_name)
-                                df_abonnements["Compte_Source"] = df_abonnements["Compte_Source"].replace(account, new_name)
-                                
-                                # Mettre à jour les structures
-                                comptes_structure[user_actuel].remove(account)
-                                comptes_structure[user_actuel].append(new_name)
-                                del comptes_types_map[account]
-                                comptes_types_map[new_name] = new_type
-                                
-                                # Sauvegarder tout
-                                safe_save_to_sheet(TAB_DATA, df)
-                                safe_save_to_sheet(TAB_PATRIMOINE, df_patrimoine)
-                                safe_save_to_sheet(TAB_ABONNEMENTS, df_abonnements)
-                                
-                                rows = []
-                                for owner, accounts in comptes_structure.items():
-                                    for acc in accounts:
-                                        rows.append({
-                                            "Proprietaire": owner,
-                                            "Compte": acc,
-                                            "Type": comptes_types_map.get(acc, "Courant")
-                                        })
-                                
-                                safe_save_to_sheet(TAB_COMPTES, pd.DataFrame(rows))
-                                
-                                st.success(f"✅ Compte mis à jour : {new_name}")
-                                st.session_state[f"editing_{account}"] = False
-                                time.sleep(1)
-                                st.rerun()
-                            
-                            if edit_col4.button("❌ Annuler", key=f"cancel_edit_{account}"):
-                                st.session_state[f"editing_{account}"] = False
-                                st.rerun()
-        else:
-            st.info(f"👋 Vous n'avez pas encore de compte personnel. Ajoutez-en un ci-dessus !")
-        
-        # Section 2: Comptes communs (lecture seule)
-        common_accounts = comptes_structure.get("Commun", [])
-        if common_accounts:
-            st.markdown("---")
-            st.markdown(f"#### 👥 Comptes communs ({len(common_accounts)})")
-            st.info("Ces comptes sont partagés avec votre conjoint. Consultation seule.")
-            
-            for account in common_accounts:
-                account_type = comptes_types_map.get(account, "Courant")
-                solde = SOLDES_ACTUELS.get(account, 0.0)
-                
-                if account_type == "Épargne":
-                    gradient = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
-                    icon = "🤝"
-                    type_badge = "Épargne Commun"
-                else:
-                    gradient = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
-                    icon = "🤝"
-                    type_badge = "Courant Commun"
-                
-                st.markdown(f"""
-                <div style="background: {gradient}; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="font-size: 24px;">{icon}</div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 16px; font-weight: 700; color: white;">{account}</div>
-                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
-                                <div style="background: rgba(255,255,255,0.2); color: white; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px;">{type_badge}</div>
-                                <div style="font-size: 12px; color: rgba(255,255,255,0.9);">Solde: {solde:,.2f} €</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Section 3: Statistiques
-        st.markdown("---")
-        st.markdown("### 📊 Résumé")
-        
-        total_personal = sum(SOLDES_ACTUELS.get(acc, 0) for acc in my_personal_accounts)
-        total_common = sum(SOLDES_ACTUELS.get(acc, 0) for acc in common_accounts)
-        
-        stat1, stat2, stat3 = st.columns(3)
-        
-        with stat1:
-            st.metric("Comptes Personnels", len(my_personal_accounts), 
-                     f"{total_personal:,.0f} €" if my_personal_accounts else "-")
-        
-        with stat2:
-            st.metric("Comptes Communs", len(common_accounts), 
-                     f"{total_common:,.0f} €" if common_accounts else "-")
-        
-        with stat3:
-            st.metric("Total Géré", len(my_personal_accounts + common_accounts),
-                     f"{total_personal + total_common:,.0f} €")
-    
+        for owner, accs in comptes_structure.items():
+            st.write(f"**{owner}**")
+            for a in accs:
+                col_a, col_b = st.columns([4,1])
+                col_a.text(a)
+                if col_b.button("X", key=f"del_acc_{a}"): comptes_structure[owner].remove(a); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+
     # CATÉGORIES
     with config_tabs[1]:
         st.subheader("Catégories")
