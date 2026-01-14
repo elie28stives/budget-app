@@ -27,6 +27,302 @@ IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
 FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+def get_company_logo(company_name):
+    """
+    Récupère le logo d'une entreprise via Clearbit Logo API
+    Retourne l'URL du logo ou un emoji par défaut
+    """
+    if not company_name:
+        return None
+    
+    # Nettoyage du nom pour l'URL
+    company_clean = company_name.lower().strip()
+    
+    # Mapping des noms communs vers les domaines
+    domain_mapping = {
+        "netflix": "netflix.com",
+        "spotify": "spotify.com",
+        "amazon": "amazon.com",
+        "amazon prime": "amazon.com",
+        "disney": "disney.com",
+        "disney+": "disneyplus.com",
+        "apple": "apple.com",
+        "google": "google.com",
+        "youtube": "youtube.com",
+        "microsoft": "microsoft.com",
+        "adobe": "adobe.com",
+        "bnp": "bnpparibas.com",
+        "bnp paribas": "bnpparibas.com",
+        "société générale": "societegenerale.com",
+        "societe generale": "societegenerale.com",
+        "crédit agricole": "credit-agricole.fr",
+        "credit agricole": "credit-agricole.fr",
+        "lcl": "lcl.fr",
+        "boursorama": "boursorama.com",
+        "revolut": "revolut.com",
+        "n26": "n26.com",
+        "orange": "orange.fr",
+        "free": "free.fr",
+        "sfr": "sfr.fr",
+        "bouygues": "bouyguestelecom.fr",
+        "edf": "edf.fr",
+        "engie": "engie.fr",
+        "veolia": "veolia.com",
+        "deezer": "deezer.com",
+        "canal+": "canalplus.com",
+        "canal plus": "canalplus.com",
+        "ocs": "ocs.fr",
+        "salto": "salto.fr",
+        "figaro": "lefigaro.fr",
+        "le monde": "lemonde.fr",
+        "linkedin": "linkedin.com",
+        "uber": "uber.com",
+        "deliveroo": "deliveroo.com",
+        "ubereats": "uber.com",
+        "bolt": "bolt.eu",
+        "sncf": "sncf.com",
+        "airbnb": "airbnb.com",
+        "booking": "booking.com",
+        "github": "github.com",
+        "dropbox": "dropbox.com",
+        "notion": "notion.so",
+        "slack": "slack.com",
+        "zoom": "zoom.us",
+        "canva": "canva.com",
+        "openai": "openai.com",
+        "chatgpt": "openai.com",
+        "anthropic": "anthropic.com",
+        "claude": "anthropic.com",
+    }
+    
+    # Chercher le domaine
+    domain = None
+    for key, value in domain_mapping.items():
+        if key in company_clean:
+            domain = value
+            break
+    
+    # Si pas trouvé, essayer d'ajouter .com
+    if not domain:
+        # Extraire le premier mot
+        first_word = company_clean.split()[0] if company_clean else ""
+        if first_word:
+            domain = f"{first_word}.com"
+    
+    # Retourner l'URL du logo via Clearbit
+    if domain:
+        return f"https://logo.clearbit.com/{domain}"
+    
+    return None
+
+
+## ÉTAPE 2 : Remplacer ENTIÈREMENT la section "# --- ABONNEMENTS ---"
+
+    # --- ABONNEMENTS ---
+    with subtabs[2]:
+        st.markdown("### 💳 Mes Abonnements")
+        
+        # Bouton Nouveau en haut
+        with st.expander("➕ Nouvel Abonnement", expanded=False):
+            with st.form("new_abo_form"):
+                col1, col2, col3, col4 = st.columns(4)
+                nom_abo = col1.text_input("Nom", placeholder="Ex: Netflix, Spotify...", key="na")
+                montant_abo = col2.number_input("Montant (€)", min_value=0.0, key="ma")
+                jour_abo = col3.number_input("Jour", 1, 31, 1, key="ja")
+                freq_abo = col4.selectbox("Fréquence", FREQUENCES, key="fa")
+                
+                col5, col6, col7 = st.columns(3)
+                cat_abo = col5.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="ca")
+                compte_abo = col6.selectbox("Compte", comptes_disponibles, key="cpa")
+                imp_abo = col7.selectbox("Imputation", IMPUTATIONS, key="ia")
+                
+                if imp_abo == "Commun (Autre %)":
+                    pc_abo = st.slider("% Pierre", 0, 100, 50, key="pa")
+                    imp_abo = f"Commun ({pc_abo}/{100-pc_abo})"
+                
+                if st.form_submit_button("✅ Ajouter", type="primary", use_container_width=True):
+                    new_abo = pd.DataFrame([{
+                        "Nom": nom_abo,
+                        "Montant": montant_abo,
+                        "Jour": jour_abo,
+                        "Categorie": cat_abo,
+                        "Compte_Source": compte_abo,
+                        "Proprietaire": user_actuel,
+                        "Imputation": imp_abo,
+                        "Frequence": freq_abo
+                    }])
+                    df_abonnements = pd.concat([df_abonnements, new_abo], ignore_index=True)
+                    save_abonnements(df_abonnements)
+                    st.success(f"✅ {nom_abo} ajouté !")
+                    time.sleep(1)
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        # Filtrer les abonnements de l'utilisateur
+        if not df_abonnements.empty:
+            my_abos = df_abonnements[
+                (df_abonnements["Proprietaire"] == user_actuel) | 
+                (df_abonnements["Imputation"].str.contains("Commun", na=False))
+            ].copy()
+            
+            if not my_abos.empty:
+                # Préparer les données
+                abo_list = []
+                to_generate = []
+                
+                for idx, row in my_abos.iterrows():
+                    is_paid = False
+                    if not df_mois.empty:
+                        matching = df_mois[
+                            (df_mois["Titre"] == row["Nom"]) & 
+                            (df_mois["Montant"] == float(row["Montant"]))
+                        ]
+                        is_paid = not matching.empty
+                    
+                    abo_list.append({
+                        "idx": idx,
+                        "nom": row["Nom"],
+                        "montant": float(row["Montant"]),
+                        "jour": int(row["Jour"]),
+                        "categorie": row["Categorie"],
+                        "compte": row["Compte_Source"],
+                        "imputation": row["Imputation"],
+                        "frequence": row["Frequence"],
+                        "statut": is_paid,
+                        "row_data": row
+                    })
+                    
+                    if not is_paid:
+                        to_generate.append(row)
+                
+                # Bouton génération en masse
+                if to_generate:
+                    if st.button(f"🔄 Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
+                        new_transactions = []
+                        for row in to_generate:
+                            try:
+                                date_abo = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
+                            except:
+                                date_abo = datetime(annee_selection, mois_selection, 28).date()
+                            
+                            paye_par = "Commun" if "Commun" in str(row["Imputation"]) else row["Proprietaire"]
+                            
+                            new_transactions.append({
+                                "Date": date_abo,
+                                "Mois": mois_selection,
+                                "Annee": annee_selection,
+                                "Qui_Connecte": row["Proprietaire"],
+                                "Type": "Dépense",
+                                "Categorie": row["Categorie"],
+                                "Titre": row["Nom"],
+                                "Description": "Abonnement automatique",
+                                "Montant": float(row["Montant"]),
+                                "Paye_Par": paye_par,
+                                "Imputation": row["Imputation"],
+                                "Compte_Cible": "",
+                                "Projet_Epargne": "",
+                                "Compte_Source": row["Compte_Source"]
+                            })
+                        
+                        df = pd.concat([df, pd.DataFrame(new_transactions)], ignore_index=True)
+                        save_data_to_sheet(TAB_DATA, df)
+                        st.success(f"✅ {len(new_transactions)} abonnement(s) généré(s) !")
+                        time.sleep(1)
+                        st.rerun()
+                    
+                    st.markdown("---")
+                
+                # Affichage en vignettes 4 par ligne
+                st.markdown("#### 📋 Liste des abonnements")
+                
+                for i in range(0, len(abo_list), 4):
+                    cols = st.columns(4)
+                    
+                    for j, col in enumerate(cols):
+                        if i + j < len(abo_list):
+                            abo = abo_list[i + j]
+                            
+                            # Couleurs selon le statut
+                            if abo["statut"]:
+                                gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
+                                badge = "✅ Payé"
+                                badge_color = "#10B981"
+                            else:
+                                gradient = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+                                badge = "⏳ En attente"
+                                badge_color = "#F59E0B"
+                            
+                            # Logo de l'entreprise
+                            logo_url = get_company_logo(abo["nom"])
+                            
+                            with col:
+                                # Card avec logo d'entreprise
+                                if logo_url:
+                                    st.markdown(f"""
+                                    <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 220px; position: relative;">
+                                        <div style="position: absolute; top: 12px; right: 12px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                                            <img src="{logo_url}" style="width: 40px; height: 40px; object-fit: contain;" onerror="this.style.display='none'">
+                                        </div>
+                                        <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
+                                        <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px; padding-right: 50px;">{abo['nom']}</div>
+                                        <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
+                                        <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
+                                        <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    # Fallback sans logo
+                                    st.markdown(f"""
+                                    <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 220px; position: relative;">
+                                        <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
+                                        <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px;">{abo['nom']}</div>
+                                        <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
+                                        <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
+                                        <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Bouton Modifier
+                                if st.button(f"✏️ Modifier", key=f"edit_abo_{abo['idx']}", use_container_width=True):
+                                    st.session_state[f'editing_abo_{abo["idx"]}'] = not st.session_state.get(f'editing_abo_{abo["idx"]}', False)
+                                
+                                # Formulaire de modification
+                                if st.session_state.get(f'editing_abo_{abo["idx"]}', False):
+                                    with st.form(f"form_edit_{abo['idx']}"):
+                                        st.markdown("**✏️ Modifier**")
+                                        
+                                        new_nom = st.text_input("Nom", value=abo['nom'], key=f"edit_nom_{abo['idx']}")
+                                        new_montant = st.number_input("Montant (€)", value=abo['montant'], min_value=0.0, key=f"edit_montant_{abo['idx']}")
+                                        new_jour = st.number_input("Jour", value=abo['jour'], min_value=1, max_value=31, key=f"edit_jour_{abo['idx']}")
+                                        new_freq = st.selectbox("Fréquence", FREQUENCES, index=FREQUENCES.index(abo['frequence']) if abo['frequence'] in FREQUENCES else 0, key=f"edit_freq_{abo['idx']}")
+                                        new_cat = st.selectbox("Catégorie", cats_memoire.get("Dépense", []), index=cats_memoire.get("Dépense", []).index(abo['categorie']) if abo['categorie'] in cats_memoire.get("Dépense", []) else 0, key=f"edit_cat_{abo['idx']}")
+                                        
+                                        if st.form_submit_button("💾 Enregistrer", use_container_width=True):
+                                            # Mettre à jour l'abonnement
+                                            df_abonnements.loc[abo['idx'], 'Nom'] = new_nom
+                                            df_abonnements.loc[abo['idx'], 'Montant'] = new_montant
+                                            df_abonnements.loc[abo['idx'], 'Jour'] = new_jour
+                                            df_abonnements.loc[abo['idx'], 'Frequence'] = new_freq
+                                            df_abonnements.loc[abo['idx'], 'Categorie'] = new_cat
+                                            
+                                            save_abonnements(df_abonnements)
+                                            st.success(f"✅ {new_nom} modifié !")
+                                            st.session_state[f'editing_abo_{abo["idx"]}'] = False
+                                            time.sleep(1)
+                                            st.rerun()
+                                
+                                # Bouton Supprimer
+                                if st.button(f"🗑️ Supprimer", key=f"del_abo_{abo['idx']}", use_container_width=True):
+                                    df_abonnements = df_abonnements.drop(abo['idx'])
+                                    save_abonnements(df_abonnements)
+                                    st.success(f"✅ {abo['nom']} supprimé")
+                                    time.sleep(1)
+                                    st.rerun()
+            else:
+                st.info("👋 Aucun abonnement pour le moment. Créez-en un ci-dessus !")
+        else:
+            st.info("👋 Aucun abonnement configuré. Commencez par en ajouter un !")
 
 # --- STYLE CSS (REVOLUT-INSPIRED DESIGN) ---
 def apply_custom_style():
@@ -1651,4 +1947,5 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
