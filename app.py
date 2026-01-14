@@ -663,47 +663,160 @@ with tabs[1]:
 
     # --- ABONNEMENTS ---
     with subtabs[2]:
-        if not df_abonnements.empty:
-            my_abos = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))].copy()
-            if not my_abos.empty:
-                abo_data = []
-                for idx, row in my_abos.iterrows():
-                    is_done = False
-                    if not df_mois.empty:
-                        if not df_mois[(df_mois["Titre"]==row["Nom"]) & (df_mois["Montant"]==float(row["Montant"]))].empty: is_done = True
-                    abo_data.append({"Nom": row["Nom"], "Montant": row["Montant"], "Statut": "✅" if is_done else "⏳", "ID": idx, "Row": row})
+        st.markdown("### 💳 Mes Abonnements")
+        
+        # Bouton Nouveau en haut
+        with st.expander("➕ Nouvel Abonnement", expanded=False):
+            with st.form("new_abo_form"):
+                col1, col2, col3, col4 = st.columns(4)
+                nom_abo = col1.text_input("Nom", key="na")
+                montant_abo = col2.number_input("Montant (€)", min_value=0.0, key="ma")
+                jour_abo = col3.number_input("Jour", 1, 31, 1, key="ja")
+                freq_abo = col4.selectbox("Fréquence", FREQUENCES, key="fa")
                 
-                st.dataframe(pd.DataFrame(abo_data).drop(columns=["ID", "Row"]), use_container_width=True, hide_index=True)
+                col5, col6, col7 = st.columns(3)
+                cat_abo = col5.selectbox("Catégorie", cats_memoire.get("Dépense", []), key="ca")
+                compte_abo = col6.selectbox("Compte", comptes_disponibles, key="cpa")
+                imp_abo = col7.selectbox("Imputation", IMPUTATIONS, key="ia")
                 
-                to_gen = [a["Row"] for a in abo_data if a["Statut"] == "⏳"]
-                if to_gen:
-                    if st.button(f"Générer {len(to_gen)} manquants", type="primary", key="gen_abo"):
-                        new_rows = []
-                        for row in to_gen:
-                            try: d = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
-                            except: d = datetime(annee_selection, mois_selection, 28).date()
-                            paye = "Commun" if "Commun" in str(row["Imputation"]) else row["Proprietaire"]
-                            new_rows.append({"Date": d, "Mois": mois_selection, "Annee": annee_selection, "Qui_Connecte": row["Proprietaire"], "Type": "Dépense", "Categorie": row["Categorie"], "Titre": row["Nom"], "Description": "Abo Auto", "Montant": float(row["Montant"]), "Paye_Par": paye, "Imputation": row["Imputation"], "Compte_Cible": "", "Projet_Epargne": "", "Compte_Source": row["Compte_Source"]})
-                        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True); save_data_to_sheet(TAB_DATA, df); st.rerun()
+                if imp_abo == "Commun (Autre %)":
+                    pc_abo = st.slider("% Pierre", 0, 100, 50, key="pa")
+                    imp_abo = f"Commun ({pc_abo}/{100-pc_abo})"
                 
-                st.markdown("---")
-                st.write("Gestion:")
-                for a in abo_data:
-                    c1, c2 = st.columns([4,1])
-                    c1.text(a["Nom"])
-                    if c2.button("Suppr", key=f"del_abo_{a['ID']}"):
-                        df_abonnements = df_abonnements.drop(a['ID']); save_abonnements(df_abonnements); st.rerun()
+                if st.form_submit_button("✅ Ajouter", type="primary", use_container_width=True):
+                    new_abo = pd.DataFrame([{
+                        "Nom": nom_abo,
+                        "Montant": montant_abo,
+                        "Jour": jour_abo,
+                        "Categorie": cat_abo,
+                        "Compte_Source": compte_abo,
+                        "Proprietaire": user_actuel,
+                        "Imputation": imp_abo,
+                        "Frequence": freq_abo
+                    }])
+                    df_abonnements = pd.concat([df_abonnements, new_abo], ignore_index=True)
+                    save_abonnements(df_abonnements)
+                    st.success(f"✅ {nom_abo} ajouté !")
+                    time.sleep(1)
+                    st.rerun()
         
         st.markdown("---")
-        with st.expander("Nouveau"):
-            c1, c2, c3, c4 = st.columns(4)
-            n = c1.text_input("Nom", key="na"); m = c2.number_input("Montant", key="ma"); j = c3.number_input("Jour", 1, 31, 1, key="ja"); f = c4.selectbox("Freq", FREQUENCES, key="fa")
-            c5, c6, c7 = st.columns(3)
-            c = c5.selectbox("Cat", cats_memoire.get("Dépense", []), key="ca"); cp = c6.selectbox("Cpt", comptes_disponibles, key="cpa"); i = c7.radio("Imp", IMPUTATIONS, key="ia")
-            if i == "Commun (Autre %)": p = st.slider("%P", 0, 100, 50, key="pa"); i = f"Commun ({p}/{100-p})"
-            if st.button("Ajouter Abo", key="ba"):
-                df_abonnements = pd.concat([df_abonnements, pd.DataFrame([{"Nom": n, "Montant": m, "Jour": j, "Categorie": c, "Compte_Source": cp, "Proprietaire": user_actuel, "Imputation": i, "Frequence": f}])], ignore_index=True)
-                save_abonnements(df_abonnements); st.rerun()
+        
+        # Filtrer les abonnements de l'utilisateur
+        if not df_abonnements.empty:
+            my_abos = df_abonnements[
+                (df_abonnements["Proprietaire"] == user_actuel) | 
+                (df_abonnements["Imputation"].str.contains("Commun", na=False))
+            ].copy()
+            
+            if not my_abos.empty:
+                # Préparer les données
+                abo_list = []
+                to_generate = []
+                
+                for idx, row in my_abos.iterrows():
+                    is_paid = False
+                    if not df_mois.empty:
+                        matching = df_mois[
+                            (df_mois["Titre"] == row["Nom"]) & 
+                            (df_mois["Montant"] == float(row["Montant"]))
+                        ]
+                        is_paid = not matching.empty
+                    
+                    abo_list.append({
+                        "idx": idx,
+                        "nom": row["Nom"],
+                        "montant": float(row["Montant"]),
+                        "jour": int(row["Jour"]),
+                        "categorie": row["Categorie"],
+                        "statut": is_paid,
+                        "row_data": row
+                    })
+                    
+                    if not is_paid:
+                        to_generate.append(row)
+                
+                # Bouton génération en masse
+                if to_generate:
+                    if st.button(f"🔄 Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
+                        new_transactions = []
+                        for row in to_generate:
+                            try:
+                                date_abo = datetime(annee_selection, mois_selection, int(row["Jour"])).date()
+                            except:
+                                date_abo = datetime(annee_selection, mois_selection, 28).date()
+                            
+                            paye_par = "Commun" if "Commun" in str(row["Imputation"]) else row["Proprietaire"]
+                            
+                            new_transactions.append({
+                                "Date": date_abo,
+                                "Mois": mois_selection,
+                                "Annee": annee_selection,
+                                "Qui_Connecte": row["Proprietaire"],
+                                "Type": "Dépense",
+                                "Categorie": row["Categorie"],
+                                "Titre": row["Nom"],
+                                "Description": "Abonnement automatique",
+                                "Montant": float(row["Montant"]),
+                                "Paye_Par": paye_par,
+                                "Imputation": row["Imputation"],
+                                "Compte_Cible": "",
+                                "Projet_Epargne": "",
+                                "Compte_Source": row["Compte_Source"]
+                            })
+                        
+                        df = pd.concat([df, pd.DataFrame(new_transactions)], ignore_index=True)
+                        save_data_to_sheet(TAB_DATA, df)
+                        st.success(f"✅ {len(new_transactions)} abonnement(s) généré(s) !")
+                        time.sleep(1)
+                        st.rerun()
+                    
+                    st.markdown("---")
+                
+                # Affichage en vignettes 4 par ligne
+                st.markdown("#### 📋 Liste des abonnements")
+                
+                for i in range(0, len(abo_list), 4):
+                    cols = st.columns(4)
+                    
+                    for j, col in enumerate(cols):
+                        if i + j < len(abo_list):
+                            abo = abo_list[i + j]
+                            
+                            # Couleurs selon le statut
+                            if abo["statut"]:
+                                gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
+                                badge = "✅ Payé"
+                                badge_color = "#10B981"
+                                icon = "💚"
+                            else:
+                                gradient = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+                                badge = "⏳ En attente"
+                                badge_color = "#F59E0B"
+                                icon = "⏰"
+                            
+                            with col:
+                                st.markdown(f"""
+                                <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 180px; position: relative;">
+                                    <div style="position: absolute; top: 12px; right: 12px; font-size: 32px; opacity: 0.3;">{icon}</div>
+                                    <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px;">{abo['nom']}</div>
+                                    <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
+                                    <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                if st.button(f"🗑️ Supprimer", key=f"del_abo_{abo['idx']}", use_container_width=True):
+                                    df_abonnements = df_abonnements.drop(abo['idx'])
+                                    save_abonnements(df_abonnements)
+                                    st.success(f"✅ {abo['nom']} supprimé")
+                                    time.sleep(1)
+                                    st.rerun()
+            else:
+                st.info("👋 Aucun abonnement pour le moment. Créez-en un ci-dessus !")
+        else:
+            st.info("👋 Aucun abonnement configuré. Commencez par en ajouter un !")
 
 # 3. ANALYSE & BUDGET
 with tabs[2]:
