@@ -1353,12 +1353,12 @@ with tabs[6]:
                 
                 # Option compte commun (optionnel)
                 est_commun = st.checkbox(
-                    "Ce compte est partagé avec l'autre personne (Commun)",
+                    "🤝 Ce compte est partagé avec l'autre personne (Commun)",
                     value=False,
                     key="commun_check"
                 )
                 
-                if st.form_submit_button("Créer le Compte", type="primary", use_container_width=True):
+                if st.form_submit_button("✅ Créer le Compte", type="primary", use_container_width=True):
                     if nom_compte:
                         # Déterminer le propriétaire
                         proprio = "Commun" if est_commun else user_actuel
@@ -1372,7 +1372,7 @@ with tabs[6]:
                             comptes_structure[proprio].append(nom_compte)
                             comptes_types_map[nom_compte] = type_compte
                             save_comptes_struct(comptes_structure, comptes_types_map)
-                            st.success(f"Compte '{nom_compte}' créé avec succès !")
+                            st.success(f"✅ Compte '{nom_compte}' créé avec succès !")
                             time.sleep(1)
                             st.rerun()
                         else:
@@ -1417,6 +1417,74 @@ with tabs[6]:
                             </div>
                             """, unsafe_allow_html=True)
                             
+                            # Bouton pour voir les mouvements
+                            if st.button(f"Voir les mouvements", key=f"voir_mvt_{compte_nom}", use_container_width=True):
+                                st.session_state[f'show_movements_{compte_nom}'] = not st.session_state.get(f'show_movements_{compte_nom}', False)
+                            
+                            # Afficher les mouvements si demandé
+                            if st.session_state.get(f'show_movements_{compte_nom}', False):
+                                # Filtrer les transactions du compte
+                                df_compte = df[
+                                    (df["Compte_Source"] == compte_nom) | 
+                                    (df["Compte_Cible"] == compte_nom)
+                                ].copy().sort_values(by="Date", ascending=False)
+                                
+                                if not df_compte.empty:
+                                    # Ajouter une colonne pour indiquer le sens
+                                    df_compte['Sens'] = df_compte.apply(
+                                        lambda row: '➡️ Débit' if row['Compte_Source'] == compte_nom else '⬅️ Crédit',
+                                        axis=1
+                                    )
+                                    
+                                    # Calculer le nombre de transactions
+                                    nb_transactions = len(df_compte)
+                                    total_debits = df_compte[df_compte['Compte_Source'] == compte_nom]['Montant'].sum()
+                                    total_credits = df_compte[df_compte['Compte_Cible'] == compte_nom]['Montant'].sum()
+                                    
+                                    st.markdown(f"""
+                                    <div style="background: #F5F7FA; border-radius: 12px; padding: 16px; margin: 12px 0;">
+                                        <div style="font-size: 14px; font-weight: 700; color: #0A1929; margin-bottom: 12px;">
+                                            📈 Résumé du compte
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; font-size: 12px;">
+                                            <div>
+                                                <div style="color: #6B7280; font-weight: 600;">Transactions</div>
+                                                <div style="font-size: 18px; font-weight: 800; color: #0A1929;">{nb_transactions}</div>
+                                            </div>
+                                            <div>
+                                                <div style="color: #6B7280; font-weight: 600;">Débits</div>
+                                                <div style="font-size: 18px; font-weight: 800; color: #EF4444;">-{total_debits:,.0f} €</div>
+                                            </div>
+                                            <div>
+                                                <div style="color: #6B7280; font-weight: 600;">Crédits</div>
+                                                <div style="font-size: 18px; font-weight: 800; color: #10B981;">+{total_credits:,.0f} €</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    # Afficher les dernières transactions (max 10)
+                                    st.markdown("**Dernières transactions :**")
+                                    df_display = df_compte[['Date', 'Titre', 'Categorie', 'Montant', 'Sens']].head(10)
+                                    st.dataframe(
+                                        df_display,
+                                        use_container_width=True,
+                                        hide_index=True,
+                                        column_config={
+                                            "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+                                            "Titre": st.column_config.TextColumn("Titre", width="medium"),
+                                            "Categorie": st.column_config.TextColumn("Catégorie", width="small"),
+                                            "Montant": st.column_config.NumberColumn("Montant", format="%.2f €"),
+                                            "Sens": st.column_config.TextColumn("Type", width="small")
+                                        }
+                                    )
+                                    
+                                    if len(df_compte) > 10:
+                                        st.caption(f"Affichage de 10 transactions sur {len(df_compte)} au total")
+                                else:
+                                    st.info("Aucune transaction enregistrée pour ce compte")
+                            
+                            # Bouton suppression en dessous
                             if st.button(f"Supprimer ce compte", key=f"del_compte_{compte_nom}", use_container_width=True):
                                 comptes_structure[user_actuel].remove(compte_nom)
                                 if compte_nom in comptes_types_map:
@@ -1426,14 +1494,14 @@ with tabs[6]:
                                 time.sleep(1)
                                 st.rerun()
         else:
-            st.info(f"👋 Vous n'avez pas encore de compte personnel. Créez-en un ci-dessus !")
+            st.info(f"Vous n'avez pas encore de compte personnel. Créez-en un ci-dessus !")
         
         # Section Comptes Communs (si existants)
         comptes_communs = comptes_structure.get("Commun", [])
         
         if comptes_communs:
             st.markdown("---")
-            st.markdown("#### Comptes Communs")
+            st.markdown("#### 🤝 Comptes Communs")
             st.caption("Ces comptes sont partagés entre Pierre et Elie")
             
             for i in range(0, len(comptes_communs), 2):
@@ -1460,7 +1528,74 @@ with tabs[6]:
                             </div>
                             """, unsafe_allow_html=True)
                             
-                            if st.button(f"Supprimer ce compte commun", key=f"del_compte_commun_{compte_nom}", use_container_width=True):
+                            # Bouton pour voir les mouvements
+                            if st.button(f"Voir les mouvements", key=f"voir_mvt_commun_{compte_nom}", use_container_width=True):
+                                st.session_state[f'show_movements_commun_{compte_nom}'] = not st.session_state.get(f'show_movements_commun_{compte_nom}', False)
+                            
+                            # Afficher les mouvements si demandé
+                            if st.session_state.get(f'show_movements_commun_{compte_nom}', False):
+                                # Filtrer les transactions du compte
+                                df_compte = df[
+                                    (df["Compte_Source"] == compte_nom) | 
+                                    (df["Compte_Cible"] == compte_nom)
+                                ].copy().sort_values(by="Date", ascending=False)
+                                
+                                if not df_compte.empty:
+                                    # Ajouter une colonne pour indiquer le sens
+                                    df_compte['Sens'] = df_compte.apply(
+                                        lambda row: '➡️ Débit' if row['Compte_Source'] == compte_nom else '⬅️ Crédit',
+                                        axis=1
+                                    )
+                                    
+                                    # Calculer le nombre de transactions
+                                    nb_transactions = len(df_compte)
+                                    total_debits = df_compte[df_compte['Compte_Source'] == compte_nom]['Montant'].sum()
+                                    total_credits = df_compte[df_compte['Compte_Cible'] == compte_nom]['Montant'].sum()
+                                    
+                                    st.markdown(f"""
+                                    <div style="background: #F5F7FA; border-radius: 12px; padding: 16px; margin: 12px 0;">
+                                        <div style="font-size: 14px; font-weight: 700; color: #0A1929; margin-bottom: 12px;">
+                                            📈 Résumé du compte
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; font-size: 12px;">
+                                            <div>
+                                                <div style="color: #6B7280; font-weight: 600;">Transactions</div>
+                                                <div style="font-size: 18px; font-weight: 800; color: #0A1929;">{nb_transactions}</div>
+                                            </div>
+                                            <div>
+                                                <div style="color: #6B7280; font-weight: 600;">Débits</div>
+                                                <div style="font-size: 18px; font-weight: 800; color: #EF4444;">-{total_debits:,.0f} €</div>
+                                            </div>
+                                            <div>
+                                                <div style="color: #6B7280; font-weight: 600;">Crédits</div>
+                                                <div style="font-size: 18px; font-weight: 800; color: #10B981;">+{total_credits:,.0f} €</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    # Afficher les dernières transactions (max 10)
+                                    st.markdown("**Dernières transactions :**")
+                                    df_display = df_compte[['Date', 'Titre', 'Categorie', 'Montant', 'Sens']].head(10)
+                                    st.dataframe(
+                                        df_display,
+                                        use_container_width=True,
+                                        hide_index=True,
+                                        column_config={
+                                            "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+                                            "Titre": st.column_config.TextColumn("Titre", width="medium"),
+                                            "Categorie": st.column_config.TextColumn("Catégorie", width="small"),
+                                            "Montant": st.column_config.NumberColumn("Montant", format="%.2f €"),
+                                            "Sens": st.column_config.TextColumn("Type", width="small")
+                                        }
+                                    )
+                                    
+                                    if len(df_compte) > 10:
+                                        st.caption(f"Affichage de 10 transactions sur {len(df_compte)} au total")
+                                else:
+                                    st.info("Aucune transaction enregistrée pour ce compte")
+                            
+                            if st.button(f"🗑️ Supprimer ce compte commun", key=f"del_compte_commun_{compte_nom}", use_container_width=True):
                                 comptes_structure["Commun"].remove(compte_nom)
                                 if compte_nom in comptes_types_map:
                                     del comptes_types_map[compte_nom]
@@ -1468,4 +1603,3 @@ with tabs[6]:
                                 st.success(f"Compte commun '{compte_nom}' supprimé")
                                 time.sleep(1)
                                 st.rerun()
-
