@@ -1263,10 +1263,25 @@ with tabs[5]:
                             <div style="font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px;">{saved:,.0f} €</div>
                             <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 14px;">sur {target:,.0f} €</div>
 
-                            <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
-                                <div style="background: white; height: 100%; width: {max(min(progression, 100), 0):.1f}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
-                            </div>
-                            <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">{progression:.1f}%</div>
+                            {""
+                            if progression == 0:
+                                f"""
+                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 10px; margin-bottom: 10px; text-align: center;">
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600;">
+                                        💡 Commencez à épargner pour ce projet en enregistrant une transaction de type <strong>Épargne</strong> !
+                                    </div>
+                                </div>
+                                <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">0%</div>
+                                """
+                            else:
+                                f"""
+                                <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
+                                    <div style="background: white; height: 100%; width: {progression:.1f}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
+                                </div>
+                                <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">{progression:.1f}%</div>
+                                """
+                            }
+
                             {help_text}
                         </div>
                         """, unsafe_allow_html=True)
@@ -1376,5 +1391,6 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
