@@ -794,7 +794,7 @@ with tabs[1]:
                     pc_abo = st.slider("% Pierre", 0, 100, 50, key="pa")
                     imp_abo = f"Commun ({pc_abo}/{100-pc_abo})"
                 
-                if st.form_submit_button("✅ Ajouter", type="primary", use_container_width=True):
+                if st.form_submit_button(" Ajouter", type="primary", use_container_width=True):
                     new_abo = pd.DataFrame([{
                         "Nom": nom_abo,
                         "Montant": montant_abo,
@@ -807,7 +807,7 @@ with tabs[1]:
                     }])
                     df_abonnements = pd.concat([df_abonnements, new_abo], ignore_index=True)
                     save_abonnements(df_abonnements)
-                    st.success(f"✅ {nom_abo} ajouté !")
+                    st.success(f" {nom_abo} ajouté !")
                     time.sleep(1)
                     st.rerun()
         
@@ -849,7 +849,7 @@ with tabs[1]:
                 
                 # Bouton génération en masse
                 if to_generate:
-                    if st.button(f"🔄 Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
+                    if st.button(f" Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
                         new_transactions = []
                         for row in to_generate:
                             try:
@@ -878,14 +878,14 @@ with tabs[1]:
                         
                         df = pd.concat([df, pd.DataFrame(new_transactions)], ignore_index=True)
                         save_data_to_sheet(TAB_DATA, df)
-                        st.success(f"✅ {len(new_transactions)} abonnement(s) généré(s) !")
+                        st.success(f" {len(new_transactions)} abonnement(s) généré(s) !")
                         time.sleep(1)
                         st.rerun()
                     
                     st.markdown("---")
                 
                 # Affichage en vignettes 4 par ligne
-                st.markdown("#### 📋 Liste des abonnements")
+                st.markdown("####  Liste des abonnements")
                 
                 for i in range(0, len(abo_list), 4):
                     cols = st.columns(4)
@@ -925,9 +925,9 @@ with tabs[1]:
                                     time.sleep(1)
                                     st.rerun()
             else:
-                st.info("👋 Aucun abonnement pour le moment. Créez-en un ci-dessus !")
+                st.info(" Aucun abonnement pour le moment. Créez-en un ci-dessus !")
         else:
-            st.info("👋 Aucun abonnement configuré. Commencez par en ajouter un !")
+            st.info(" Aucun abonnement configuré. Commencez par en ajouter un !")
 
 # 3. ANALYSE & BUDGET
 with tabs[2]:
@@ -1112,10 +1112,10 @@ with tabs[4]:
 
 # 6. PATRIMOINE
 with tabs[5]:
-    page_header("Patrimoine & Projets")
+    page_header("Patrimoine & Projets", "Gérez votre épargne et vos objectifs financiers")
     
-    # MODULE 3: Pyramide de l'épargne
-    st.subheader("🔺 Pyramide de l'Épargne")
+    # ===== SECTION 1: PYRAMIDE DE L'ÉPARGNE =====
+    st.markdown("### Pyramide de l'Épargne")
     
     total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"])
     revenus_mensuels = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum().mean()
@@ -1124,39 +1124,165 @@ with tabs[5]:
     epargne_precaution = min(total_epargne_user, epargne_precaution_cible)
     epargne_projets = max(0, total_epargne_user - epargne_precaution_cible)
     
+    # Cards pyramide avec gradients
     pyr1, pyr2, pyr3 = st.columns(3)
     
-    status_precaution = "✅ Atteint" if epargne_precaution >= epargne_precaution_cible else "⚠️ En cours"
-    pyr1.metric("🛡️ Précaution (3 mois)", f"{epargne_precaution:,.0f} €", status_precaution)
-    pyr2.metric("🎯 Projets Court Terme", f"{epargne_projets:,.0f} €")
-    pyr3.metric("📈 Investissement Long Terme", "0 €", "À développer")
+    with pyr1:
+        precaution_pct = (epargne_precaution / epargne_precaution_cible * 100) if epargne_precaution_cible > 0 else 0
+        gradient_prec = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if precaution_pct >= 100 else "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+        
+        st.markdown(f"""
+        <div style="background: {gradient_prec}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 200px;">
+            <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 1</div>
+            <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Épargne de Précaution</div>
+            <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_precaution:,.0f} €</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 12px;">Objectif : {epargne_precaution_cible:,.0f} €</div>
+            <div style="background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 8px;">
+                <div style="background: white; height: 100%; width: {min(precaution_pct, 100)}%; border-radius: 10px; transition: width 0.3s;"></div>
+            </div>
+            <div style="font-size: 13px; color: rgba(255,255,255,0.95); font-weight: 600;">{precaution_pct:.0f}% atteint</div>
+        </div>
+        """, unsafe_allow_html=True)
     
+    with pyr2:
+        gradient_proj = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"
+        st.markdown(f"""
+        <div style="background: {gradient_proj}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 200px;">
+            <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 2</div>
+            <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Projets Court Terme</div>
+            <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_projets:,.0f} €</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">Voyages, équipements, loisirs</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with pyr3:
+        investissement = 0  # À calculer si nécessaire
+        gradient_inv = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
+        st.markdown(f"""
+        <div style="background: {gradient_inv}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 200px;">
+            <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 3</div>
+            <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Investissements</div>
+            <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{investissement:,.0f} €</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">Bourse, Crypto, Immobilier</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Conseil personnalisé
+    st.write("")
     if epargne_precaution < epargne_precaution_cible:
-        st.warning(f"💡 Conseil : Il vous manque {epargne_precaution_cible - epargne_precaution:,.0f}€ pour sécuriser 3 mois de salaire.")
+        manquant = epargne_precaution_cible - epargne_precaution
+        st.warning(f"**Conseil** : Il vous manque **{manquant:,.0f}€** pour sécuriser 3 mois de salaire. Priorisez cette épargne de précaution !")
     elif epargne_projets > revenus_mensuels * 6:
-        st.success("🎉 Excellente santé financière ! Vous pourriez commencer à investir.")
+        st.success(f"**Bravo !** Excellente santé financière. Vous pourriez diversifier vers des investissements long terme.")
+    else:
+        st.info(f"**Bien joué !** Votre épargne de précaution est sécurisée. Continuez à épargner pour vos projets !")
     
     st.markdown("---")
     
-    st.subheader("1. Projets Épargne")
+    # ===== SECTION 2: PROJETS D'ÉPARGNE =====
+    st.markdown("### Mes Projets d'Épargne")
+    
+    col_add, col_space = st.columns([3, 1])
+    with col_add:
+        with st.expander("Créer un Nouveau Projet", expanded=False):
+            with st.form("new_project_form"):
+                proj_col1, proj_col2 = st.columns(2)
+                nom_projet = proj_col1.text_input("Nom du projet", placeholder="Ex: Voyage en Italie", key="np")
+                cible_projet = proj_col2.number_input("Montant cible (€)", min_value=0.0, step=100.0, key="tp")
+                
+                if st.form_submit_button("Créer le Projet", type="primary", use_container_width=True):
+                    if nom_projet:
+                        projets_config[nom_projet] = {"Cible": cible_projet, "Date_Fin": ""}
+                        save_projets_targets(projets_config)
+                        st.success(f"Projet '{nom_projet}' créé !")
+                        time.sleep(1)
+                        st.rerun()
+    
+    st.write("")
+    
+    # Affichage des projets en cards cliquables (3 par ligne)
     if projets_config:
-        for p, d in projets_config.items():
-            saved = df[(df["Projet_Epargne"] == p) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0
-            target = d["Cible"]
-            c1, c2 = st.columns([3,1])
-            with c1: st.write(f"**{p}**"); st.progress(min(saved/target if target>0 else 0, 1.0))
-            with c2: st.write(f"{saved:.0f} / {target:.0f} €")
+        projets_list = list(projets_config.items())
+        
+        for i in range(0, len(projets_list), 3):
+            cols = st.columns(3)
             
-    with st.expander("Nouveau Projet"):
-        n = st.text_input("Nom Projet", key="np"); t = st.number_input("Cible €", key="tp")
-        if st.button("Créer Projet", key="bp"): projets_config[n] = {"Cible": t, "Date_Fin": ""}; save_projets_targets(projets_config); st.rerun()
-
+            for j, col in enumerate(cols):
+                if i + j < len(projets_list):
+                    projet_nom, projet_data = projets_list[i + j]
+                    
+                    saved = df[(df["Projet_Epargne"] == projet_nom) & (df["Type"] == "Épargne")]["Montant"].sum() if not df.empty else 0
+                    target = float(projet_data["Cible"])
+                    progression = (saved / target * 100) if target > 0 else 0
+                    
+                    # Couleur selon progression
+                    if progression >= 100:
+                        gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
+                        badge = "Atteint"
+                        badge_color = "#10B981"
+                    elif progression >= 75:
+                        gradient = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"
+                        badge = "Presque !"
+                        badge_color = "#3B82F6"
+                    elif progression >= 50:
+                        gradient = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+                        badge = "En cours"
+                        badge_color = "#F59E0B"
+                    else:
+                        gradient = "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+                        badge = "Démarrage"
+                        badge_color = "#EF4444"
+                    
+                    with col:
+                        st.markdown(f"""
+                        <div style="background: {gradient}; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; min-height: 220px; position: relative; overflow: hidden;">
+                            <div style="background: {badge_color}; color: white; font-size: 10px; font-weight: 700; padding: 5px 12px; border-radius: 15px; display: inline-block; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px;">{badge}</div>
+                            <div style="font-size: 20px; font-weight: 800; color: white; margin-bottom: 10px; line-height: 1.3;">{projet_nom}</div>
+                            <div style="font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px;">{saved:,.0f} €</div>
+                            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 14px;">sur {target:,.0f} €</div>
+                            
+                            <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
+                                <div style="background: white; height: 100%; width: {min(progression, 100)}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
+                            </div>
+                            <div style="font-size: 14px; color: white; font-weight: 700; text-align: center;">{progression:.1f}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button(f"Supprimer", key=f"del_proj_{i}_{j}", use_container_width=True):
+                            del projets_config[projet_nom]
+                            save_projets_targets(projets_config)
+                            st.success(f"Projet '{projet_nom}' supprimé")
+                            time.sleep(1)
+                            st.rerun()
+    else:
+        st.info("Aucun projet d'épargne. Créez-en un ci-dessus pour commencer à suivre vos objectifs !")
+    
     st.markdown("---")
-    st.subheader("2. Relevé de Comptes (Ajustement)")
-    with st.form("rel"):
-        c1, c2 = st.columns(2); d = c1.date_input("Date", key="dr"); c = c2.selectbox("Cpt", comptes_disponibles, key="cr"); m = st.number_input("Solde Réel", key="mr")
-        if st.form_submit_button("Valider"):
-            df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date": d, "Mois": d.month, "Annee": d.year, "Compte": c, "Montant": m, "Proprietaire": user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.success("OK"); st.rerun()
+    
+    # ===== SECTION 3: RELEVÉ DE COMPTES =====
+    st.markdown("### Ajustement des Soldes")
+    st.caption("Synchronisez vos soldes réels avec vos relevés bancaires")
+    
+    with st.form("releve_form", clear_on_submit=True):
+        col1, col2, col3 = st.columns(3)
+        date_releve = col1.date_input("Date du relevé", datetime.today(), key="dr")
+        compte_releve = col2.selectbox("Compte", comptes_disponibles, key="cr")
+        montant_releve = col3.number_input("Solde réel (€)", step=0.01, key="mr")
+        
+        if st.form_submit_button("Enregistrer le Relevé", type="primary", use_container_width=True):
+            new_releve = pd.DataFrame([{
+                "Date": date_releve,
+                "Mois": date_releve.month,
+                "Annee": date_releve.year,
+                "Compte": compte_releve,
+                "Montant": montant_releve,
+                "Proprietaire": user_actuel
+            }])
+            df_patrimoine = pd.concat([df_patrimoine, new_releve], ignore_index=True)
+            save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine)
+            st.success(f"Relevé enregistré pour {compte_releve} : {montant_releve:,.2f} €")
+            time.sleep(1)
+            st.rerun()
 
 # 5. CONFIG
 with tabs[6]:
