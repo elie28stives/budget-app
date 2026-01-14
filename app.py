@@ -301,14 +301,17 @@ def save_data_to_sheet(tab_name, df):
 
 # --- LOGIC ---
 def to_excel_download(df):
-    """Génère un fichier Excel téléchargeable"""
+    """Génère un fichier Excel téléchargeable - VERSION CORRIGÉE"""
     output = BytesIO()
-    try:
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Transactions')
-    except ImportError:
-        output = BytesIO()
-        output.write(df.to_csv(index=False).encode('utf-8'))
+    # Conversion des dates en string pour éviter les problèmes
+    df_export = df.copy()
+    if "Date" in df_export.columns:
+        df_export["Date"] = df_export["Date"].astype(str)
+    
+    # Utiliser openpyxl comme moteur (plus fiable)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_export.to_excel(writer, index=False, sheet_name='Transactions')
+    
     output.seek(0)
     return output
 
@@ -419,19 +422,10 @@ def get_comptes_autorises(user): return comptes_structure.get(user, []) + compte
 all_my_accounts = get_comptes_autorises("Pierre") + get_comptes_autorises("Elie")
 SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accounts)))
 
-# --- SIDEBAR (DATE A GAUCHE) ---
+# --- SIDEBAR (COMPTES PUIS PÉRIODE) ---
 with st.sidebar:
     st.markdown("<h3 style='margin-bottom:20px;'>Menu</h3>", unsafe_allow_html=True)
     user_actuel = st.selectbox("Utilisateur", USERS)
-    
-    st.markdown("---")
-    st.markdown("**Période**")
-    date_jour = datetime.now()
-    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
-    mois_selection = MOIS_FR.index(mois_nom) + 1
-    annee_selection = st.number_input("Année", value=date_jour.year)
-    
-    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
     
     st.markdown("---")
     comptes_disponibles = get_comptes_autorises(user_actuel)
@@ -466,6 +460,15 @@ with st.sidebar:
     st.write("")
     st.markdown(f"**ÉPARGNE ({total_epargne:,.0f}€)**")
     for name, val in list_epargne: draw_account_card(name, val, True)
+
+    st.markdown("---")
+    st.markdown("**Période**")
+    date_jour = datetime.now()
+    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
+    mois_selection = MOIS_FR.index(mois_nom) + 1
+    annee_selection = st.number_input("Année", value=date_jour.year)
+    
+    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
 
     st.markdown("---")
     if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
@@ -641,21 +644,14 @@ with tabs[1]:
             df_e = df.copy().sort_values(by="Date", ascending=False)
             if search: df_e = df_e[df_e.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)]
             
-            # ===== MODULE 3: EXPORT EXCEL =====
-            try:
-                excel_data = to_excel_download(df_e)
-                file_ext = ".xlsx"
-                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            except:
-                excel_data = BytesIO(df_e.to_csv(index=False).encode('utf-8'))
-                file_ext = ".csv"
-                mime_type = "text/csv"
+            # ===== MODULE 3: EXPORT EXCEL CORRIGÉ =====
+            excel_data = to_excel_download(df_e)
             
             col_export.download_button(
                 label="📥 Export",
                 data=excel_data,
-                file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}{file_ext}",
-                mime=mime_type,
+                file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="dl_excel",
                 use_container_width=True
             )
