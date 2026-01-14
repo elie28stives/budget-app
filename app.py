@@ -127,7 +127,7 @@ def apply_custom_style():
         }
 
         /* INPUTS - Minimalistes */
-        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
+        .stTextInput input, .stNumberInput input {
             background: #FFFFFF !important;
             border: 1.5px solid var(--border) !important;
             border-radius: 12px !important;
@@ -138,31 +138,50 @@ def apply_custom_style():
             transition: all 0.2s;
         }
         
-        .stTextInput input:focus, .stNumberInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within > div {
+        .stTextInput input:focus, .stNumberInput input:focus {
             border-color: var(--primary) !important;
             box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
         }
         
-        /* SELECTBOX - Texte sélectionné ULTRA VISIBLE */
-        .stSelectbox div[data-baseweb="select"] {
-            background: #FFFFFF !important;
-        }
-        
-        .stSelectbox div[data-baseweb="select"] > div {
+        /* SELECTBOX - CORRECTION MAXIMALE DU CONTRASTE */
+        .stSelectbox {
             color: #000000 !important;
+        }
+        
+        .stSelectbox > div > div {
             background: #FFFFFF !important;
         }
         
-        .stSelectbox div[data-baseweb="select"] span {
+        .stSelectbox [data-baseweb="select"] {
+            background: #FFFFFF !important;
+        }
+        
+        .stSelectbox [data-baseweb="select"] > div {
+            background: #FFFFFF !important;
+            color: #000000 !important;
+        }
+        
+        /* Le texte visible dans le champ */
+        .stSelectbox [data-baseweb="select"] > div > div {
             color: #000000 !important;
             font-weight: 700 !important;
         }
         
-        .stSelectbox div[data-baseweb="select"] div {
+        /* Tous les spans et divs internes */
+        .stSelectbox [data-baseweb="select"] span,
+        .stSelectbox [data-baseweb="select"] div,
+        .stSelectbox [data-baseweb="select"] p {
             color: #000000 !important;
+            font-weight: 600 !important;
         }
         
-        /* SELECTBOX - Menu déroulant */
+        /* L'icône et le texte sélectionné */
+        .stSelectbox [data-baseweb="select"] [data-baseweb="select-value"] {
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        
+        /* Menu déroulant */
         .stSelectbox [role="listbox"] {
             background: #FFFFFF !important;
         }
@@ -171,17 +190,23 @@ def apply_custom_style():
             color: #000000 !important;
             font-weight: 600 !important;
             background: #FFFFFF !important;
+            padding: 10px 16px !important;
         }
         
         .stSelectbox [role="option"]:hover {
-            background: rgba(255, 107, 53, 0.15) !important;
+            background: #FFF4ED !important;
             color: #000000 !important;
         }
         
         .stSelectbox [aria-selected="true"] {
-            background: rgba(255, 107, 53, 0.2) !important;
+            background: #FFE5D9 !important;
             color: #000000 !important;
             font-weight: 700 !important;
+        }
+        
+        /* Forcer ABSOLUMENT le texte visible */
+        [data-baseweb="select"] [id*="react-select"] {
+            color: #000000 !important;
         }
         
         /* RADIO BUTTONS - Meilleure visibilité */
@@ -226,11 +251,6 @@ def apply_custom_style():
             color: #0A1929 !important;
             font-weight: 600 !important;
             font-size: 14px !important;
-        }
-        
-        /* Forcer le texte en noir partout dans les selectbox */
-        [data-baseweb="select"] * {
-            color: #000000 !important;
         }
 
         /* BOUTONS - Style Revolut */
