@@ -32,18 +32,19 @@ MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Ao
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 
-# --- STYLE CSS (REVOLUT-INSPIRED, SANS EMOJIS) ---
+# --- STYLE CSS (CLEAN & FULL WIDTH) ---
 def apply_custom_style():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #FF6B35;
-            --primary-dark: #E55A2B;
-            --bg-main: #F5F7FA;
+            --primary: #2C3E50;
+            --primary-light: #34495E;
+            --accent: #2980B9;
+            --bg-main: #F4F6F8;
             --bg-card: #FFFFFF;
-            --text-primary: #0A1929;
+            --text-primary: #1A1C1E;
             --text-secondary: #6B7280;
             --border: #E5E7EB;
         }
@@ -55,44 +56,45 @@ def apply_custom_style():
         }
         
         .main .block-container {
-            padding: 2rem 3rem !important;
-            max-width: 1400px;
+            padding-top: 2rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            max-width: 100% !important;
         }
         
         #MainMenu, footer, header {visibility: hidden;}
 
         /* TABS */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 0;
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            border: none;
+            gap: 20px;
+            background: transparent;
+            padding: 0px;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 20px;
         }
         .stTabs [data-baseweb="tab"] {
-            height: 44px;
+            height: 45px;
             background: transparent;
             border: none;
             color: var(--text-secondary);
             font-weight: 600;
-            font-size: 14px;
-            border-radius: 8px;
-            padding: 0 20px;
+            font-size: 15px;
+            padding: 0 15px;
         }
         .stTabs [aria-selected="true"] {
-            background: var(--primary) !important;
-            color: white !important;
+            color: var(--primary) !important;
+            border-bottom: 3px solid var(--primary) !important;
         }
 
-        /* CARDS */
+        /* CARDS & CONTAINERS */
         div[data-testid="stMetric"] {
             background: var(--bg-card);
             padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
-
+        
         /* SIDEBAR */
         section[data-testid="stSidebar"] {
             background: var(--bg-card);
@@ -106,24 +108,28 @@ def apply_custom_style():
             border-radius: 8px !important;
             font-weight: 600 !important;
             border: none !important;
+            padding: 10px 20px !important;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
         }
-        
-        /* FORMULAIRES */
-        div.stForm {
-            background: var(--bg-card);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        div.stButton > button:hover {
+            background: var(--primary-light) !important;
+            transform: translateY(-1px);
         }
+        
+        /* INPUTS */
+        .stTextInput input, .stNumberInput input, .stSelectbox > div > div {
+            border-radius: 8px !important;
+        }
+
+        h1, h2, h3 { color: var(--text-primary) !important; font-family: 'Inter', sans-serif !important; }
     </style>
     """, unsafe_allow_html=True)
 
 def page_header(title, subtitle=None):
     if subtitle:
-        st.markdown(f"""<div style="margin-bottom: 2rem;"><h2 style='font-size:32px; font-weight:800; color:#0A1929; margin-bottom:8px;'>{title}</h2><p style='font-size:16px; color:#6B7280; font-weight:500;'>{subtitle}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="margin-bottom: 25px;"><h2 style='font-size:28px; font-weight:800; color:#2C3E50; margin-bottom:5px;'>{title}</h2><p style='font-size:15px; color:#6B7280; font-weight:500;'>{subtitle}</p></div>""", unsafe_allow_html=True)
     else:
-        st.markdown(f"<h2 style='font-size:32px; font-weight:800; color:#0A1929; margin-bottom:2rem;'>{title}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='font-size:28px; font-weight:800; color:#2C3E50; margin-bottom:25px;'>{title}</h2>", unsafe_allow_html=True)
 
 # --- CONNEXION ---
 @st.cache_resource
@@ -238,7 +244,7 @@ def save_mots_cles(d):
     save_data_to_sheet(TAB_MOTS_CLES, pd.DataFrame(rows))
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V63", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque", layout="wide", page_icon=None)
 apply_custom_style()
 
 # Chargement données
@@ -300,21 +306,4 @@ with tabs[0]:
     
     charges_fixes = 0.0
     if not df_abonnements.empty:
-        abos_user = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))]
-        for _, row in abos_user.iterrows():
-            charges_fixes += float(row["Montant"]) / (2 if "Commun" in str(row["Imputation"]) else 1)
-    
-    rav = rev - charges_fixes - dep - com
-    rav_col = "#10B981" if rav > 0 else "#EF4444"
-    rav_gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if rav > 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
-    
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Revenus", f"{rev:,.0f} €")
-    k2.metric("Charges Fixes", f"{charges_fixes:,.0f} €")
-    k3.metric("Dépenses Variables", f"{(dep+com):,.0f} €")
-    k4.metric("Epargne", f"{epg:,.0f} €")
-    k5.markdown(f"""<div style="background: {rav_gradient}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative; overflow: hidden; color:white; text-align:center;"><div style="font-size:12px; font-weight:600; text-transform:uppercase;">RESTE À VIVRE</div><div style="font-size:32px; font-weight:800;">{rav:,.0f} €</div></div>""", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    c1, c2 = st.columns(
+        abos_user = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains
