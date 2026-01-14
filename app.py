@@ -794,7 +794,7 @@ with tabs[1]:
                     pc_abo = st.slider("% Pierre", 0, 100, 50, key="pa")
                     imp_abo = f"Commun ({pc_abo}/{100-pc_abo})"
                 
-                if st.form_submit_button(" Ajouter", type="primary", use_container_width=True):
+                if st.form_submit_button("✅ Ajouter", type="primary", use_container_width=True):
                     new_abo = pd.DataFrame([{
                         "Nom": nom_abo,
                         "Montant": montant_abo,
@@ -807,7 +807,7 @@ with tabs[1]:
                     }])
                     df_abonnements = pd.concat([df_abonnements, new_abo], ignore_index=True)
                     save_abonnements(df_abonnements)
-                    st.success(f" {nom_abo} ajouté !")
+                    st.success(f"✅ {nom_abo} ajouté !")
                     time.sleep(1)
                     st.rerun()
         
@@ -849,7 +849,7 @@ with tabs[1]:
                 
                 # Bouton génération en masse
                 if to_generate:
-                    if st.button(f" Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
+                    if st.button(f"🔄 Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
                         new_transactions = []
                         for row in to_generate:
                             try:
@@ -878,14 +878,14 @@ with tabs[1]:
                         
                         df = pd.concat([df, pd.DataFrame(new_transactions)], ignore_index=True)
                         save_data_to_sheet(TAB_DATA, df)
-                        st.success(f" {len(new_transactions)} abonnement(s) généré(s) !")
+                        st.success(f"✅ {len(new_transactions)} abonnement(s) généré(s) !")
                         time.sleep(1)
                         st.rerun()
                     
                     st.markdown("---")
                 
                 # Affichage en vignettes 4 par ligne
-                st.markdown("####  Liste des abonnements")
+                st.markdown("#### 📋 Liste des abonnements")
                 
                 for i in range(0, len(abo_list), 4):
                     cols = st.columns(4)
@@ -925,9 +925,9 @@ with tabs[1]:
                                     time.sleep(1)
                                     st.rerun()
             else:
-                st.info(" Aucun abonnement pour le moment. Créez-en un ci-dessus !")
+                st.info("👋 Aucun abonnement pour le moment. Créez-en un ci-dessus !")
         else:
-            st.info(" Aucun abonnement configuré. Commencez par en ajouter un !")
+            st.info("👋 Aucun abonnement configuré. Commencez par en ajouter un !")
 
 # 3. ANALYSE & BUDGET
 with tabs[2]:
@@ -1118,48 +1118,94 @@ with tabs[5]:
     st.markdown("### Pyramide de l'Épargne")
     
     total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"])
-    revenus_mensuels = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum().mean()
-    epargne_precaution_cible = revenus_mensuels * 3
     
-    epargne_precaution = min(total_epargne_user, epargne_precaution_cible)
+    # Calcul des revenus mensuels avec gestion des NaN
+    revenus_par_mois = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum()
+    if len(revenus_par_mois) > 0:
+        revenus_mensuels = revenus_par_mois.mean()
+    else:
+        revenus_mensuels = 0
+    
+    epargne_precaution_cible = revenus_mensuels * 3 if revenus_mensuels > 0 else 0
+    
+    epargne_precaution = min(total_epargne_user, epargne_precaution_cible) if epargne_precaution_cible > 0 else 0
     epargne_projets = max(0, total_epargne_user - epargne_precaution_cible)
+    
+    # Vérifier si des données sont manquantes
+    manque_revenus = revenus_mensuels == 0
+    manque_epargne = total_epargne_user == 0
     
     # Cards pyramide avec gradients
     pyr1, pyr2, pyr3 = st.columns(3)
     
     with pyr1:
-        precaution_pct = (epargne_precaution / epargne_precaution_cible * 100) if epargne_precaution_cible > 0 else 0
+        if epargne_precaution_cible > 0:
+            precaution_pct = (epargne_precaution / epargne_precaution_cible * 100)
+        else:
+            precaution_pct = 0
+            
         gradient_prec = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if precaution_pct >= 100 else "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
         
+        if manque_revenus:
+            help_message = """
+            <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; margin-top: 12px;">
+                <div style="font-size: 12px; color: white; font-weight: 600; margin-bottom: 6px;">Pour activer :</div>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.5;">
+                    1. Transactions → Nouvelle Saisie<br>
+                    2. Type : <strong>Revenu</strong><br>
+                    3. Enregistrez vos salaires
+                </div>
+            </div>
+            """
+        else:
+            help_message = ""
+        
         st.markdown(f"""
-        <div style="background: {gradient_prec}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 200px;">
+        <div style="background: {gradient_prec}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 240px;">
             <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 1</div>
             <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Épargne de Précaution</div>
             <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_precaution:,.0f} €</div>
             <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 12px;">Objectif : {epargne_precaution_cible:,.0f} €</div>
             <div style="background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 8px;">
-                <div style="background: white; height: 100%; width: {min(precaution_pct, 100)}%; border-radius: 10px; transition: width 0.3s;"></div>
+                <div style="background: white; height: 100%; width: {min(precaution_pct, 100):.1f}%; border-radius: 10px; transition: width 0.3s;"></div>
             </div>
             <div style="font-size: 13px; color: rgba(255,255,255,0.95); font-weight: 600;">{precaution_pct:.0f}% atteint</div>
+            {help_message}
         </div>
         """, unsafe_allow_html=True)
     
     with pyr2:
         gradient_proj = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"
+        
+        if manque_epargne:
+            help_message_2 = """
+            <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; margin-top: 12px;">
+                <div style="font-size: 12px; color: white; font-weight: 600; margin-bottom: 6px;">Pour activer :</div>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.5;">
+                    1. Config → Comptes<br>
+                    2. Créez un compte type <strong>Épargne</strong><br>
+                    3. Faites des virements d'épargne
+                </div>
+            </div>
+            """
+        else:
+            help_message_2 = ""
+            
         st.markdown(f"""
-        <div style="background: {gradient_proj}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 200px;">
+        <div style="background: {gradient_proj}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 240px;">
             <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 2</div>
             <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Projets Court Terme</div>
             <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{epargne_projets:,.0f} €</div>
             <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">Voyages, équipements, loisirs</div>
+            {help_message_2}
         </div>
         """, unsafe_allow_html=True)
     
     with pyr3:
-        investissement = 0  # À calculer si nécessaire
+        investissement = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Investissement")]["Montant"].sum()
         gradient_inv = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
         st.markdown(f"""
-        <div style="background: {gradient_inv}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 200px;">
+        <div style="background: {gradient_inv}; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); position: relative; overflow: hidden; min-height: 240px;">
             <div style="background: rgba(255,255,255,0.25); color: white; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">Niveau 3</div>
             <div style="font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.95); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Investissements</div>
             <div style="font-size: 36px; font-weight: 900; color: white; margin-bottom: 8px;">{investissement:,.0f} €</div>
@@ -1233,18 +1279,33 @@ with tabs[5]:
                         badge = "Démarrage"
                         badge_color = "#EF4444"
                     
+                    # Message d'aide si aucune épargne
+                    if saved == 0:
+                        help_text = """
+                        <div style="background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px; margin-top: 8px;">
+                            <div style="font-size: 11px; color: white; font-weight: 600; margin-bottom: 4px;">Comment épargner :</div>
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.9); line-height: 1.4;">
+                                Transactions → Type: <strong>Épargne</strong><br>
+                                Projet: {projet_nom}
+                            </div>
+                        </div>
+                        """
+                    else:
+                        help_text = ""
+                    
                     with col:
                         st.markdown(f"""
-                        <div style="background: {gradient}; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; min-height: 220px; position: relative; overflow: hidden;">
+                        <div style="background: {gradient}; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; min-height: 260px; position: relative; overflow: hidden;">
                             <div style="background: {badge_color}; color: white; font-size: 10px; font-weight: 700; padding: 5px 12px; border-radius: 15px; display: inline-block; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px;">{badge}</div>
                             <div style="font-size: 20px; font-weight: 800; color: white; margin-bottom: 10px; line-height: 1.3;">{projet_nom}</div>
                             <div style="font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px;">{saved:,.0f} €</div>
                             <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 14px;">sur {target:,.0f} €</div>
                             
                             <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
-                                <div style="background: white; height: 100%; width: {min(progression, 100)}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
+                                <div style="background: white; height: 100%; width: {max(min(progression, 100), 0):.1f}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
                             </div>
-                            <div style="font-size: 14px; color: white; font-weight: 700; text-align: center;">{progression:.1f}%</div>
+                            <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">{progression:.1f}%</div>
+                            {help_text}
                         </div>
                         """, unsafe_allow_html=True)
                         
