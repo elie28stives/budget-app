@@ -199,7 +199,7 @@ def get_worksheet(client, sheet_name, tab_name):
         st.error(f"Erreur d'accès onglet : {e}"); st.stop()
 
 # --- DATA ---
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)  # <--- AJOUT DE show_spinner=False
 def load_data_from_sheet(tab_name, colonnes):
     client = get_gspread_client()
     if not client: return pd.DataFrame(columns=colonnes)
@@ -213,7 +213,7 @@ def load_data_from_sheet(tab_name, colonnes):
         df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
     return df
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)  # <--- AJOUT DE show_spinner=False
 def load_configs_cached():
     return (
         load_data_from_sheet(TAB_CONFIG, ["Type", "Categorie"]),
@@ -1285,3 +1285,4 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
