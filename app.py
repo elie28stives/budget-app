@@ -35,8 +35,8 @@ def apply_custom_style():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #0066FF;
-            --primary-dark: #0052CC;
+            --primary: #FF6B35;
+            --primary-dark: #E55A2B;
             --success: #10B981;
             --warning: #F59E0B;
             --danger: #EF4444;
@@ -83,7 +83,7 @@ def apply_custom_style():
             transition: all 0.2s;
         }
         .stTabs [data-baseweb="tab"]:hover {
-            background: rgba(0, 102, 255, 0.08);
+            background: rgba(255, 107, 53, 0.08);
             color: var(--primary);
         }
         .stTabs [aria-selected="true"] {
@@ -139,7 +139,7 @@ def apply_custom_style():
         
         .stTextInput input:focus, .stNumberInput input:focus {
             border-color: var(--primary) !important;
-            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1) !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
         }
 
         /* BOUTONS - Style Revolut */
@@ -151,14 +151,14 @@ def apply_custom_style():
             font-size: 15px !important;
             border: none !important;
             padding: 12px 24px !important;
-            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3) !important;
+            box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3) !important;
             transition: all 0.2s !important;
         }
         
         div.stButton > button:hover {
             background: var(--primary-dark) !important;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.4) !important;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4) !important;
         }
         
         div.stButton > button:active {
@@ -855,14 +855,13 @@ with tabs[4]:
     
     qui_doit = "Pierre" if balance < 0 else "Elie"
     montant_dette = abs(balance)
-    balance_color = "#10B981" if balance == 0 else "#DA7756"
+    balance_gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if balance == 0 else "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
     
     col3.markdown(f"""
-    <div style="background: linear-gradient(135deg, {balance_color}22 0%, {balance_color}11 100%); 
-                border-radius: 8px; padding: 12px; border-left: 4px solid {balance_color};">
-        <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Rééquilibrage</div>
-        <div style="font-size: 18px; font-weight: 800; color: {balance_color}; margin-top: 4px;">{qui_doit} doit {montant_dette:,.0f} €</div>
-        <div style="font-size: 9px; color: #9CA3AF; margin-top: 2px;">Pour équilibrer</div>
+    <div style="background: {balance_gradient}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">⚖️ Rééquilibrage</div>
+        <div style="font-size: 24px; font-weight: 800; color: white; margin-bottom: 4px;">{qui_doit} doit {montant_dette:,.0f} €</div>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.8); font-weight: 500;">Pour équilibrer</div>
     </div>
     """, unsafe_allow_html=True)
     
