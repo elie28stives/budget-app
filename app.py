@@ -28,95 +28,215 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# --- STYLE CSS (GOOGLE MATERIAL DESIGN) ---
+# --- STYLE CSS (REVOLUT-INSPIRED DESIGN) ---
 def apply_custom_style():
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #DA7756;
-            --bg-light: #F8F9FA;
-            --text-dark: #202124;
-            --text-grey: #5F6368;
+            --primary: #0066FF;
+            --primary-dark: #0052CC;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --bg-main: #F5F7FA;
+            --bg-card: #FFFFFF;
+            --text-primary: #0A1929;
+            --text-secondary: #6B7280;
+            --border: #E5E7EB;
+            --shadow: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         .stApp {
-            background-color: white;
-            font-family: 'Roboto', sans-serif;
-            color: var(--text-dark);
+            background: var(--bg-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
         }
         
         .main .block-container {
-            padding-top: 1rem !important;
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-            max-width: 100%;
+            padding: 2rem 3rem !important;
+            max-width: 1400px;
         }
         
         #MainMenu, footer, header {visibility: hidden;}
 
-        /* TABS */
+        /* TABS - Style Revolut */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 20px;
-            border-bottom: 1px solid #E0E0E0;
-            padding-bottom: 0px;
+            gap: 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: var(--shadow);
+            border: none;
         }
         .stTabs [data-baseweb="tab"] {
-            height: 48px;
-            background-color: transparent;
+            height: 44px;
+            background: transparent;
             border: none;
-            color: var(--text-grey);
-            font-weight: 500;
+            color: var(--text-secondary);
+            font-weight: 600;
             font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0 10px;
+            border-radius: 8px;
+            padding: 0 20px;
+            transition: all 0.2s;
         }
         .stTabs [data-baseweb="tab"]:hover {
+            background: rgba(0, 102, 255, 0.08);
             color: var(--primary);
-            background-color: rgba(218, 119, 86, 0.04);
         }
         .stTabs [aria-selected="true"] {
-            color: var(--primary) !important;
-            border-bottom: 3px solid var(--primary) !important;
+            background: var(--primary) !important;
+            color: white !important;
+            border: none !important;
         }
 
-        h1, h2, h3 { color: var(--text-dark) !important; font-family: 'Roboto', sans-serif; }
-        
-        div[data-testid="stMetric"], div.stDataFrame, div.stForm, div.block-container > div {
-            border: 1px solid #E0E0E0 !important;
-            border-radius: 8px !important;
-            box-shadow: none !important;
-        }
-        
-        section[data-testid="stSidebar"] {
-            background-color: #F8F9FA;
-            border-right: 1px solid #E0E0E0;
-        }
-        
-        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
-            background-color: #F1F3F4 !important;
+        /* MÉTRIQUES - Cards modernes */
+        div[data-testid="stMetric"] {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 16px;
             border: none !important;
-            border-radius: 4px !important;
-            height: 40px;
+            box-shadow: var(--shadow-lg) !important;
         }
         
-        div.stButton > button {
-            background-color: var(--primary) !important;
-            color: white !important;
-            border-radius: 4px;
-            font-weight: 500;
-            border: none;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        div[data-testid="stMetric"] label {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: var(--text-secondary) !important;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            font-size: 32px !important;
+            font-weight: 700 !important;
+            color: var(--text-primary) !important;
+        }
+
+        /* SIDEBAR - Style app mobile */
+        section[data-testid="stSidebar"] {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding-top: 1rem;
+        }
+        
+        section[data-testid="stSidebar"] > div {
+            padding: 0 1.5rem;
+        }
+
+        /* INPUTS - Minimalistes */
+        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
+            background: var(--bg-main) !important;
+            border: 1.5px solid var(--border) !important;
+            border-radius: 12px !important;
+            font-size: 15px !important;
+            font-weight: 500 !important;
+            padding: 12px 16px !important;
+            transition: all 0.2s;
+        }
+        
+        .stTextInput input:focus, .stNumberInput input:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1) !important;
+        }
+
+        /* BOUTONS - Style Revolut */
+        div.stButton > button {
+            background: var(--primary) !important;
+            color: white !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            font-size: 15px !important;
+            border: none !important;
+            padding: 12px 24px !important;
+            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3) !important;
+            transition: all 0.2s !important;
+        }
+        
+        div.stButton > button:hover {
+            background: var(--primary-dark) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.4) !important;
+        }
+        
+        div.stButton > button:active {
+            transform: translateY(0);
+        }
+
+        /* DOWNLOAD BUTTON */
+        div.stDownloadButton > button {
+            background: var(--success) !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            border: none !important;
+            padding: 10px 20px !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+        }
+
+        /* DATAFRAME - Cards épurées */
+        div.stDataFrame {
+            background: var(--bg-card);
+            border-radius: 16px !important;
+            border: none !important;
+            box-shadow: var(--shadow-lg) !important;
+            overflow: hidden;
+        }
+
+        /* HEADERS */
+        h1, h2, h3 { 
+            color: var(--text-primary) !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 700 !important;
+        }
+        
+        h2 {
+            font-size: 28px !important;
+            margin-bottom: 1.5rem !important;
+        }
+        
+        h3 {
+            font-size: 20px !important;
+            font-weight: 600 !important;
+            margin-top: 2rem !important;
+        }
+
+        /* PROGRESS BAR */
+        .stProgress > div > div {
+            background: var(--primary);
+            border-radius: 8px;
+        }
+
+        /* EXPANDER */
+        div[data-testid="stExpander"] {
+            background: var(--bg-card);
+            border: none !important;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        /* FORMS */
+        div.stForm {
+            background: var(--bg-card);
+            padding: 24px;
+            border-radius: 16px !important;
+            border: none !important;
+            box-shadow: var(--shadow-lg) !important;
         }
     </style>
     """, unsafe_allow_html=True)
 
-def page_header(title):
-    st.markdown(f"<h2 style='font-size:22px; font-weight:400; color:#202124; margin-bottom:20px;'>{title}</h2>", unsafe_allow_html=True)
+def page_header(title, subtitle=None):
+    if subtitle:
+        st.markdown(f"""
+        <div style="margin-bottom: 2rem;">
+            <h2 style='font-size:32px; font-weight:800; color:#0A1929; margin-bottom:8px;'>{title}</h2>
+            <p style='font-size:16px; color:#6B7280; font-weight:500;'>{subtitle}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"<h2 style='font-size:32px; font-weight:800; color:#0A1929; margin-bottom:2rem;'>{title}</h2>", unsafe_allow_html=True)
 
 # --- CONNEXION ---
 @st.cache_resource
@@ -326,13 +446,18 @@ with st.sidebar:
         else: total_courant += val; list_courant.append((cpt, val))
 
     def draw_account_card(name, val, is_saving=False):
-        color_bar = "#10B981" if val >= 0 else "#EF4444"
-        bg_card = "#FFFFFF"
-        if is_saving: color_bar = "#DA7756"; bg_card = "#FFFBF9"
+        if is_saving:
+            gradient = "linear-gradient(135deg, #0066FF 0%, #00D4FF 100%)"
+            icon = "💎"
+        else:
+            gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if val >= 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+            icon = "💳"
+        
         st.markdown(f"""
-        <div style="background-color: {bg_card}; border-radius: 8px; border: 1px solid #E5E7EB; padding: 10px 12px; margin-bottom: 8px; border-left: 4px solid {color_bar}; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-            <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">{name}</div>
-            <div style="font-size: 16px; font-weight: 800; color: #1F2937; margin-top: 2px;">{val:,.2f} €</div>
+        <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 10px; right: 15px; font-size: 32px; opacity: 0.3;">{icon}</div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">{name}</div>
+            <div style="font-size: 28px; font-weight: 800; color: white;">{val:,.2f} €</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -376,12 +501,13 @@ with tabs[0]:
     k4.metric("Épargne", f"{epg:,.0f} €", delta=None, delta_color="normal")
     
     rav_color = "#10B981" if reste_a_vivre > 0 else "#EF4444"
+    rav_gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if reste_a_vivre > 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
     k5.markdown(f"""
-    <div style="background: linear-gradient(135deg, {rav_color}22 0%, {rav_color}11 100%); 
-                border-radius: 8px; padding: 12px; border-left: 4px solid {rav_color};">
-        <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Reste à Vivre</div>
-        <div style="font-size: 20px; font-weight: 800; color: {rav_color}; margin-top: 4px;">{reste_a_vivre:,.0f} €</div>
-        <div style="font-size: 9px; color: #9CA3AF; margin-top: 2px;">Pour finir le mois</div>
+    <div style="background: {rav_gradient}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: 10px; right: 15px; font-size: 48px; opacity: 0.2;">{'💰' if reste_a_vivre > 0 else '⚠️'}</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Reste à Vivre</div>
+        <div style="font-size: 32px; font-weight: 800; color: white; margin-bottom: 4px;">{reste_a_vivre:,.0f} €</div>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.8); font-weight: 500;">Pour finir le mois</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -687,12 +813,12 @@ with tabs[3]:
     col3.metric("Dépenses Projetées", f"-{projection_depenses:,.0f} €", delta_color="inverse")
     
     color_fin = "#10B981" if solde_fin_mois > 0 else "#EF4444"
+    gradient_fin = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if solde_fin_mois > 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
     col4.markdown(f"""
-    <div style="background: linear-gradient(135deg, {color_fin}22 0%, {color_fin}11 100%); 
-                border-radius: 8px; padding: 12px; border-left: 4px solid {color_fin};">
-        <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Solde Projeté</div>
-        <div style="font-size: 20px; font-weight: 800; color: {color_fin}; margin-top: 4px;">{solde_fin_mois:,.0f} €</div>
-        <div style="font-size: 9px; color: #9CA3AF; margin-top: 2px;">Fin de mois</div>
+    <div style="background: {gradient_fin}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Solde Projeté</div>
+        <div style="font-size: 32px; font-weight: 800; color: white; margin-bottom: 4px;">{solde_fin_mois:,.0f} €</div>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.8); font-weight: 500;">Fin de mois</div>
     </div>
     """, unsafe_allow_html=True)
     
