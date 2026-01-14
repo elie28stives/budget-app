@@ -19,7 +19,7 @@ TAB_PATRIMOINE = "Patrimoine"
 TAB_COMPTES = "Comptes"
 TAB_ABONNEMENTS = "Abonnements"
 TAB_PROJETS = "Projets_Config"
-TAB_MOTS_CLES = "Mots_Cles"  # MODULE 4: Mots-clés automatiques
+TAB_MOTS_CLES = "Mots_Cles"
 
 USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
@@ -144,114 +144,33 @@ def apply_custom_style():
         }
         
         /* SELECTBOX - CORRECTION MAXIMALE DU CONTRASTE */
-        .stSelectbox {
-            color: #000000 !important;
-        }
+        .stSelectbox { color: #000000 !important; }
+        .stSelectbox > div > div { background: #FFFFFF !important; }
+        .stSelectbox [data-baseweb="select"] { background: #FFFFFF !important; }
+        .stSelectbox [data-baseweb="select"] > div { background: #FFFFFF !important; color: #000000 !important; }
+        .stSelectbox [data-baseweb="select"] > div > div { color: #000000 !important; font-weight: 700 !important; }
+        .stSelectbox [data-baseweb="select"] span, .stSelectbox [data-baseweb="select"] div, .stSelectbox [data-baseweb="select"] p { color: #000000 !important; font-weight: 600 !important; }
+        .stSelectbox [data-baseweb="select"] [data-baseweb="select-value"] { color: #000000 !important; font-weight: 700 !important; }
+        .stSelectbox [role="listbox"] { background: #FFFFFF !important; }
+        .stSelectbox [role="option"] { color: #000000 !important; font-weight: 600 !important; background: #FFFFFF !important; padding: 10px 16px !important; }
+        .stSelectbox [role="option"]:hover { background: #FFF4ED !important; color: #000000 !important; }
+        .stSelectbox [aria-selected="true"] { background: #FFE5D9 !important; color: #000000 !important; font-weight: 700 !important; }
+        [data-baseweb="select"] [id*="react-select"] { color: #000000 !important; }
         
-        .stSelectbox > div > div {
-            background: #FFFFFF !important;
-        }
-        
-        .stSelectbox [data-baseweb="select"] {
-            background: #FFFFFF !important;
-        }
-        
-        .stSelectbox [data-baseweb="select"] > div {
-            background: #FFFFFF !important;
-            color: #000000 !important;
-        }
-        
-        /* Le texte visible dans le champ */
-        .stSelectbox [data-baseweb="select"] > div > div {
-            color: #000000 !important;
-            font-weight: 700 !important;
-        }
-        
-        /* Tous les spans et divs internes */
-        .stSelectbox [data-baseweb="select"] span,
-        .stSelectbox [data-baseweb="select"] div,
-        .stSelectbox [data-baseweb="select"] p {
-            color: #000000 !important;
-            font-weight: 600 !important;
-        }
-        
-        /* L'icône et le texte sélectionné */
-        .stSelectbox [data-baseweb="select"] [data-baseweb="select-value"] {
-            color: #000000 !important;
-            font-weight: 700 !important;
-        }
-        
-        /* Menu déroulant */
-        .stSelectbox [role="listbox"] {
-            background: #FFFFFF !important;
-        }
-        
-        .stSelectbox [role="option"] {
-            color: #000000 !important;
-            font-weight: 600 !important;
-            background: #FFFFFF !important;
-            padding: 10px 16px !important;
-        }
-        
-        .stSelectbox [role="option"]:hover {
-            background: #FFF4ED !important;
-            color: #000000 !important;
-        }
-        
-        .stSelectbox [aria-selected="true"] {
-            background: #FFE5D9 !important;
-            color: #000000 !important;
-            font-weight: 700 !important;
-        }
-        
-        /* Forcer ABSOLUMENT le texte visible */
-        [data-baseweb="select"] [id*="react-select"] {
-            color: #000000 !important;
-        }
-        
-        /* RADIO BUTTONS - Meilleure visibilité */
-        .stRadio label {
-            color: #0A1929 !important;
-            font-weight: 600 !important;
-        }
-        
-        .stRadio div[role="radiogroup"] label {
-            color: #0A1929 !important;
-            font-weight: 600 !important;
-        }
-        
-        .stRadio div[role="radiogroup"] label span {
-            color: #0A1929 !important;
-        }
+        /* RADIO BUTTONS */
+        .stRadio label, .stRadio div[role="radiogroup"] label, .stRadio div[role="radiogroup"] label span { color: #0A1929 !important; font-weight: 600 !important; }
         
         /* DATE INPUT */
-        .stDateInput input {
-            color: #000000 !important;
-            font-weight: 600 !important;
-            background: #FFFFFF !important;
-        }
+        .stDateInput input { color: #000000 !important; font-weight: 600 !important; background: #FFFFFF !important; }
         
         /* TEXT AREA */
-        .stTextArea textarea {
-            background: #FFFFFF !important;
-            border: 1.5px solid var(--border) !important;
-            border-radius: 12px !important;
-            color: #0A1929 !important;
-            font-weight: 600 !important;
-        }
+        .stTextArea textarea { background: #FFFFFF !important; border: 1.5px solid var(--border) !important; border-radius: 12px !important; color: #0A1929 !important; font-weight: 600 !important; }
         
         /* SLIDER */
-        .stSlider label {
-            color: #0A1929 !important;
-            font-weight: 600 !important;
-        }
+        .stSlider label { color: #0A1929 !important; font-weight: 600 !important; }
         
-        /* LABELS - Tous les labels d'inputs */
-        .stTextInput label, .stNumberInput label, .stSelectbox label, .stDateInput label {
-            color: #0A1929 !important;
-            font-weight: 600 !important;
-            font-size: 14px !important;
-        }
+        /* LABELS */
+        .stTextInput label, .stNumberInput label, .stSelectbox label, .stDateInput label { color: #0A1929 !important; font-weight: 600 !important; font-size: 14px !important; }
 
         /* BOUTONS - Style Revolut */
         div.stButton > button {
@@ -265,16 +184,12 @@ def apply_custom_style():
             box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3) !important;
             transition: all 0.2s !important;
         }
-        
         div.stButton > button:hover {
             background: var(--primary-dark) !important;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4) !important;
         }
-        
-        div.stButton > button:active {
-            transform: translateY(0);
-        }
+        div.stButton > button:active { transform: translateY(0); }
 
         /* DOWNLOAD BUTTON */
         div.stDownloadButton > button {
@@ -286,7 +201,7 @@ def apply_custom_style():
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
         }
 
-        /* DATAFRAME - Cards épurées */
+        /* DATAFRAME */
         div.stDataFrame {
             background: var(--bg-card);
             border-radius: 16px !important;
@@ -296,45 +211,18 @@ def apply_custom_style():
         }
 
         /* HEADERS */
-        h1, h2, h3 { 
-            color: var(--text-primary) !important;
-            font-family: 'Inter', sans-serif !important;
-            font-weight: 700 !important;
-        }
-        
-        h2 {
-            font-size: 28px !important;
-            margin-bottom: 1.5rem !important;
-        }
-        
-        h3 {
-            font-size: 20px !important;
-            font-weight: 600 !important;
-            margin-top: 2rem !important;
-        }
+        h1, h2, h3 { color: var(--text-primary) !important; font-family: 'Inter', sans-serif !important; font-weight: 700 !important; }
+        h2 { font-size: 28px !important; margin-bottom: 1.5rem !important; }
+        h3 { font-size: 20px !important; font-weight: 600 !important; margin-top: 2rem !important; }
 
         /* PROGRESS BAR */
-        .stProgress > div > div {
-            background: var(--primary);
-            border-radius: 8px;
-        }
+        .stProgress > div > div { background: var(--primary); border-radius: 8px; }
 
         /* EXPANDER */
-        div[data-testid="stExpander"] {
-            background: var(--bg-card);
-            border: none !important;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-        }
+        div[data-testid="stExpander"] { background: var(--bg-card); border: none !important; border-radius: 12px; box-shadow: var(--shadow); }
 
         /* FORMS */
-        div.stForm {
-            background: var(--bg-card);
-            padding: 24px;
-            border-radius: 16px !important;
-            border: none !important;
-            box-shadow: var(--shadow-lg) !important;
-        }
+        div.stForm { background: var(--bg-card); padding: 24px; border-radius: 16px !important; border: none !important; box-shadow: var(--shadow-lg) !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -414,12 +302,10 @@ def save_data_to_sheet(tab_name, df):
 def to_excel_download(df):
     """Génère un fichier Excel téléchargeable - VERSION CORRIGÉE"""
     output = BytesIO()
-    # Conversion des dates en string pour éviter les problèmes
     df_export = df.copy()
     if "Date" in df_export.columns:
         df_export["Date"] = df_export["Date"].astype(str)
     
-    # Utiliser openpyxl comme moteur (plus fiable)
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_export.to_excel(writer, index=False, sheet_name='Transactions')
     
@@ -520,7 +406,7 @@ def save_mots_cles(d):
 
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V52", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ma Banque V56", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -588,7 +474,7 @@ with st.sidebar:
 tabs = st.tabs(["Transactions", "Synthèse", "Analyse & Budget", "Prévisionnel", "Équilibre", "Patrimoine", "Configuration"])
 
 # 1. SYNTHESE
-with tabs[0]:
+with tabs[1]:
     page_header("Synthèse du mois")
     
     rev = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Revenu")]["Montant"].sum()
@@ -658,7 +544,7 @@ with tabs[0]:
             st.success("Tout est sous contrôle !")
 
 # 2. TRANSACTIONS
-with tabs[1]:
+with tabs[0]:
     subtabs = st.tabs(["Nouvelle Saisie", "Journal", "Abonnements"])
     
     # --- SAISIE ---
@@ -759,7 +645,7 @@ with tabs[1]:
             excel_data = to_excel_download(df_e)
             
             col_export.download_button(
-                label="Export",
+                label="📥 Export",
                 data=excel_data,
                 file_name=f"transactions_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -780,7 +666,7 @@ with tabs[1]:
         with st.expander("➕ Nouvel Abonnement", expanded=False):
             with st.form("new_abo_form"):
                 col1, col2, col3, col4 = st.columns(4)
-                nom_abo = col1.text_input("Nom", placeholder="Ex: Netflix, Spotify...", key="na")
+                nom_abo = col1.text_input("Nom", key="na")
                 montant_abo = col2.number_input("Montant (€)", min_value=0.0, key="ma")
                 jour_abo = col3.number_input("Jour", 1, 31, 1, key="ja")
                 freq_abo = col4.selectbox("Fréquence", FREQUENCES, key="fa")
@@ -887,7 +773,7 @@ with tabs[1]:
                     
                     st.markdown("---")
                 
-                # Affichage en vignettes 3 par ligne (pour avoir plus d'espace)
+                # Affichage en vignettes 3 par ligne
                 st.markdown("#### 📋 Liste des abonnements")
                 
                 for i in range(0, len(abo_list), 3):
@@ -902,34 +788,20 @@ with tabs[1]:
                                 gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
                                 badge = "✅ Payé"
                                 badge_color = "#10B981"
+                                icon = "💚"
                             else:
                                 gradient = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
                                 badge = "⏳ En attente"
                                 badge_color = "#F59E0B"
+                                icon = "⏰"
                             
                             with col:
-                                # Card avec header pour le logo
                                 st.markdown(f"""
                                 <div style="background: {gradient}; border-radius: 16px; padding: 0; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
                                     <div style="background: white; padding: 16px; text-align: center; border-bottom: 2px solid rgba(0,0,0,0.1);">
-                                """, unsafe_allow_html=True)
-                                
-                                # Logo avec st.image (MÉTHODE QUI FONCTIONNE)
-                                logo_url = get_company_logo_url(abo["nom"])
-                                if logo_url:
-                                    try:
-                                        st.image(logo_url, width=80)
-                                    except:
-                                        st.markdown(f"<div style='font-size: 48px;'>💳</div>", unsafe_allow_html=True)
-                                else:
-                                    st.markdown(f"<div style='font-size: 48px;'>💳</div>", unsafe_allow_html=True)
-                                
-                                st.markdown("""
+                                        <div style="font-size: 48px;">💳</div>
                                     </div>
                                     <div style="padding: 20px;">
-                                """, unsafe_allow_html=True)
-                                
-                                st.markdown(f"""
                                         <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
                                         <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px;">{abo['nom']}</div>
                                         <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
@@ -1176,7 +1048,7 @@ with tabs[5]:
 
     if revenus_mensuels == 0:
         st.info(
-            "**Conseil** : Pour activer l'épargne de précaution, "
+            "💡 **Conseil** : Pour activer l'épargne de précaution, "
             "enregistrez d'abord vos revenus (Transactions → Nouvelle Saisie → Type: **Revenu**)."
         )
     else:
@@ -1246,8 +1118,8 @@ with tabs[5]:
         with st.expander("Créer un Nouveau Projet", expanded=False):
             with st.form("new_project_form"):
                 proj_col1, proj_col2 = st.columns(2)
-                nom_projet = proj_col1.text_input("Nom du projet", placeholder="Ex: Voyage en Italie", key=f"np_{i}_{j}")
-                cible_projet = proj_col2.number_input("Montant cible (€)", min_value=0.0, step=100.0, key=f"tp_{i}_{j}")
+                nom_projet = proj_col1.text_input("Nom du projet", placeholder="Ex: Voyage en Italie")
+                cible_projet = proj_col2.number_input("Montant cible (€)", min_value=0.0, step=100.0)
 
                 if st.form_submit_button("Créer le Projet", type="primary", use_container_width=True):
                     if nom_projet:
@@ -1294,7 +1166,7 @@ with tabs[5]:
 
                     # Message d'aide si aucune épargne
                     if saved == 0:
-                        help_text = """
+                        help_text = f"""
                         <div style="background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px; margin-top: 8px;">
                             <div style="font-size: 11px; color: white; font-weight: 600; margin-bottom: 4px;">Comment épargner :</div>
                             <div style="font-size: 10px; color: rgba(255,255,255,0.9); line-height: 1.4;">
@@ -1380,7 +1252,7 @@ with tabs[6]:
     
     config_tabs = st.tabs(["Comptes", "Catégories", "Mots-Clés Auto"])
     
-   # COMPTES
+    # COMPTES
     with config_tabs[0]:
         st.markdown("### Gestion des Comptes Bancaires")
         st.caption(f"Vous gérez les comptes de **{user_actuel}**")
@@ -1646,6 +1518,7 @@ with tabs[6]:
                                 else:
                                     st.info("Aucune transaction enregistrée pour ce compte")
                             
+                            # Bouton suppression en dessous
                             if st.button(f"🗑️ Supprimer ce compte commun", key=f"del_compte_commun_{compte_nom}", use_container_width=True):
                                 comptes_structure["Commun"].remove(compte_nom)
                                 if compte_nom in comptes_types_map:
@@ -1654,8 +1527,8 @@ with tabs[6]:
                                 st.success(f"Compte commun '{compte_nom}' supprimé")
                                 time.sleep(1)
                                 st.rerun()
-                                
-# CATÉGORIES
+
+    # CATÉGORIES
     with config_tabs[1]:
         st.subheader("Catégories")
         typ = st.selectbox("Type", TYPES, key="tcat")
@@ -1702,10 +1575,3 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
-
-
-
-
-
-
-
