@@ -1329,66 +1329,143 @@ with tabs[6]:
     
     config_tabs = st.tabs(["Comptes", "Catégories", "Mots-Clés Auto"])
     
-    # COMPTES
+   # COMPTES
     with config_tabs[0]:
-        st.subheader("Comptes")
-        with st.form("add_cpt"):
-            n = st.text_input("Nom", key="nc"); p = st.selectbox("Proprio", ["Pierre", "Elie", "Commun"], key="pc"); t = st.selectbox("Type", TYPES_COMPTE, key="tc")
-            if st.form_submit_button("Ajouter"):
-                if p not in comptes_structure: comptes_structure[p] = []
-                comptes_structure[p].append(n); comptes_types_map[n] = t; save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+        st.markdown("### 🏦 Gestion des Comptes Bancaires")
+        st.caption(f"Vous gérez les comptes de **{user_actuel}**")
         
-        for owner, accs in comptes_structure.items():
-            st.write(f"**{owner}**")
-            for a in accs:
-                col_a, col_b = st.columns([4,1])
-                col_a.text(a)
-                if col_b.button("X", key=f"del_acc_{a}"): comptes_structure[owner].remove(a); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+        # Formulaire d'ajout avec toggle pour compte commun
+        with st.expander("➕ Ajouter un Nouveau Compte", expanded=False):
+            with st.form("add_compte_form"):
+                compte_col1, compte_col2 = st.columns(2)
+                
+                nom_compte = compte_col1.text_input(
+                    "Nom du Compte", 
+                    placeholder="Ex: Compte Courant BNP",
+                    key="nom_nouveau_compte"
+                )
+                
+                type_compte = compte_col2.selectbox(
+                    "Type de Compte",
+                    TYPES_COMPTE,
+                    key="type_nouveau_compte"
+                )
+                
+                # Option compte commun (optionnel)
+                est_commun = st.checkbox(
+                    "Ce compte est partagé avec l'autre personne (Commun)",
+                    value=False,
+                    key="commun_check"
+                )
+                
+                if st.form_submit_button("Créer le Compte", type="primary", use_container_width=True):
+                    if nom_compte:
+                        # Déterminer le propriétaire
+                        proprio = "Commun" if est_commun else user_actuel
+                        
+                        # Initialiser si nécessaire
+                        if proprio not in comptes_structure:
+                            comptes_structure[proprio] = []
+                        
+                        # Vérifier que le compte n'existe pas déjà
+                        if nom_compte not in comptes_structure[proprio]:
+                            comptes_structure[proprio].append(nom_compte)
+                            comptes_types_map[nom_compte] = type_compte
+                            save_comptes_struct(comptes_structure, comptes_types_map)
+                            st.success(f"Compte '{nom_compte}' créé avec succès !")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(f"⚠️ Un compte avec ce nom existe déjà")
+                    else:
+                        st.error("⚠️ Veuillez entrer un nom de compte")
+        
+        st.markdown("---")
+        
+        # Affichage des comptes de l'utilisateur connecté uniquement
+        st.markdown(f"#### Mes Comptes Personnels ({user_actuel})")
+        
+        comptes_user = comptes_structure.get(user_actuel, [])
+        
+        if comptes_user:
+            # Affichage en cards (2 par ligne pour plus de lisibilité)
+            for i in range(0, len(comptes_user), 2):
+                cols = st.columns(2)
+                
+                for j, col in enumerate(cols):
+                    if i + j < len(comptes_user):
+                        compte_nom = comptes_user[i + j]
+                        compte_type = comptes_types_map.get(compte_nom, "Courant")
+                        solde_compte = SOLDES_ACTUELS.get(compte_nom, 0.0)
+                        
+                        # Couleur selon le type
+                        if compte_type == "Épargne":
+                            gradient = "linear-gradient(135deg, #0066FF 0%, #00D4FF 100%)"
+                            icon = "💎"
+                        else:
+                            gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if solde_compte >= 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+                            icon = "💳"
+                        
+                        with col:
+                            st.markdown(f"""
+                            <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; overflow: hidden;">
+                                <div style="position: absolute; top: 10px; right: 15px; font-size: 32px; opacity: 0.3;">{icon}</div>
+                                <div style="background: rgba(255,255,255,0.25); color: white; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.8px;">{compte_type}</div>
+                                <div style="font-size: 16px; color: rgba(255,255,255,0.95); font-weight: 600; margin-bottom: 8px;">{compte_nom}</div>
+                                <div style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 4px;">{solde_compte:,.2f} €</div>
+                                <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">Propriétaire : {user_actuel}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            if st.button(f"Supprimer ce compte", key=f"del_compte_{compte_nom}", use_container_width=True):
+                                comptes_structure[user_actuel].remove(compte_nom)
+                                if compte_nom in comptes_types_map:
+                                    del comptes_types_map[compte_nom]
+                                save_comptes_struct(comptes_structure, comptes_types_map)
+                                st.success(f"Compte '{compte_nom}' supprimé")
+                                time.sleep(1)
+                                st.rerun()
+        else:
+            st.info(f"👋 Vous n'avez pas encore de compte personnel. Créez-en un ci-dessus !")
+        
+        # Section Comptes Communs (si existants)
+        comptes_communs = comptes_structure.get("Commun", [])
+        
+        if comptes_communs:
+            st.markdown("---")
+            st.markdown("#### Comptes Communs")
+            st.caption("Ces comptes sont partagés entre Pierre et Elie")
+            
+            for i in range(0, len(comptes_communs), 2):
+                cols = st.columns(2)
+                
+                for j, col in enumerate(cols):
+                    if i + j < len(comptes_communs):
+                        compte_nom = comptes_communs[i + j]
+                        compte_type = comptes_types_map.get(compte_nom, "Courant")
+                        solde_compte = SOLDES_ACTUELS.get(compte_nom, 0.0)
+                        
+                        # Couleur spéciale pour comptes communs
+                        gradient = "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
+                        icon = "🤝"
+                        
+                        with col:
+                            st.markdown(f"""
+                            <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; overflow: hidden;">
+                                <div style="position: absolute; top: 10px; right: 15px; font-size: 32px; opacity: 0.3;">{icon}</div>
+                                <div style="background: rgba(255,255,255,0.25); color: white; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.8px;">{compte_type} - COMMUN</div>
+                                <div style="font-size: 16px; color: rgba(255,255,255,0.95); font-weight: 600; margin-bottom: 8px;">{compte_nom}</div>
+                                <div style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 4px;">{solde_compte:,.2f} €</div>
+                                <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">Propriétaires : Pierre & Elie</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            if st.button(f"Supprimer ce compte commun", key=f"del_compte_commun_{compte_nom}", use_container_width=True):
+                                comptes_structure["Commun"].remove(compte_nom)
+                                if compte_nom in comptes_types_map:
+                                    del comptes_types_map[compte_nom]
+                                save_comptes_struct(comptes_structure, comptes_types_map)
+                                st.success(f"Compte commun '{compte_nom}' supprimé")
+                                time.sleep(1)
+                                st.rerun()
 
-    # CATÉGORIES
-    with config_tabs[1]:
-        st.subheader("Catégories")
-        typ = st.selectbox("Type", TYPES, key="tcat")
-        cats = cats_memoire.get(typ, [])
-        new_c = st.text_input("Nouvelle Cat", key="ncat")
-        if st.button("Ajouter Cat", key="bcat"):
-            if typ not in cats_memoire: cats_memoire[typ] = []
-            cats_memoire[typ].append(new_c); save_config_cats(cats_memoire); st.rerun()
-            
-        for c in cats:
-            col_a, col_b = st.columns([4,1])
-            col_a.text(c)
-            if col_b.button("X", key=f"del_cat_{typ}_{c}"): cats_memoire[typ].remove(c); save_config_cats(cats_memoire); st.rerun()
-    
-    # MODULE 4: Gestion des mots-clés
-    with config_tabs[2]:
-        st.subheader("🤖 Mots-Clés Automatiques")
-        st.info("Quand vous tapez un mot-clé dans le titre, l'app remplit automatiquement la catégorie et le compte.")
-        
-        with st.form("add_mc"):
-            mc1, mc2 = st.columns(2)
-            mc = mc1.text_input("Mot-Clé (ex: Uber)", key="mc_new")
-            cat_mc = mc2.selectbox("Catégorie", [c for cats in cats_memoire.values() for c in cats], key="cat_mc")
-            
-            mc3, mc4 = st.columns(2)
-            type_mc = mc3.selectbox("Type", TYPES, key="type_mc")
-            compte_mc = mc4.selectbox("Compte", comptes_disponibles, key="compte_mc")
-            
-            if st.form_submit_button("Ajouter Mot-Clé"):
-                mots_cles_map[mc.lower()] = {"Categorie": cat_mc, "Type": type_mc, "Compte": compte_mc}
-                save_mots_cles(mots_cles_map); st.rerun()
-        
-        if mots_cles_map:
-            st.write("**Mots-clés configurés:**")
-            mc_data = []
-            for mc, data in mots_cles_map.items():
-                mc_data.append({"Mot": mc, "Cat": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
-            
-            df_mc = pd.DataFrame(mc_data)
-            st.dataframe(df_mc, use_container_width=True, hide_index=True)
-            
-            for mc in list(mots_cles_map.keys()):
-                col_a, col_b = st.columns([4,1])
-                col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
-                if col_b.button("X", key=f"del_mc_{mc}"):
-                    del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
