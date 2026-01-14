@@ -865,10 +865,10 @@ with tabs[1]:
         st.markdown("### 💳 Mes Abonnements")
         
         # Bouton Nouveau en haut
-        with st.expander("Nouvel Abonnement", expanded=False):
+        with st.expander("➕ Nouvel Abonnement", expanded=False):
             with st.form("new_abo_form"):
                 col1, col2, col3, col4 = st.columns(4)
-                nom_abo = col1.text_input("Nom", key="na")
+                nom_abo = col1.text_input("Nom", placeholder="Ex: Netflix, Spotify...", key="na")
                 montant_abo = col2.number_input("Montant (€)", min_value=0.0, key="ma")
                 jour_abo = col3.number_input("Jour", 1, 31, 1, key="ja")
                 freq_abo = col4.selectbox("Fréquence", FREQUENCES, key="fa")
@@ -882,7 +882,7 @@ with tabs[1]:
                     pc_abo = st.slider("% Pierre", 0, 100, 50, key="pa")
                     imp_abo = f"Commun ({pc_abo}/{100-pc_abo})"
                 
-                if st.form_submit_button("Ajouter", type="primary", use_container_width=True):
+                if st.form_submit_button("✅ Ajouter", type="primary", use_container_width=True):
                     new_abo = pd.DataFrame([{
                         "Nom": nom_abo,
                         "Montant": montant_abo,
@@ -928,6 +928,9 @@ with tabs[1]:
                         "montant": float(row["Montant"]),
                         "jour": int(row["Jour"]),
                         "categorie": row["Categorie"],
+                        "compte": row["Compte_Source"],
+                        "imputation": row["Imputation"],
+                        "frequence": row["Frequence"],
                         "statut": is_paid,
                         "row_data": row
                     })
@@ -937,7 +940,7 @@ with tabs[1]:
                 
                 # Bouton génération en masse
                 if to_generate:
-                    if st.button(f"Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
+                    if st.button(f"🔄 Générer {len(to_generate)} abonnement(s) manquant(s)", type="primary", use_container_width=True):
                         new_transactions = []
                         for row in to_generate:
                             try:
@@ -973,7 +976,7 @@ with tabs[1]:
                     st.markdown("---")
                 
                 # Affichage en vignettes 4 par ligne
-                st.markdown("#### Liste des abonnements")
+                st.markdown("#### 📋 Liste des abonnements")
                 
                 for i in range(0, len(abo_list), 4):
                     cols = st.columns(4)
@@ -987,25 +990,71 @@ with tabs[1]:
                                 gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)"
                                 badge = "✅ Payé"
                                 badge_color = "#10B981"
-                                icon = "💚"
                             else:
                                 gradient = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
                                 badge = "⏳ En attente"
                                 badge_color = "#F59E0B"
-                                icon = "⏰"
+                            
+                            # Logo de l'entreprise
+                            logo_url = get_company_logo(abo["nom"])
                             
                             with col:
-                                st.markdown(f"""
-                                <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 180px; position: relative;">
-                                    <div style="position: absolute; top: 12px; right: 12px; font-size: 32px; opacity: 0.3;">{icon}</div>
-                                    <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
-                                    <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px;">{abo['nom']}</div>
-                                    <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
-                                    <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
-                                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
-                                </div>
-                                """, unsafe_allow_html=True)
+                                # Card avec logo d'entreprise
+                                if logo_url:
+                                    st.markdown(f"""
+                                    <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 220px; position: relative;">
+                                        <div style="position: absolute; top: 12px; right: 12px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                                            <img src="{logo_url}" style="width: 40px; height: 40px; object-fit: contain;" onerror="this.style.display='none'">
+                                        </div>
+                                        <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
+                                        <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px; padding-right: 50px;">{abo['nom']}</div>
+                                        <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
+                                        <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
+                                        <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    # Fallback sans logo
+                                    st.markdown(f"""
+                                    <div style="background: {gradient}; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-height: 220px; position: relative;">
+                                        <div style="background: {badge_color}; color: white; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">{badge}</div>
+                                        <div style="font-size: 18px; font-weight: 800; color: white; margin-bottom: 8px;">{abo['nom']}</div>
+                                        <div style="font-size: 28px; font-weight: 900; color: white; margin-bottom: 8px;">{abo['montant']:.2f} €</div>
+                                        <div style="font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 4px;">📅 Le {abo['jour']} du mois</div>
+                                        <div style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500;">🏷️ {abo['categorie']}</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
                                 
+                                # Bouton Modifier
+                                if st.button(f"✏️ Modifier", key=f"edit_abo_{abo['idx']}", use_container_width=True):
+                                    st.session_state[f'editing_abo_{abo["idx"]}'] = not st.session_state.get(f'editing_abo_{abo["idx"]}', False)
+                                
+                                # Formulaire de modification
+                                if st.session_state.get(f'editing_abo_{abo["idx"]}', False):
+                                    with st.form(f"form_edit_{abo['idx']}"):
+                                        st.markdown("**✏️ Modifier**")
+                                        
+                                        new_nom = st.text_input("Nom", value=abo['nom'], key=f"edit_nom_{abo['idx']}")
+                                        new_montant = st.number_input("Montant (€)", value=abo['montant'], min_value=0.0, key=f"edit_montant_{abo['idx']}")
+                                        new_jour = st.number_input("Jour", value=abo['jour'], min_value=1, max_value=31, key=f"edit_jour_{abo['idx']}")
+                                        new_freq = st.selectbox("Fréquence", FREQUENCES, index=FREQUENCES.index(abo['frequence']) if abo['frequence'] in FREQUENCES else 0, key=f"edit_freq_{abo['idx']}")
+                                        new_cat = st.selectbox("Catégorie", cats_memoire.get("Dépense", []), index=cats_memoire.get("Dépense", []).index(abo['categorie']) if abo['categorie'] in cats_memoire.get("Dépense", []) else 0, key=f"edit_cat_{abo['idx']}")
+                                        
+                                        if st.form_submit_button("💾 Enregistrer", use_container_width=True):
+                                            # Mettre à jour l'abonnement
+                                            df_abonnements.loc[abo['idx'], 'Nom'] = new_nom
+                                            df_abonnements.loc[abo['idx'], 'Montant'] = new_montant
+                                            df_abonnements.loc[abo['idx'], 'Jour'] = new_jour
+                                            df_abonnements.loc[abo['idx'], 'Frequence'] = new_freq
+                                            df_abonnements.loc[abo['idx'], 'Categorie'] = new_cat
+                                            
+                                            save_abonnements(df_abonnements)
+                                            st.success(f"✅ {new_nom} modifié !")
+                                            st.session_state[f'editing_abo_{abo["idx"]}'] = False
+                                            time.sleep(1)
+                                            st.rerun()
+                                
+                                # Bouton Supprimer
                                 if st.button(f"🗑️ Supprimer", key=f"del_abo_{abo['idx']}", use_container_width=True):
                                     df_abonnements = df_abonnements.drop(abo['idx'])
                                     save_abonnements(df_abonnements)
@@ -1013,9 +1062,9 @@ with tabs[1]:
                                     time.sleep(1)
                                     st.rerun()
             else:
-                st.info("Aucun abonnement pour le moment. Créez-en un ci-dessus !")
+                st.info("👋 Aucun abonnement pour le moment. Créez-en un ci-dessus !")
         else:
-            st.info("Aucun abonnement configuré. Commencez par en ajouter un !")
+            st.info("👋 Aucun abonnement configuré. Commencez par en ajouter un !")
 
 # 3. ANALYSE & BUDGET
 with tabs[2]:
@@ -1739,6 +1788,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
