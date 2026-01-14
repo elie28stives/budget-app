@@ -1195,8 +1195,8 @@ with tabs[5]:
         with st.expander("Créer un Nouveau Projet", expanded=False):
             with st.form("new_project_form"):
                 proj_col1, proj_col2 = st.columns(2)
-                nom_projet = proj_col1.text_input("Nom du projet", placeholder="Ex: Voyage en Italie", key="np")
-                cible_projet = proj_col2.number_input("Montant cible (€)", min_value=0.0, step=100.0, key="tp")
+                nom_projet = proj_col1.text_input("Nom du projet", placeholder="Ex: Voyage en Italie", key=f"np_{i}_{j}")
+                cible_projet = proj_col2.number_input("Montant cible (€)", min_value=0.0, step=100.0, key=f"tp_{i}_{j}")
 
                 if st.form_submit_button("Créer le Projet", type="primary", use_container_width=True):
                     if nom_projet:
@@ -1255,36 +1255,37 @@ with tabs[5]:
                     else:
                         help_text = ""
 
+                    # Gestion de la barre de progression
+                    if progression == 0:
+                        progression_html = f"""
+                        <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 10px; margin-bottom: 10px; text-align: center;">
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600;">
+                                💡 Commencez à épargner pour ce projet en enregistrant une transaction de type <strong>Épargne</strong> !
+                            </div>
+                        </div>
+                        <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">0%</div>
+                        """
+                    else:
+                        progression_html = f"""
+                        <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
+                            <div style="background: white; height: 100%; width: {progression:.1f}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
+                        </div>
+                        <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">{progression:.1f}%</div>
+                        """
+
                     with col:
-    st.markdown(f"""
-    <div style="background: {gradient}; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; min-height: 260px; position: relative; overflow: hidden;">
-        <div style="background: {badge_color}; color: white; font-size: 10px; font-weight: 700; padding: 5px 12px; border-radius: 15px; display: inline-block; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px;">{badge}</div>
-        <div style="font-size: 20px; font-weight: 800; color: white; margin-bottom: 10px; line-height: 1.3;">{projet_nom}</div>
-        <div style="font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px;">{saved:,.0f} €</div>
-        <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 14px;">sur {target:,.0f} €</div>
+                        st.markdown(f"""
+                        <div style="background: {gradient}; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; min-height: 260px; position: relative; overflow: hidden;">
+                            <div style="background: {badge_color}; color: white; font-size: 10px; font-weight: 700; padding: 5px 12px; border-radius: 15px; display: inline-block; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px;">{badge}</div>
+                            <div style="font-size: 20px; font-weight: 800; color: white; margin-bottom: 10px; line-height: 1.3;">{projet_nom}</div>
+                            <div style="font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px;">{saved:,.0f} €</div>
+                            <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 14px;">sur {target:,.0f} €</div>
 
-        {""
-        if progression == 0:
-            """
-            <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 10px; margin-bottom: 10px; text-align: center;">
-                <div style="font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 600;">
-                    💡 Commencez à épargner pour ce projet en enregistrant une transaction de type <strong>Épargne</strong> !
-                </div>
-            </div>
-            <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">0%</div>
-            """
-        else:
-            f"""
-            <div style="background: rgba(255,255,255,0.3); border-radius: 12px; height: 10px; overflow: hidden; margin-bottom: 10px;">
-                <div style="background: white; height: 100%; width: {progression:.1f}%; border-radius: 12px; transition: width 0.3s; box-shadow: 0 2px 8px rgba(255,255,255,0.4);"></div>
-            </div>
-            <div style="font-size: 14px; color: white; font-weight: 700; text-align: center; margin-bottom: 8px;">{progression:.1f}%</div>
-            """
-        }
+                            {progression_html}
 
-        {help_text}
-    </div>
-    """, unsafe_allow_html=True)
+                            {help_text}
+                        </div>
+                        """, unsafe_allow_html=True)
 
                         if st.button(f"Supprimer", key=f"del_proj_{i}_{j}", use_container_width=True):
                             del projets_config[projet_nom]
@@ -1391,6 +1392,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
