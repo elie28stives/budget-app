@@ -28,6 +28,10 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
+# --- DEFINITION DES COLONNES (Le fix est ici) ---
+COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
+COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
+
 # --- STYLE CSS (FULL WIDTH & MODERN) ---
 def apply_custom_style():
     st.markdown("""
@@ -58,8 +62,8 @@ def apply_custom_style():
         /* FULL WIDTH OPTIMIZATION */
         .main .block-container {
             padding-top: 1.5rem !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
             max-width: 100% !important;
         }
         
@@ -271,7 +275,7 @@ def save_mots_cles(d):
     save_data_to_sheet(TAB_MOTS_CLES, pd.DataFrame(rows))
 
 # --- APP START ---
-st.set_page_config(page_title="Ma Banque V58", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Ma Banque V59", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 apply_custom_style()
 
 df = load_data_from_sheet(TAB_DATA, COLS_DATA)
