@@ -28,108 +28,6 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-def get_company_logo_url(company_name):
-    """
-    Récupère l'URL du logo d'une entreprise
-    Compatible avec st.image() de Streamlit
-    """
-    if not company_name:
-        return None
-    
-    company_clean = company_name.lower().strip()
-    
-    # Mapping des entreprises vers leurs domaines
-    domain_mapping = {
-        # Streaming
-        "netflix": "netflix.com",
-        "spotify": "spotify.com",
-        "amazon": "amazon.com",
-        "amazon prime": "primevideo.com",
-        "disney": "disneyplus.com",
-        "disney+": "disneyplus.com",
-        "apple tv": "tv.apple.com",
-        "apple music": "music.apple.com",
-        "youtube": "youtube.com",
-        "deezer": "deezer.com",
-        "canal+": "canalplus.com",
-        "canal plus": "canalplus.com",
-        "hbo": "hbo.com",
-        
-        # Banques françaises
-        "bnp": "bnpparibas.com",
-        "bnp paribas": "bnpparibas.com",
-        "société générale": "societegenerale.com",
-        "societe generale": "societegenerale.com",
-        "crédit agricole": "credit-agricole.fr",
-        "credit agricole": "credit-agricole.fr",
-        "lcl": "lcl.fr",
-        "boursorama": "boursorama.com",
-        "fortuneo": "fortuneo.fr",
-        "hello bank": "hellobank.fr",
-        "caisse d'épargne": "caisse-epargne.fr",
-        "banque postale": "labanquepostale.fr",
-        "cic": "cic.fr",
-        "crédit mutuel": "creditmutuel.fr",
-        
-        # Néobanques
-        "revolut": "revolut.com",
-        "n26": "n26.com",
-        "qonto": "qonto.com",
-        
-        # Telecom
-        "orange": "orange.fr",
-        "free": "free.fr",
-        "sfr": "sfr.fr",
-        "bouygues": "bouyguestelecom.fr",
-        
-        # Énergie
-        "edf": "edf.fr",
-        "engie": "engie.fr",
-        "total": "totalenergies.fr",
-        
-        # Transport
-        "uber": "uber.com",
-        "deliveroo": "deliveroo.com",
-        "bolt": "bolt.eu",
-        "sncf": "sncf.com",
-        
-        # Voyage
-        "airbnb": "airbnb.com",
-        "booking": "booking.com",
-        
-        # Tech
-        "google": "google.com",
-        "microsoft": "microsoft.com",
-        "adobe": "adobe.com",
-        "github": "github.com",
-        "dropbox": "dropbox.com",
-        "notion": "notion.so",
-        "slack": "slack.com",
-        "zoom": "zoom.us",
-        "canva": "canva.com",
-        "openai": "openai.com",
-        "chatgpt": "openai.com",
-    }
-    
-    # Chercher le domaine
-    domain = None
-    for key, dom in domain_mapping.items():
-        if key in company_clean:
-            domain = dom
-            break
-    
-    # Si pas trouvé, essayer le premier mot + .com
-    if not domain:
-        first_word = company_clean.split()[0] if company_clean else ""
-        if first_word and len(first_word) > 2:
-            domain = f"{first_word}.com"
-    
-    # Retourner l'URL Clearbit (fonctionne sans clé API)
-    if domain:
-        return f"https://logo.clearbit.com/{domain}"
-    
-    return None
-
 # --- STYLE CSS (REVOLUT-INSPIRED DESIGN) ---
 def apply_custom_style():
     st.markdown("""
@@ -1804,6 +1702,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
