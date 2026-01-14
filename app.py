@@ -128,12 +128,12 @@ def apply_custom_style():
 
         /* INPUTS - Minimalistes */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
-            background: var(--bg-card) !important;
+            background: #FFFFFF !important;
             border: 1.5px solid var(--border) !important;
             border-radius: 12px !important;
             font-size: 15px !important;
             font-weight: 600 !important;
-            color: var(--text-primary) !important;
+            color: #0A1929 !important;
             padding: 12px 16px !important;
             transition: all 0.2s;
         }
@@ -143,58 +143,94 @@ def apply_custom_style():
             box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
         }
         
-        /* SELECTBOX - Texte sélectionné et options */
+        /* SELECTBOX - Texte sélectionné ULTRA VISIBLE */
+        .stSelectbox div[data-baseweb="select"] {
+            background: #FFFFFF !important;
+        }
+        
+        .stSelectbox div[data-baseweb="select"] > div {
+            color: #000000 !important;
+            background: #FFFFFF !important;
+        }
+        
         .stSelectbox div[data-baseweb="select"] span {
-            color: var(--text-primary) !important;
-            font-weight: 600 !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        
+        .stSelectbox div[data-baseweb="select"] div {
+            color: #000000 !important;
+        }
+        
+        /* SELECTBOX - Menu déroulant */
+        .stSelectbox [role="listbox"] {
+            background: #FFFFFF !important;
         }
         
         .stSelectbox [role="option"] {
-            color: var(--text-primary) !important;
-            font-weight: 500 !important;
+            color: #000000 !important;
+            font-weight: 600 !important;
+            background: #FFFFFF !important;
         }
         
         .stSelectbox [role="option"]:hover {
-            background: rgba(255, 107, 53, 0.1) !important;
+            background: rgba(255, 107, 53, 0.15) !important;
+            color: #000000 !important;
+        }
+        
+        .stSelectbox [aria-selected="true"] {
+            background: rgba(255, 107, 53, 0.2) !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
         }
         
         /* RADIO BUTTONS - Meilleure visibilité */
         .stRadio label {
-            color: var(--text-primary) !important;
-            font-weight: 500 !important;
+            color: #0A1929 !important;
+            font-weight: 600 !important;
         }
         
         .stRadio div[role="radiogroup"] label {
-            color: var(--text-primary) !important;
-            font-weight: 500 !important;
+            color: #0A1929 !important;
+            font-weight: 600 !important;
+        }
+        
+        .stRadio div[role="radiogroup"] label span {
+            color: #0A1929 !important;
         }
         
         /* DATE INPUT */
         .stDateInput input {
-            color: var(--text-primary) !important;
+            color: #000000 !important;
             font-weight: 600 !important;
+            background: #FFFFFF !important;
         }
         
         /* TEXT AREA */
         .stTextArea textarea {
-            background: var(--bg-card) !important;
+            background: #FFFFFF !important;
             border: 1.5px solid var(--border) !important;
             border-radius: 12px !important;
-            color: var(--text-primary) !important;
-            font-weight: 500 !important;
+            color: #0A1929 !important;
+            font-weight: 600 !important;
         }
         
         /* SLIDER */
         .stSlider label {
-            color: var(--text-primary) !important;
+            color: #0A1929 !important;
             font-weight: 600 !important;
         }
         
         /* LABELS - Tous les labels d'inputs */
         .stTextInput label, .stNumberInput label, .stSelectbox label, .stDateInput label {
-            color: var(--text-primary) !important;
+            color: #0A1929 !important;
             font-weight: 600 !important;
             font-size: 14px !important;
+        }
+        
+        /* Forcer le texte en noir partout dans les selectbox */
+        [data-baseweb="select"] * {
+            color: #000000 !important;
         }
 
         /* BOUTONS - Style Revolut */
