@@ -19,6 +19,7 @@ TAB_PATRIMOINE = "Patrimoine"
 TAB_COMPTES = "Comptes"
 TAB_ABONNEMENTS = "Abonnements"
 TAB_PROJETS = "Projets_Config"
+TAB_MOTS_CLES = "Mots_Cles"  # MODULE 4: Mots-clés automatiques
 
 USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
@@ -162,7 +163,8 @@ def load_configs_cached():
         load_data_from_sheet(TAB_COMPTES, ["Proprietaire", "Compte", "Type"]),
         load_data_from_sheet(TAB_OBJECTIFS, ["Scope", "Categorie", "Montant"]),
         load_data_from_sheet(TAB_ABONNEMENTS, ["Nom", "Montant", "Jour", "Categorie", "Compte_Source", "Proprietaire", "Imputation", "Frequence"]),
-        load_data_from_sheet(TAB_PROJETS, ["Projet", "Cible", "Date_Fin"])
+        load_data_from_sheet(TAB_PROJETS, ["Projet", "Cible", "Date_Fin"]),
+        load_data_from_sheet(TAB_MOTS_CLES, ["Mot_Cle", "Categorie", "Type", "Compte"])
     )
 
 def clear_cache(): st.cache_data.clear()
@@ -214,7 +216,7 @@ def calculer_soldes_reels(df_transac, df_patri, comptes_list):
     return soldes
 
 def process_configs():
-    df_cats, df_comptes, df_objs, df_abos, df_projets = load_configs_cached()
+    df_cats, df_comptes, df_objs, df_abos, df_projets, df_mots_cles = load_configs_cached()
     cats = {k: [] for k in TYPES}
     if not df_cats.empty:
         for _, row in df_cats.iterrows():
@@ -249,8 +251,17 @@ def process_configs():
     if not df_projets.empty:
         for _, row in df_projets.iterrows():
             projets_data[row["Projet"]] = {"Cible": float(row["Cible"]), "Date_Fin": row["Date_Fin"]}
+    
+    mots_cles_dict = {}
+    if not df_mots_cles.empty:
+        for _, row in df_mots_cles.iterrows():
+            mots_cles_dict[row["Mot_Cle"].lower()] = {
+                "Categorie": row["Categorie"],
+                "Type": row["Type"],
+                "Compte": row["Compte"]
+            }
             
-    return cats, comptes, objs_list, df_abos, projets_data, comptes_types
+    return cats, comptes, objs_list, df_abos, projets_data, comptes_types, mots_cles_dict
 
 def save_config_cats(d): save_data_to_sheet(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in d.items() for c in l]))
 def save_comptes_struct(d, types_map): 
@@ -267,6 +278,12 @@ def save_projets_targets(d):
         rows.append({"Projet": p, "Cible": data["Cible"], "Date_Fin": data["Date_Fin"]})
     save_data_to_sheet(TAB_PROJETS, pd.DataFrame(rows))
 
+def save_mots_cles(d):
+    rows = []
+    for mc, data in d.items():
+        rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
+    save_data_to_sheet(TAB_MOTS_CLES, pd.DataFrame(rows))
+
 
 # --- APP START ---
 st.set_page_config(page_title="Ma Banque V52", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
@@ -277,7 +294,7 @@ df = load_data_from_sheet(TAB_DATA, COLS_DATA)
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 df_patrimoine = load_data_from_sheet(TAB_PATRIMOINE, COLS_PAT)
 
-cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map = process_configs()
+cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_configs()
 def get_comptes_autorises(user): return comptes_structure.get(user, []) + comptes_structure.get("Commun", []) + ["Autre / Externe"]
 all_my_accounts = get_comptes_autorises("Pierre") + get_comptes_autorises("Elie")
 SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accounts)))
@@ -286,8 +303,16 @@ SOLDES_ACTUELS = calculer_soldes_reels(df, df_patrimoine, list(set(all_my_accoun
 with st.sidebar:
     st.markdown("<h3 style='margin-bottom:20px;'>Menu</h3>", unsafe_allow_html=True)
     user_actuel = st.selectbox("Utilisateur", USERS)
-
-    # ===== COMPTES EN PREMIER =====
+    
+    st.markdown("---")
+    st.markdown("**Période**")
+    date_jour = datetime.now()
+    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
+    mois_selection = MOIS_FR.index(mois_nom) + 1
+    annee_selection = st.number_input("Année", value=date_jour.year)
+    
+    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
+    
     st.markdown("---")
     comptes_disponibles = get_comptes_autorises(user_actuel)
     total_courant = 0; total_epargne = 0
@@ -317,23 +342,11 @@ with st.sidebar:
     st.markdown(f"**ÉPARGNE ({total_epargne:,.0f}€)**")
     for name, val in list_epargne: draw_account_card(name, val, True)
 
-    # ===== PÉRIODE EN SECOND =====
     st.markdown("---")
-    st.markdown("**Période**")
-    date_jour = datetime.now()
-    mois_nom = st.selectbox("Mois", MOIS_FR, index=date_jour.month-1)
-    mois_selection = MOIS_FR.index(mois_nom) + 1
-    annee_selection = st.number_input("Année", value=date_jour.year)
-    
-    df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
-
-    st.markdown("---")
-    if st.button("Actualiser", use_container_width=True):
-        clear_cache()
-        st.rerun()
+    if st.button("Actualiser", use_container_width=True): clear_cache(); st.rerun()
 
 # --- MAIN ---
-tabs = st.tabs(["Synthèse", "Transactions", "Analyse & Budget", "Patrimoine", "Configuration"])
+tabs = st.tabs(["Synthèse", "Transactions", "Analyse & Budget", "Prévisionnel", "Équilibre", "Patrimoine", "Configuration"])
 
 # 1. SYNTHESE
 with tabs[0]:
@@ -417,12 +430,23 @@ with tabs[1]:
         
         c4, c5 = st.columns(2)
         titre_op = c4.text_input("Titre", placeholder="Libellé...", key="tit_op")
+        
+        # MODULE 4: Auto-complétion par mots-clés
         cat_finale = "Autre"
+        compte_auto = None
+        if titre_op:
+            for mc, data in mots_cles_map.items():
+                if mc in titre_op.lower():
+                    cat_finale = data["Categorie"]
+                    compte_auto = data["Compte"]
+                    c5.success(f"✨ Auto: {cat_finale}")
+                    break
+        
         if type_op == "Virement Interne": 
             c5.info("Virement de fonds"); cat_finale = "Virement"
         else:
             cats = cats_memoire.get(type_op, [])
-            cat_sel = c5.selectbox("Catégorie", cats + ["Autre (nouvelle)"], key="c_sel")
+            cat_sel = c5.selectbox("Catégorie", cats + ["Autre (nouvelle)"], index=cats.index(cat_finale) if cat_finale in cats else 0, key="c_sel")
             if cat_sel == "Autre (nouvelle)": cat_finale = c5.text_input("Nom catégorie", key="c_new")
             else: cat_finale = cat_sel
         
@@ -447,7 +471,7 @@ with tabs[1]:
         else:
             st.markdown("**Détails**")
             cc1, cc2, cc3 = st.columns(3)
-            c_src = cc1.selectbox("Compte", comptes_disponibles, key="src_d")
+            c_src = cc1.selectbox("Compte", comptes_disponibles, index=comptes_disponibles.index(compte_auto) if compte_auto and compte_auto in comptes_disponibles else 0, key="src_d")
             p_par = cc2.selectbox("Payé par", ["Pierre", "Elie", "Commun"], key="par_d")
             imput = cc3.radio("Imputation", IMPUTATIONS, key="imp_d")
             if imput == "Commun (Autre %)":
@@ -629,9 +653,134 @@ with tabs[2]:
         
         st.dataframe(pd.DataFrame(b_data), column_config={"Progression": st.column_config.ProgressColumn("Etat", format="%.2f", min_value=0, max_value=1)}, use_container_width=True, hide_index=True)
 
-# 4. PATRIMOINE
+# 4. PRÉVISIONNEL (MODULE 1: Cash-Flow)
 with tabs[3]:
+    page_header("Prévisionnel Cash-Flow")
+    
+    st.subheader("📈 Projection jusqu'à fin de mois")
+    
+    # Calcul du solde actuel
+    solde_depart = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if c != "Autre / Externe" and comptes_types_map.get(c) == "Courant"])
+    
+    # Abonnements restants
+    abos_restants = 0
+    if not df_abonnements.empty:
+        abos_user = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))]
+        for _, row in abos_user.iterrows():
+            jour_abo = int(row["Jour"])
+            if jour_abo > datetime.now().day:
+                montant = float(row["Montant"])
+                if "Commun" in str(row["Imputation"]):
+                    montant = montant / 2
+                abos_restants += montant
+    
+    # Projection
+    depenses_moyennes_jour = dep / datetime.now().day if datetime.now().day > 0 else 0
+    jours_restants = (datetime(annee_selection, mois_selection, 1) + relativedelta(months=1) - datetime.now()).days
+    projection_depenses = depenses_moyennes_jour * jours_restants
+    
+    solde_fin_mois = solde_depart - abos_restants - projection_depenses
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Solde Actuel", f"{solde_depart:,.0f} €")
+    col2.metric("Abos Restants", f"-{abos_restants:,.0f} €", delta_color="inverse")
+    col3.metric("Dépenses Projetées", f"-{projection_depenses:,.0f} €", delta_color="inverse")
+    
+    color_fin = "#10B981" if solde_fin_mois > 0 else "#EF4444"
+    col4.markdown(f"""
+    <div style="background: linear-gradient(135deg, {color_fin}22 0%, {color_fin}11 100%); 
+                border-radius: 8px; padding: 12px; border-left: 4px solid {color_fin};">
+        <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Solde Projeté</div>
+        <div style="font-size: 20px; font-weight: 800; color: {color_fin}; margin-top: 4px;">{solde_fin_mois:,.0f} €</div>
+        <div style="font-size: 9px; color: #9CA3AF; margin-top: 2px;">Fin de mois</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Graphique de tendance
+    dates_projection = pd.date_range(start=datetime.now(), end=datetime(annee_selection, mois_selection, 1) + relativedelta(months=1), freq='D')
+    soldes_projection = [solde_depart - (depenses_moyennes_jour * i) for i in range(len(dates_projection))]
+    
+    df_proj = pd.DataFrame({"Date": dates_projection, "Solde": soldes_projection})
+    fig_proj = px.line(df_proj, x="Date", y="Solde", title="Évolution projetée du solde", markers=True)
+    fig_proj.add_hline(y=0, line_dash="dash", line_color="red", annotation_text="Seuil critique")
+    st.plotly_chart(fig_proj, use_container_width=True)
+
+# 5. ÉQUILIBRE (MODULE 2: Balance du couple)
+with tabs[4]:
+    page_header("Équilibre du Couple")
+    
+    st.subheader("💰 Qui a payé quoi ?")
+    
+    # Calcul des dépenses communes
+    df_commun = df_mois[df_mois["Imputation"].str.contains("Commun", na=False)]
+    
+    total_pierre = df_commun[df_commun["Paye_Par"] == "Pierre"]["Montant"].sum()
+    total_elie = df_commun[df_commun["Paye_Par"] == "Elie"]["Montant"].sum()
+    total_commun = total_pierre + total_elie
+    
+    moitie = total_commun / 2
+    balance = total_pierre - moitie
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Pierre a payé", f"{total_pierre:,.0f} €")
+    col2.metric("Elie a payé", f"{total_elie:,.0f} €")
+    
+    qui_doit = "Pierre" if balance < 0 else "Elie"
+    montant_dette = abs(balance)
+    balance_color = "#10B981" if balance == 0 else "#DA7756"
+    
+    col3.markdown(f"""
+    <div style="background: linear-gradient(135deg, {balance_color}22 0%, {balance_color}11 100%); 
+                border-radius: 8px; padding: 12px; border-left: 4px solid {balance_color};">
+        <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase;">Rééquilibrage</div>
+        <div style="font-size: 18px; font-weight: 800; color: {balance_color}; margin-top: 4px;">{qui_doit} doit {montant_dette:,.0f} €</div>
+        <div style="font-size: 9px; color: #9CA3AF; margin-top: 2px;">Pour équilibrer</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Répartition par catégorie
+    st.subheader("Détail par catégorie")
+    detail_data = []
+    for cat in df_commun["Categorie"].unique():
+        df_cat = df_commun[df_commun["Categorie"] == cat]
+        p = df_cat[df_cat["Paye_Par"] == "Pierre"]["Montant"].sum()
+        e = df_cat[df_cat["Paye_Par"] == "Elie"]["Montant"].sum()
+        detail_data.append({"Catégorie": cat, "Pierre": p, "Elie": e, "Total": p+e})
+    
+    if detail_data:
+        st.dataframe(pd.DataFrame(detail_data), use_container_width=True, hide_index=True)
+
+# 6. PATRIMOINE
+with tabs[5]:
     page_header("Patrimoine & Projets")
+    
+    # MODULE 3: Pyramide de l'épargne
+    st.subheader("🔺 Pyramide de l'Épargne")
+    
+    total_epargne_user = sum([SOLDES_ACTUELS.get(c, 0) for c in comptes_disponibles if comptes_types_map.get(c) == "Épargne"])
+    revenus_mensuels = df[(df["Qui_Connecte"] == user_actuel) & (df["Type"] == "Revenu")].groupby(["Mois", "Annee"])["Montant"].sum().mean()
+    epargne_precaution_cible = revenus_mensuels * 3
+    
+    epargne_precaution = min(total_epargne_user, epargne_precaution_cible)
+    epargne_projets = max(0, total_epargne_user - epargne_precaution_cible)
+    
+    pyr1, pyr2, pyr3 = st.columns(3)
+    
+    status_precaution = "✅ Atteint" if epargne_precaution >= epargne_precaution_cible else "⚠️ En cours"
+    pyr1.metric("🛡️ Précaution (3 mois)", f"{epargne_precaution:,.0f} €", status_precaution)
+    pyr2.metric("🎯 Projets Court Terme", f"{epargne_projets:,.0f} €")
+    pyr3.metric("📈 Investissement Long Terme", "0 €", "À développer")
+    
+    if epargne_precaution < epargne_precaution_cible:
+        st.warning(f"💡 Conseil : Il vous manque {epargne_precaution_cible - epargne_precaution:,.0f}€ pour sécuriser 3 mois de salaire.")
+    elif epargne_projets > revenus_mensuels * 6:
+        st.success("🎉 Excellente santé financière ! Vous pourriez commencer à investir.")
+    
+    st.markdown("---")
     
     st.subheader("1. Projets Épargne")
     if projets_config:
@@ -654,11 +803,13 @@ with tabs[3]:
             df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date": d, "Mois": d.month, "Annee": d.year, "Compte": c, "Montant": m, "Proprietaire": user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.success("OK"); st.rerun()
 
 # 5. CONFIG
-with tabs[4]:
+with tabs[6]:
     page_header("Configuration")
     
-    c1, c2 = st.columns(2)
-    with c1:
+    config_tabs = st.tabs(["Comptes", "Catégories", "Mots-Clés Auto"])
+    
+    # COMPTES
+    with config_tabs[0]:
         st.subheader("Comptes")
         with st.form("add_cpt"):
             n = st.text_input("Nom", key="nc"); p = st.selectbox("Proprio", ["Pierre", "Elie", "Commun"], key="pc"); t = st.selectbox("Type", TYPES_COMPTE, key="tc")
@@ -673,7 +824,8 @@ with tabs[4]:
                 col_a.text(a)
                 if col_b.button("X", key=f"del_acc_{a}"): comptes_structure[owner].remove(a); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
 
-    with c2:
+    # CATÉGORIES
+    with config_tabs[1]:
         st.subheader("Catégories")
         typ = st.selectbox("Type", TYPES, key="tcat")
         cats = cats_memoire.get(typ, [])
@@ -686,4 +838,36 @@ with tabs[4]:
             col_a, col_b = st.columns([4,1])
             col_a.text(c)
             if col_b.button("X", key=f"del_cat_{typ}_{c}"): cats_memoire[typ].remove(c); save_config_cats(cats_memoire); st.rerun()
-
+    
+    # MODULE 4: Gestion des mots-clés
+    with config_tabs[2]:
+        st.subheader("🤖 Mots-Clés Automatiques")
+        st.info("Quand vous tapez un mot-clé dans le titre, l'app remplit automatiquement la catégorie et le compte.")
+        
+        with st.form("add_mc"):
+            mc1, mc2 = st.columns(2)
+            mc = mc1.text_input("Mot-Clé (ex: Uber)", key="mc_new")
+            cat_mc = mc2.selectbox("Catégorie", [c for cats in cats_memoire.values() for c in cats], key="cat_mc")
+            
+            mc3, mc4 = st.columns(2)
+            type_mc = mc3.selectbox("Type", TYPES, key="type_mc")
+            compte_mc = mc4.selectbox("Compte", comptes_disponibles, key="compte_mc")
+            
+            if st.form_submit_button("Ajouter Mot-Clé"):
+                mots_cles_map[mc.lower()] = {"Categorie": cat_mc, "Type": type_mc, "Compte": compte_mc}
+                save_mots_cles(mots_cles_map); st.rerun()
+        
+        if mots_cles_map:
+            st.write("**Mots-clés configurés:**")
+            mc_data = []
+            for mc, data in mots_cles_map.items():
+                mc_data.append({"Mot": mc, "Cat": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
+            
+            df_mc = pd.DataFrame(mc_data)
+            st.dataframe(df_mc, use_container_width=True, hide_index=True)
+            
+            for mc in list(mots_cles_map.keys()):
+                col_a, col_b = st.columns([4,1])
+                col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
+                if col_b.button("X", key=f"del_mc_{mc}"):
+                    del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
