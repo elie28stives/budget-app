@@ -1330,7 +1330,8 @@ with tabs[6]:
     config_tabs = st.tabs(["Comptes", "Catégories", "Mots-Clés Auto"])
     
     # COMPTES
-    with config_tabs[0]:
+# COMPTES
+with config_tabs[0]:
     st.subheader("🏦 Gestion des Comptes Bancaires")
 
     # Formulaire d'ajout de compte
@@ -1348,7 +1349,7 @@ with tabs[6]:
                 key="new_account_owner"
             )
 
-            if st.form_submit_button("💾 Enregistrer le compte", type="primary"):
+            if st.form_submit_button("Enregistrer le compte", type="primary"):
                 if compte_nom:
                     if compte_proprio not in comptes_structure:
                         comptes_structure[compte_proprio] = []
@@ -1364,7 +1365,7 @@ with tabs[6]:
 
     # Affichage des comptes par propriétaire
     for owner in ["Pierre", "Elie", "Commun"]:
-        st.markdown(f"### 👤 Comptes de {owner}")
+        st.markdown(f"### Comptes de {owner}")
 
         if owner in comptes_structure and comptes_structure[owner]:
             for compte in comptes_structure[owner]:
@@ -1395,7 +1396,7 @@ with tabs[6]:
 
                     # Bouton de suppression
                     with col3:
-                        if st.button(f"🗑️ Supprimer", key=f"del_{owner}_{compte}"):
+                        if st.button(f"Supprimer", key=f"del_{owner}_{compte}"):
                             comptes_structure[owner].remove(compte)
                             del comptes_types_map[compte]
                             save_comptes_struct(comptes_structure, comptes_types_map)
@@ -1442,6 +1443,7 @@ with tabs[6]:
                                 st.rerun()
         else:
             st.info(f"Aucun compte enregistré pour {owner}. Utilisez le formulaire ci-dessus pour en ajouter.")
+
 
     # CATÉGORIES
     with config_tabs[1]:
@@ -1490,6 +1492,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
