@@ -1603,3 +1603,51 @@ with tabs[6]:
                                 st.success(f"Compte commun '{compte_nom}' supprimé")
                                 time.sleep(1)
                                 st.rerun()
+                                
+# CATÉGORIES
+    with config_tabs[1]:
+        st.subheader("Catégories")
+        typ = st.selectbox("Type", TYPES, key="tcat")
+        cats = cats_memoire.get(typ, [])
+        new_c = st.text_input("Nouvelle Cat", key="ncat")
+        if st.button("Ajouter Cat", key="bcat"):
+            if typ not in cats_memoire: cats_memoire[typ] = []
+            cats_memoire[typ].append(new_c); save_config_cats(cats_memoire); st.rerun()
+            
+        for c in cats:
+            col_a, col_b = st.columns([4,1])
+            col_a.text(c)
+            if col_b.button("X", key=f"del_cat_{typ}_{c}"): cats_memoire[typ].remove(c); save_config_cats(cats_memoire); st.rerun()
+    
+    # MODULE 4: Gestion des mots-clés
+    with config_tabs[2]:
+        st.subheader("🤖 Mots-Clés Automatiques")
+        st.info("Quand vous tapez un mot-clé dans le titre, l'app remplit automatiquement la catégorie et le compte.")
+        
+        with st.form("add_mc"):
+            mc1, mc2 = st.columns(2)
+            mc = mc1.text_input("Mot-Clé (ex: Uber)", key="mc_new")
+            cat_mc = mc2.selectbox("Catégorie", [c for cats in cats_memoire.values() for c in cats], key="cat_mc")
+            
+            mc3, mc4 = st.columns(2)
+            type_mc = mc3.selectbox("Type", TYPES, key="type_mc")
+            compte_mc = mc4.selectbox("Compte", comptes_disponibles, key="compte_mc")
+            
+            if st.form_submit_button("Ajouter Mot-Clé"):
+                mots_cles_map[mc.lower()] = {"Categorie": cat_mc, "Type": type_mc, "Compte": compte_mc}
+                save_mots_cles(mots_cles_map); st.rerun()
+        
+        if mots_cles_map:
+            st.write("**Mots-clés configurés:**")
+            mc_data = []
+            for mc, data in mots_cles_map.items():
+                mc_data.append({"Mot": mc, "Cat": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
+            
+            df_mc = pd.DataFrame(mc_data)
+            st.dataframe(df_mc, use_container_width=True, hide_index=True)
+            
+            for mc in list(mots_cles_map.keys()):
+                col_a, col_b = st.columns([4,1])
+                col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
+                if col_b.button("X", key=f"del_mc_{mc}"):
+                    del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
