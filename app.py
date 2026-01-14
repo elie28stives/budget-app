@@ -1331,19 +1331,117 @@ with tabs[6]:
     
     # COMPTES
     with config_tabs[0]:
-        st.subheader("Comptes")
-        with st.form("add_cpt"):
-            n = st.text_input("Nom", key="nc"); p = st.selectbox("Proprio", ["Pierre", "Elie", "Commun"], key="pc"); t = st.selectbox("Type", TYPES_COMPTE, key="tc")
-            if st.form_submit_button("Ajouter"):
-                if p not in comptes_structure: comptes_structure[p] = []
-                comptes_structure[p].append(n); comptes_types_map[n] = t; save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
-        
-        for owner, accs in comptes_structure.items():
-            st.write(f"**{owner}**")
-            for a in accs:
-                col_a, col_b = st.columns([4,1])
-                col_a.text(a)
-                if col_b.button("X", key=f"del_acc_{a}"): comptes_structure[owner].remove(a); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+    st.subheader("🏦 Gestion des Comptes Bancaires")
+
+    # Formulaire d'ajout de compte
+    with st.expander("➕ Ajouter un nouveau compte", expanded=False):
+        with st.form("add_account_form"):
+            st.markdown("**Nouveau Compte**")
+            col1, col2 = st.columns(2)
+            compte_nom = col1.text_input("Nom du compte", placeholder="Ex: Compte Courant N26", key="new_account_name")
+            compte_type = col2.selectbox("Type de compte", TYPES_COMPTE, key="new_account_type")
+
+            compte_proprio = st.selectbox(
+                "Propriétaire",
+                ["Pierre", "Elie", "Commun"],
+                help="Sélectionnez le propriétaire principal du compte",
+                key="new_account_owner"
+            )
+
+            if st.form_submit_button("💾 Enregistrer le compte", type="primary"):
+                if compte_nom:
+                    if compte_proprio not in comptes_structure:
+                        comptes_structure[compte_proprio] = []
+
+                    comptes_structure[compte_proprio].append(compte_nom)
+                    comptes_types_map[compte_nom] = compte_type
+                    save_comptes_struct(comptes_structure, comptes_types_map)
+                    st.success(f"Compte '{compte_nom}' ajouté avec succès !")
+                    time.sleep(1)
+                    st.rerun()
+
+    st.markdown("---")
+
+    # Affichage des comptes par propriétaire
+    for owner in ["Pierre", "Elie", "Commun"]:
+        st.markdown(f"### 👤 Comptes de {owner}")
+
+        if owner in comptes_structure and comptes_structure[owner]:
+            for compte in comptes_structure[owner]:
+                compte_type = comptes_types_map.get(compte, "Courant")
+
+                # Style visuel amélioré pour chaque compte
+                with st.container():
+                    col1, col2, col3 = st.columns([4, 2, 1])
+
+                    # Affichage des informations du compte
+                    with col1:
+                        st.markdown(f"""
+                        <div style="background: #f8f9fa; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 4px solid {'#10B981' if compte_type == 'Épargne' else '#FF6B35'};">
+                            <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">{compte}</div>
+                            <div style="font-size: 14px; color: #6c757d;">
+                                <span style="background: {'#e6f7ff' if compte_type == 'Épargne' else '#fff2e8'}; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                                    {compte_type} • {owner}
+                                </span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # Bouton de modification
+                    with col2:
+                        if st.button(f"Modifier", key=f"edit_{owner}_{compte}"):
+                            st.session_state[f"editing_{owner}_{compte}"] = True
+                            st.rerun()
+
+                    # Bouton de suppression
+                    with col3:
+                        if st.button(f"🗑️ Supprimer", key=f"del_{owner}_{compte}"):
+                            comptes_structure[owner].remove(compte)
+                            del comptes_types_map[compte]
+                            save_comptes_struct(comptes_structure, comptes_types_map)
+                            st.success(f"Compte '{compte}' supprimé avec succès")
+                            time.sleep(1)
+                            st.rerun()
+
+            # Formulaire de modification (si en cours d'édition)
+            for compte in comptes_structure[owner]:
+                if st.session_state.get(f"editing_{owner}_{compte}"):
+                    with st.expander(f"🔧 Modifier: {compte}", expanded=True):
+                        with st.form(f"edit_form_{owner}_{compte}"):
+                            new_name = st.text_input("Nouveau nom", value=compte, key=f"new_name_{owner}_{compte}")
+                            new_type = st.selectbox("Type", TYPES_COMPTE,
+                                                   index=0 if comptes_types_map.get(compte) == "Courant" else 1,
+                                                   key=f"new_type_{owner}_{compte}")
+
+                            col_a, col_b = st.columns([3,1])
+                            if col_a.form_submit_button("Sauvegarder"):
+                                # Mise à jour du nom si changé
+                                if new_name != compte:
+                                    comptes_structure[owner].remove(compte)
+                                    comptes_structure[owner].append(new_name)
+                                    comptes_types_map[new_name] = comptes_types_map.pop(compte)
+
+                                    # Mise à jour dans les transactions si nécessaire
+                                    if "Compte_Source" in df.columns:
+                                        df.loc[df["Compte_Source"] == compte, "Compte_Source"] = new_name
+                                    if "Compte_Cible" in df.columns:
+                                        df.loc[df["Compte_Cible"] == compte, "Compte_Cible"] = new_name
+
+                                # Mise à jour du type
+                                comptes_types_map[compte if new_name == compte else new_name] = new_type
+                                save_comptes_struct(comptes_structure, comptes_types_map)
+                                save_data_to_sheet(TAB_DATA, df)
+
+                                st.session_state[f"editing_{owner}_{compte}"] = False
+                                st.success("Compte mis à jour avec succès !")
+                                time.sleep(1)
+                                st.rerun()
+
+                            if col_b.form_submit_button("Annuler"):
+                                st.session_state[f"editing_{owner}_{compte}"] = False
+                                st.rerun()
+        else:
+            st.info(f"Aucun compte enregistré pour {owner}. Utilisez le formulaire ci-dessus pour en ajouter.")
 
     # CATÉGORIES
     with config_tabs[1]:
@@ -1392,6 +1490,7 @@ with tabs[6]:
                 col_a.text(f"{mc} → {mots_cles_map[mc]['Categorie']}")
                 if col_b.button("X", key=f"del_mc_{mc}"):
                     del mots_cles_map[mc]; save_mots_cles(mots_cles_map); st.rerun()
+
 
 
 
