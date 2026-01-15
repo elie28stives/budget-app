@@ -703,40 +703,121 @@ with tabs[2]:
                 st.plotly_chart(fig_s, use_container_width=True)
                 
     with an2:
-        st.subheader("Définir mes Budgets")
-        with st.form("add_obj"):
-            c1, c2, c3 = st.columns(3)
-            sc = c1.selectbox("Scope", ["Perso", "Commun"])
-            cat = c2.selectbox("Catégorie", cats_memoire.get("Dépense", []))
-            mt = c3.number_input("Budget Max (€)")
-            if st.form_submit_button("Ajouter Objectif"):
-                objectifs_list.append({"Scope": sc, "Categorie": cat, "Montant": mt})
-                save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                st.rerun()
+        st.markdown("### 🎯 Mes Budgets")
         
-        st.markdown("#### Suivi du mois")
-        if objectifs_list:
-            for i, o in enumerate(objectifs_list):
-                if o['Scope'] == "Perso" and user_actuel not in USERS: continue # Simple check
+        # Bouton pour ajouter un objectif (plus discret)
+        with st.expander("➕ Créer un nouveau budget", expanded=False):
+            with st.form("add_obj_modern"):
+                c1, c2, c3 = st.columns([1, 2, 1])
+                sc = c1.selectbox("Qui ?", ["Perso", "Commun"])
+                cat = c2.selectbox("Catégorie", cats_memoire.get("Dépense", []))
+                mt = c3.number_input("Plafond (€)", min_value=0.0, step=50.0)
                 
-                # Calcul réel
-                mask = (df_mois["Type"] == "Dépense") & (df_mois["Categorie"] == o["Categorie"])
-                if o["Scope"] == "Perso": mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
-                else: mask = mask & (df_mois["Imputation"].str.contains("Commun"))
-                
-                real = df_mois[mask]["Montant"].sum()
-                target = float(o["Montant"])
-                ratio = min(real/target if target > 0 else 0, 1.0)
-                
-                c1, c2, c3 = st.columns([3, 2, 1])
-                c1.write(f"**{o['Categorie']}** ({o['Scope']})")
-                c2.progress(ratio)
-                c3.write(f"{real:.0f} / {target:.0f} €")
-                
-                if st.button("X", key=f"del_obj_{i}"):
-                    objectifs_list.pop(i)
+                if st.form_submit_button("Valider le budget", use_container_width=True, type="primary"):
+                    objectifs_list.append({"Scope": sc, "Categorie": cat, "Montant": mt})
                     save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                    st.success("Budget créé !")
+                    time.sleep(0.5)
                     st.rerun()
+        
+        st.markdown("---")
+        
+        if not objectifs_list:
+            st.info("Aucun budget défini. Commencez par en ajouter un ci-dessus (ex: Alimentation 400€).")
+        else:
+            # Grille de budgets (2 par ligne pour un look dashboard)
+            for i in range(0, len(objectifs_list), 2):
+                cols = st.columns(2)
+                for j, col in enumerate(cols):
+                    if i + j < len(objectifs_list):
+                        idx = i + j
+                        o = objectifs_list[idx]
+                        
+                        # Filtrage si c'est un budget perso de l'autre utilisateur
+                        if o['Scope'] == "Perso" and user_actuel not in USERS: continue 
+
+                        # --- CALCULS ---
+                        # On filtre les dépenses réelles du mois
+                        mask = (df_mois["Type"] == "Dépense") & (df_mois["Categorie"] == o["Categorie"])
+                        
+                        if o["Scope"] == "Perso":
+                            mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
+                        else:
+                            mask = mask & (df_mois["Imputation"].str.contains("Commun", na=False))
+                        
+                        real = df_mois[mask]["Montant"].sum()
+                        target = float(o["Montant"])
+                        
+                        # Logique de couleurs Revolut
+                        ratio = real / target if target > 0 else 0
+                        reste = target - real
+                        
+                        if ratio >= 1.0:
+                            bar_color = "#EF4444" # Rouge (Dépassé)
+                            bg_icon = "#FEF2F2"
+                            status_txt = "DÉPASSÉ"
+                        elif ratio >= 0.8:
+                            bar_color = "#F59E0B" # Orange (Attention)
+                            bg_icon = "#FFFBEB"
+                            status_txt = "ATTENTION"
+                        else:
+                            bar_color = "#10B981" # Vert (OK)
+                            bg_icon = "#ECFDF5"
+                            status_txt = "EN COURS"
+
+                        # --- AFFICHAGE CARTE HTML ---
+                        with col:
+                            st.markdown(f"""
+                            <div style="
+                                background-color: white; 
+                                border-radius: 16px; 
+                                padding: 20px; 
+                                box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+                                border: 1px solid #F3F4F6;
+                                margin-bottom: 15px;
+                                position: relative;">
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <div style="
+                                            width: 40px; height: 40px; 
+                                            border-radius: 10px; 
+                                            background-color: {bg_icon}; 
+                                            display: flex; align-items: center; justify-content: center;
+                                            font-size: 20px;">
+                                            📊
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 700; color: #1F2937; font-size: 15px;">{o['Categorie']}</div>
+                                            <div style="font-size: 12px; color: #9CA3AF; font-weight: 500;">{o['Scope'].upper()}</div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-weight: 800; font-size: 18px; color: {bar_color};">{real:,.0f} €</div>
+                                        <div style="font-size: 11px; color: #9CA3AF;">sur {target:,.0f} €</div>
+                                    </div>
+                                </div>
+
+                                <div style="width: 100%; background-color: #F3F4F6; border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 8px;">
+                                    <div style="width: {min(ratio*100, 100)}%; background-color: {bar_color}; height: 100%; border-radius: 6px; transition: width 0.5s;"></div>
+                                </div>
+
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="font-size: 10px; font-weight: 700; color: {bar_color}; background: {bg_icon}; padding: 2px 8px; border-radius: 4px;">
+                                        {status_txt}
+                                    </div>
+                                    <div style="font-size: 12px; font-weight: 600; color: #6B7280;">
+                                        Reste : <span style="color: #1F2937;">{reste:,.0f} €</span>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Bouton de suppression discret sous la carte
+                            if st.button("Supprimer ce budget", key=f"del_btn_obj_{idx}"):
+                                objectifs_list.pop(idx)
+                                save_objectifs_from_df(pd.DataFrame(objectifs_list))
+                                st.rerun()
 
 # ================= TAB 4: PATRIMOINE =================
 with tabs[3]:
@@ -837,3 +918,4 @@ with tabs[4]:
             if st.form_submit_button("Lier"): 
                 mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}
                 save_mots_cles(mots_cles_map); st.rerun()
+
