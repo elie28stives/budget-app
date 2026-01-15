@@ -295,7 +295,7 @@ def save_mots_cles(d):
 
 
 # --- 6. APPLICATION STREAMLIT ---
-st.set_page_config(page_title="Ma Banque V66", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque V66.1", layout="wide", page_icon=None)
 apply_custom_style()
 
 # Chargement initial
@@ -594,7 +594,7 @@ with tabs[2]:
         c2.metric("Elie a payé", f"{ep:,.0f} €")
         
         if diff > 0: st.info(f"Elie doit {abs(diff):,.0f} € à Pierre")
-        elif diff < 0: st.info(f"Pierre doit {abs(dif):,.0f} € à Elie")
+        elif diff < 0: st.info(f"Pierre doit {abs(diff):,.0f} € à Elie")
         else: st.success("Comptes équilibrés")
 
 # --- TAB 4: PATRIMOINE (NOUVELLE VERSION) ---
@@ -648,12 +648,11 @@ with tabs[3]:
             if st.form_submit_button("Enregistrer"):
                 df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date": d, "Mois": d.month, "Annee": d.year, "Compte": acc_choice, "Montant": m, "Proprietaire": user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.rerun()
 
-# --- TAB 5: RÉGLAGES ---
+# 5. REGLAGES
 with tabs[4]:
-    page_header("Réglages")
-    
-    # GESTION DES COMPTES
     st.subheader("Gestion des Comptes")
+    
+    # Formulaire Ajout
     with st.expander("Ajouter un compte", expanded=False):
         with st.form("add_cpt_clean"):
             c1, c2 = st.columns(2)
@@ -690,5 +689,16 @@ with tabs[4]:
         if st.button("Ajouter"): cats_memoire.setdefault(ty, []).append(new_c); save_config_cats(cats_memoire); st.rerun()
     with t2:
         with st.form("amc"):
-            m = st.text_input("Mot-clé"); c = st.selectbox("Catégorie", [c for l in cats_memoire.values() for c in l]); ty = st.selectbox("Type", TYPES, key="tmc"); co = st.selectbox("Compte", comptes_disponibles)
-            if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
+            # CORRECTION DE L'ERREUR DE VARIABLE ICI
+            # On crée une liste plate de toutes les catégories existantes
+            all_cats_flat = [cat for sublist in cats_memoire.values() for cat in sublist]
+            
+            m = st.text_input("Mot-clé")
+            c = st.selectbox("Catégorie", all_cats_flat)
+            ty = st.selectbox("Type", TYPES, key="tmc")
+            co = st.selectbox("Compte", comptes_disponibles)
+            
+            if st.form_submit_button("Lier"):
+                mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}
+                save_mots_cles(mots_cles_map)
+                st.rerun()
