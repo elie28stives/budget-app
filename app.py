@@ -31,7 +31,7 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# Définition des colonnes pour éviter les erreurs de chargement
+# Définition des colonnes
 COLS_DATA = [
     "Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", 
     "Titre", "Description", "Montant", "Paye_Par", "Imputation", 
@@ -40,7 +40,7 @@ COLS_DATA = [
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 
 # ==========================================
-# 2. STYLE CSS PREMIUM (DESIGN BANQUE)
+# 2. STYLE CSS PREMIUM
 # ==========================================
 
 def apply_custom_style():
@@ -49,16 +49,14 @@ def apply_custom_style():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #2C3E50;       /* Bleu Nuit Profond */
-            --primary-light: #34495E; /* Gris Bleu */
-            --accent: #2980B9;        /* Bleu Action */
-            --bg-main: #F4F6F8;       /* Gris très clair pro */
+            --primary: #2C3E50;
+            --primary-light: #34495E;
+            --accent: #2980B9;
+            --bg-main: #F8F9FA;
             --bg-card: #FFFFFF;
-            --text-primary: #1A1C1E;
+            --text-primary: #1F2937;
             --text-secondary: #6B7280;
             --border: #E5E7EB;
-            --success: #10B981;
-            --danger: #EF4444;
         }
 
         .stApp {
@@ -67,7 +65,6 @@ def apply_custom_style():
             color: var(--text-primary);
         }
         
-        /* FULL WIDTH - UTILISATION MAXIMALE DE L'ECRAN */
         .main .block-container {
             padding-top: 2rem !important;
             padding-left: 2rem !important;
@@ -77,7 +74,7 @@ def apply_custom_style():
         
         #MainMenu, footer, header {visibility: hidden;}
 
-        /* --- TABS STYLE --- */
+        /* TABS */
         .stTabs [data-baseweb="tab-list"] {
             gap: 24px;
             background-color: transparent;
@@ -85,7 +82,6 @@ def apply_custom_style():
             border-bottom: 2px solid var(--border);
             margin-bottom: 24px;
         }
-        
         .stTabs [data-baseweb="tab"] {
             height: 48px;
             background-color: transparent;
@@ -94,15 +90,13 @@ def apply_custom_style():
             font-weight: 600;
             font-size: 15px;
             padding: 0 10px;
-            transition: color 0.2s;
         }
-        
         .stTabs [aria-selected="true"] {
             color: var(--primary) !important;
             border-bottom: 3px solid var(--primary) !important;
         }
 
-        /* --- CARDS & CONTAINERS --- */
+        /* CARDS */
         div[data-testid="stMetric"], div.stDataFrame, div.stForm, div[data-testid="stExpander"] {
             background-color: var(--bg-card);
             padding: 24px;
@@ -111,68 +105,49 @@ def apply_custom_style():
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         
-        /* --- SIDEBAR --- */
+        /* SIDEBAR */
         section[data-testid="stSidebar"] {
             background-color: var(--bg-card);
             border-right: 1px solid var(--border);
         }
-        
-        section[data-testid="stSidebar"] h3 {
-            color: var(--primary);
-            font-size: 18px;
-            font-weight: 700;
-        }
 
-        /* --- BOUTONS --- */
+        /* BOUTONS */
         div.stButton > button {
             background-color: var(--primary) !important;
             color: white !important;
             border-radius: 8px !important;
             font-weight: 500 !important;
-            font-size: 14px !important;
             border: none !important;
-            padding: 10px 24px !important;
+            padding: 8px 20px !important;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-            transition: all 0.2s ease;
         }
-        
         div.stButton > button:hover {
             background-color: var(--primary-light) !important;
             transform: translateY(-1px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
         }
         
-        /* --- INPUTS --- */
+        /* INPUTS */
         .stTextInput input, .stNumberInput input, .stSelectbox > div > div {
             border-radius: 8px !important;
             border-color: var(--border) !important;
-            background-color: #FFFFFF !important;
-            color: var(--text-primary) !important;
         }
 
-        /* --- TEXTE --- */
-        h1, h2, h3 { 
-            color: var(--text-primary) !important; 
-            font-family: 'Inter', sans-serif !important; 
-            font-weight: 700 !important;
-        }
+        h1, h2, h3 { color: var(--text-primary) !important; font-family: 'Inter', sans-serif !important; }
         
-        /* --- TABLEAUX --- */
-        .stDataFrame { 
-            border: 1px solid var(--border); 
-            border-radius: 8px; 
+        /* TRANSACTIONS CARD */
+        .tx-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #F3F4F6;
         }
     </style>
     """, unsafe_allow_html=True)
 
 def page_header(title, subtitle=None):
     if subtitle:
-        st.markdown(f"""
-        <div style="margin-bottom: 25px;">
-            <h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:6px;'>{title}</h2>
-            <p style='font-size:15px; color:#6B7280; font-weight:400;'>{subtitle}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div style="margin-bottom: 25px;"><h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:6px;'>{title}</h2><p style='font-size:14px; color:#6B7280; font-weight:400;'>{subtitle}</p></div>""", unsafe_allow_html=True)
     else:
         st.markdown(f"<h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:25px;'>{title}</h2>", unsafe_allow_html=True)
 
@@ -203,7 +178,7 @@ def get_worksheet(client, sheet_name, tab_name):
         st.error(f"Erreur d'accès à l'onglet {tab_name} : {e}"); st.stop()
 
 # ==========================================
-# 4. GESTION DES DONNÉES (CACHE & LOAD)
+# 4. GESTION DES DONNÉES
 # ==========================================
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -232,7 +207,6 @@ def save_data_to_sheet(tab_name, df):
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_configs_cached():
-    # Chargement en bloc pour gagner du temps et de la performance
     return (
         load_data_from_sheet(TAB_CONFIG, ["Type", "Categorie"]),
         load_data_from_sheet(TAB_COMPTES, ["Proprietaire", "Compte", "Type"]),
@@ -281,7 +255,6 @@ def calculer_soldes_reels(df_transac, df_patri, comptes_list):
     return soldes
 
 def process_configs():
-    # Traitement des données chargées
     data = load_configs_cached()
     df_cats, df_comptes, df_objs, df_abos, df_projets, df_mots_cles = data
     
@@ -290,8 +263,7 @@ def process_configs():
         for _, row in df_cats.iterrows():
             if row["Type"] in cats and row["Categorie"] not in cats[row["Type"]]:
                 cats[row["Type"]].append(row["Categorie"])
-    if not cats["Dépense"]: # Valeurs par défaut si vide
-        cats["Dépense"] = ["Alimentation", "Loyer", "Autre"]
+    if not cats["Dépense"]: cats["Dépense"] = ["Alimentation", "Loyer", "Autre"]
         
     comptes = {"Pierre": [], "Elie": [], "Commun": []}
     comptes_types = {}
@@ -321,7 +293,7 @@ def process_configs():
             
     return cats, comptes, objs_list, df_abos, projets_data, comptes_types, mots_cles_dict
 
-# Fonctions de sauvegarde spécifiques
+# Fonctions de sauvegarde
 def save_config_cats(d): save_data_to_sheet(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in d.items() for c in l]))
 def save_comptes_struct(d, types_map): 
     rows = []
@@ -347,7 +319,7 @@ def save_mots_cles(d):
 # 6. APPLICATION STREAMLIT (LE CŒUR)
 # ==========================================
 
-st.set_page_config(page_title="Banque", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque", layout="wide", page_icon=None)
 apply_custom_style()
 
 # Chargement initial des données
@@ -363,19 +335,13 @@ with st.sidebar:
     st.markdown("---")
     
     # ---------------------------------------------------------
-    # CALCUL CENTRALISÉ DES COMPTES (CORRECTION BUG V66.1)
+    # CALCUL CENTRALISÉ DES COMPTES (CRITIQUE)
     # ---------------------------------------------------------
-    # On filtre les comptes visibles pour l'utilisateur connecté
     comptes_user_only = comptes_structure.get(user_actuel, [])
     comptes_communs = comptes_structure.get("Commun", [])
-    
-    # Liste pour les menus déroulants (uniquement ce que je peux voir)
     comptes_visibles = comptes_user_only + comptes_communs
+    comptes_disponibles = list(set(comptes_visibles + ["Autre / Externe"])) # Variable Globale pour les selectbox
     
-    # Liste pour les calculs internes (inclut les comptes externes/autres)
-    comptes_disponibles = list(set(comptes_visibles + ["Autre / Externe"]))
-    
-    # Calcul des soldes en temps réel
     soldes = calculer_soldes_reels(df, df_patrimoine, comptes_disponibles)
     
     total_courant = 0
@@ -393,7 +359,6 @@ with st.sidebar:
             total_courant += val
             list_courant.append((cpt, val))
 
-    # Fonction d'affichage des mini-cartes
     def draw_account_card(name, val, is_saving=False):
         if is_saving:
             gradient = "linear-gradient(135deg, #0066FF 0%, #00D4FF 100%)"
@@ -409,7 +374,7 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown(f"**COMPTES COURANTS ({total_courant:,.0f}€)**")
+    st.markdown(f"**COURANTS ({total_courant:,.0f}€)**")
     for n, v in list_courant: draw_account_card(n, v, False)
     
     st.write("")
@@ -423,7 +388,6 @@ with st.sidebar:
     mois_selection = MOIS_FR.index(mois_nom) + 1
     annee_selection = st.number_input("Année", value=date_jour.year)
     
-    # Filtrage du DataFrame principal par date
     df_mois = df[(df["Mois"] == mois_selection) & (df["Annee"] == annee_selection)]
 
     st.markdown("---")
@@ -431,7 +395,7 @@ with st.sidebar:
         clear_cache()
         st.rerun()
 
-# --- STRUCTURE DES ONGLETS ---
+# --- TABS PRINCIPAUX ---
 tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Réglages"])
 
 # ==========================================
@@ -440,13 +404,11 @@ tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Réglages"]
 with tabs[0]:
     page_header("Synthèse du mois", f"Vue d'ensemble pour {user_actuel}")
     
-    # Calculs indicateurs
     rev = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Revenu")]["Montant"].sum()
     dep = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Dépense") & (df_mois["Imputation"] == "Perso")]["Montant"].sum()
     epg = df_mois[(df_mois["Qui_Connecte"] == user_actuel) & (df_mois["Type"] == "Épargne")]["Montant"].sum()
     com = df_mois[df_mois["Imputation"] == "Commun (50/50)"]["Montant"].sum() / 2
     
-    # Calcul Reste à Vivre (avec Abonnements)
     charges_fixes = 0.0
     if not df_abonnements.empty:
         abos_user = df_abonnements[(df_abonnements["Proprietaire"] == user_actuel) | (df_abonnements["Imputation"].str.contains("Commun", na=False))]
@@ -454,11 +416,8 @@ with tabs[0]:
             charges_fixes += float(row["Montant"]) / (2 if "Commun" in str(row["Imputation"]) else 1)
     
     rav = rev - charges_fixes - dep - com
-    
-    # Couleurs dynamiques
     rav_gradient = "linear-gradient(135deg, #10B981 0%, #059669 100%)" if rav > 0 else "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
     
-    # Affichage des métriques
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Revenus", f"{rev:,.0f} €")
     k2.metric("Charges Fixes", f"{charges_fixes:,.0f} €", delta=None, delta_color="inverse")
@@ -473,92 +432,50 @@ with tabs[0]:
     
     st.markdown("---")
     
-    # SECTION DU BAS : Dernières Transactions & Alertes
+    # 5 DERNIÈRES TRANSACTIONS + FILTRE (DESIGN CORRIGÉ)
     c1, c2 = st.columns([3, 2])
-    
     with c1:
-        # En-tête avec titre et filtre sur la même ligne
-        c_titre, c_filtre = st.columns([1, 1])
-        with c_titre:
-            st.subheader("Activités")
-        with c_filtre:
-            # Filtre horizontal compact
-            filtre_tx = st.radio(
-                "Filtre transactions", 
-                ["Tout", "Sorties", "Entrées"], 
-                horizontal=True, 
-                label_visibility="collapsed",
-                key="filtre_activite_home"
-            )
+        h_col1, h_col2 = st.columns([1, 1])
+        with h_col1: st.subheader("Activités")
+        with h_col2: 
+            filtre_tx = st.radio("Filtre", ["Tout", "Sorties", "Entrées"], horizontal=True, label_visibility="collapsed", key="filt_home")
 
-        # 1. Récupération des transactions de l'utilisateur
         tx_data = df[df['Qui_Connecte'] == user_actuel].sort_values(by='Date', ascending=False)
-
-        # 2. Application du filtre
-        if filtre_tx == "Sorties":
-            tx_data = tx_data[tx_data['Type'].isin(["Dépense", "Virement Interne", "Épargne", "Investissement"])]
-        elif filtre_tx == "Entrées":
-            tx_data = tx_data[tx_data['Type'] == "Revenu"]
+        if filtre_tx == "Sorties": tx_data = tx_data[tx_data['Type'].isin(["Dépense", "Virement Interne", "Épargne", "Investissement"])]
+        elif filtre_tx == "Entrées": tx_data = tx_data[tx_data['Type'] == "Revenu"]
         
-        # 3. On garde les 5 dernières après filtrage
         recent = tx_data.head(5)
         
-        # 4. Affichage style "Liste Bancaire" propre
         if not recent.empty:
             for _, r in recent.iterrows():
-                # Détermination du style (Couleur et Signe)
-                is_depense = r['Type'] in ["Dépense", "Virement Interne", "Épargne", "Investissement"]
+                is_dep = r['Type'] in ["Dépense", "Virement Interne", "Épargne", "Investissement"]
+                bg_icon = "#FFF1F2" if is_dep else "#ECFDF5"
+                txt_color = "#E11D48" if is_dep else "#059669"
+                signe = "-" if is_dep else "+"
+                # Icône textuelle simple
+                icon_char = "💸" if is_dep else "💰"
+                if r['Type'] == "Épargne": icon_char = "🐷"
+                if r['Type'] == "Virement Interne": icon_char = "↔️"
                 
-                # Couleurs douces pour le fond de l'icône
-                bg_icon = "#FFF1F2" if is_depense else "#ECFDF5"  # Rouge pastel / Vert pastel
-                # Couleur du texte montant
-                txt_color = "#E11D48" if is_depense else "#059669"
-                signe = "-" if is_depense else "+"
-                # Icône selon le type
-                icon = "💸" if is_depense else "💰"
-                if r['Type'] == "Épargne": icon = "🐷"
-                if r['Type'] == "Virement Interne": icon = "🔄"
-
-                # HTML Card pour un rendu parfait
+                # HTML SANS ERREUR D'AFFICHAGE
                 st.markdown(f"""
-                <div style="
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: space-between; 
-                    padding: 12px 0; 
-                    border-bottom: 1px solid #F3F4F6;">
-                    
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="
-                            width: 42px; 
-                            height: 42px; 
-                            border-radius: 10px; 
-                            background-color: {bg_icon}; 
-                            display: flex; 
-                            align-items: center; 
-                            justify-content: center; 
-                            font-size: 20px;">
-                            {icon}
+                <div class="tx-card" style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div style="width:40px; height:40px; border-radius:10px; background-color:{bg_icon}; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                            {icon_char}
                         </div>
                         <div>
-                            <div style="font-weight: 600; color: #1F2937; font-size: 14px;">{r['Titre']}</div>
-                            <div style="font-size: 12px; color: #9CA3AF;">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
+                            <div style="font-weight:600; color:#1F2937; font-size:14px;">{r['Titre']}</div>
+                            <div style="font-size:12px; color:#6B7280;">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
                         </div>
                     </div>
-
-                    <div style="font-weight: 700; font-size: 15px; color: {txt_color};">
+                    <div style="font-weight:700; font-size:15px; color:{txt_color};">
                         {signe} {r['Montant']:,.2f} €
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-                
-            # Petit bouton discret pour voir tout
-            if st.button("Voir tout l'historique", key="btn_see_all_home", use_container_width=True):
-                # Astuce pour switcher d'onglet (nécessite de recharger ou de juste informer l'utilisateur)
-                st.info("Allez dans l'onglet 'Opérations' pour voir l'historique complet.")
-                
         else:
-            st.info("Aucune transaction trouvée pour ce filtre.")
+            st.info("Aucune activité.")
             
     with c2:
         st.subheader("Alertes Budget")
@@ -576,9 +493,7 @@ with tabs[0]:
                     has_alert = True
                     st.write(f"**{cat}** : {r:.0f} / {budget:.0f} €")
                     st.progress(min(r/budget, 1.0))
-        
-        if not has_alert:
-            st.success("Aucune alerte. Budget maîtrisé !")
+        if not has_alert: st.success("Budget maîtrisé !")
 
 # ==========================================
 # TAB 2: OPÉRATIONS (SAISIE, JOURNAL, ABOS)
@@ -586,7 +501,7 @@ with tabs[0]:
 with tabs[1]:
     op1, op2, op3 = st.tabs(["Saisie", "Journal", "Abonnements"])
     
-    # 1. SAISIE DE TRANSACTION
+    # 1. SAISIE DE TRANSACTION (RESTITUTION DES FONCTIONNALITÉS)
     with op1:
         with st.form("add_op"):
             c1, c2, c3 = st.columns(3)
@@ -597,7 +512,7 @@ with tabs[1]:
             c4, c5 = st.columns(2)
             titre_op = c4.text_input("Titre", placeholder="Ex: Auchan", key="tit_op")
             
-            # Logique Mots-Clés
+            # --- AUTO-COMPLETION ---
             cat_finale = "Autre"
             compte_auto = None
             if titre_op and mots_cles_map:
@@ -607,16 +522,38 @@ with tabs[1]:
                         compte_auto = data["Compte"]
                         break
             
+            # --- GESTION CATÉGORIE + NOUVELLE ---
             cats = cats_memoire.get(type_op, [])
-            idx_cat = cats.index(cat_finale) if cat_finale in cats else 0
-            cat_sel = c5.selectbox("Catégorie", cats + ["Autre"], index=idx_cat)
+            # On ajoute "Autre (nouvelle)" à la liste
+            options_cat = cats + ["Autre (nouvelle)"]
+            
+            # Trouver l'index par défaut
+            idx_cat = 0
+            if cat_finale in cats:
+                idx_cat = cats.index(cat_finale)
+            
+            cat_sel = c5.selectbox("Catégorie", options_cat, index=idx_cat)
+            
+            # Si "Autre (nouvelle)" est choisi, on affiche un champ texte
+            cat_finale_val = cat_sel
+            if cat_sel == "Autre (nouvelle)":
+                new_cat_name = st.text_input("Nom de la nouvelle catégorie")
+                if new_cat_name:
+                    cat_finale_val = new_cat_name
             
             st.write("")
             cc1, cc2, cc3 = st.columns(3)
-            # Compte source
             idx_cpt = comptes_visibles.index(compte_auto) if (compte_auto and compte_auto in comptes_visibles) else 0
             c_src = cc1.selectbox("Compte", comptes_visibles, index=idx_cpt)
-            imput = cc2.radio("Imputation", IMPUTATIONS, horizontal=True)
+            
+            # --- GESTION PARTAGE / IMPUTATION ---
+            imput_radio = cc2.radio("Imputation", IMPUTATIONS, horizontal=True)
+            imput_finale = imput_radio
+            
+            # Si "Commun (Autre %)" est choisi, afficher le slider
+            if imput_radio == "Commun (Autre %)":
+                part_pierre = st.slider("Part Pierre (%)", 0, 100, 50)
+                imput_finale = f"Commun ({part_pierre}/{100-part_pierre})"
             
             # Champs conditionnels
             c_tgt = ""
@@ -629,14 +566,25 @@ with tabs[1]:
                 if p_sel != "Aucun": p_epg = p_sel
             elif type_op == "Virement Interne":
                 c_tgt = st.selectbox("Vers Compte", comptes_visibles)
-                imput = "Neutre"
+                imput_finale = "Neutre"
             
             if st.form_submit_button("Valider la transaction"):
+                # Sauvegarde nouvelle catégorie si besoin
+                if cat_sel == "Autre (nouvelle)" and new_cat_name:
+                    if type_op not in cats_memoire: cats_memoire[type_op] = []
+                    cats_memoire[type_op].append(new_cat_name)
+                    save_config_cats(cats_memoire)
+                
+                # Création projet auto si besoin
+                if type_op == "Épargne" and p_epg and p_epg not in projets_config:
+                    projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
+                    save_projets_targets(projets_config)
+
                 new_row = {
                     "Date": date_op, "Mois": date_op.month, "Annee": date_op.year,
-                    "Qui_Connecte": user_actuel, "Type": type_op, "Categorie": cat_sel,
+                    "Qui_Connecte": user_actuel, "Type": type_op, "Categorie": cat_finale_val,
                     "Titre": titre_op, "Description": "", "Montant": montant_op,
-                    "Paye_Par": paye_par, "Imputation": imput, "Compte_Cible": c_tgt,
+                    "Paye_Par": paye_par, "Imputation": imput_finale, "Compte_Cible": c_tgt,
                     "Projet_Epargne": p_epg, "Compte_Source": c_src
                 }
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
@@ -672,8 +620,12 @@ with tabs[1]:
                 n = a1.text_input("Nom"); m = a2.number_input("Montant"); j = a3.number_input("Jour", 1, 31)
                 a4, a5 = st.columns(2)
                 c = a4.selectbox("Catégorie", cats_memoire.get("Dépense", [])); cp = a5.selectbox("Compte débité", comptes_visibles)
+                
+                # Gestion Imputation Abo
+                imp_abo = st.selectbox("Imputation", IMPUTATIONS)
+                
                 if st.form_submit_button("Créer"):
-                    new_abo = pd.DataFrame([{"Nom": n, "Montant": m, "Jour": j, "Categorie": c, "Compte_Source": cp, "Proprietaire": user_actuel, "Imputation": "Perso", "Frequence": "Mensuel"}])
+                    new_abo = pd.DataFrame([{"Nom": n, "Montant": m, "Jour": j, "Categorie": c, "Compte_Source": cp, "Proprietaire": user_actuel, "Imputation": imp_abo, "Frequence": "Mensuel"}])
                     df_abonnements = pd.concat([df_abonnements, new_abo], ignore_index=True)
                     save_abonnements(df_abonnements); st.rerun()
         
@@ -811,7 +763,6 @@ with tabs[4]:
                 st.rerun()
 
     st.markdown("#### Vos comptes actifs")
-    # Affiche uniquement les comptes que l'utilisateur a le droit de modifier (Les siens + Commun)
     props_to_show = [user_actuel, "Commun"]
     for prop in props_to_show:
         if prop in comptes_structure and comptes_structure[prop]:
@@ -830,8 +781,6 @@ with tabs[4]:
         if st.button("Ajouter"): cats_memoire.setdefault(ty, []).append(new_c); save_config_cats(cats_memoire); st.rerun()
     with t2:
         with st.form("amc"):
-            # CORRECTION DE LA VARIABLE ICI
             all_categories = [c for l in cats_memoire.values() for c in l]
-            
             m = st.text_input("Mot-clé"); c = st.selectbox("Catégorie", all_categories); ty = st.selectbox("Type", TYPES, key="tmc"); co = st.selectbox("Compte", comptes_disponibles)
             if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
