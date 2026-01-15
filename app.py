@@ -794,23 +794,157 @@ with tabs[3]:
     st.markdown("---")
     s1, s2 = st.tabs(["Projets", "Ajustement"])
     
-    with s1:
-        st.subheader("Mes Projets Épargne")
-        for p, d in projets_config.items():
-            s = df[(df["Projet_Epargne"]==p)&(df["Type"]=="Épargne")]["Montant"].sum()
-            t = float(d["Cible"])
-            st.write(f"**{p}** : {s:.0f} / {t:.0f} €"); st.progress(min(s/t if t>0 else 0, 1.0))
-            if st.button(f"Supprimer {p}", key=f"dp_{p}"): del projets_config[p]; save_projets_targets(projets_config); st.rerun()
-            
-        with st.expander("Nouveau Projet"):
-            n=st.text_input("Nom", key="pn"); t=st.number_input("Cible", key="pt")
-            if st.button("Créer"): projets_config[n]={"Cible":t, "Date_Fin":""}; save_projets_targets(projets_config); st.rerun()
-            
-    with s2:
-        with st.form("adj"):
-            d=st.date_input("Date"); m=st.number_input("Solde Réel")
-            if st.form_submit_button("Enregistrer"):
-                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":acc_choice,"Montant":m,"Proprietaire":user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.rerun()
+    with st1:
+        # --- EN-TÊTE & CRÉATION ---
+        c_titre, c_new = st.columns([2, 1])
+        with c_titre:
+            st.subheader("🎯 Objectifs d'Épargne")
+        with c_new:
+            # Bouton pour ouvrir le formulaire de création
+            if st.button("➕ Nouveau Projet", use_container_width=True):
+                st.session_state['show_new_proj'] = not st.session_state.get('show_new_proj', False)
+
+        # Formulaire de création (s'affiche si cliqué)
+        if st.session_state.get('show_new_proj', False):
+            with st.container():
+                st.markdown("""<div style="background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:20px;">
+                <div style="font-weight:bold; margin-bottom:10px; color:#2C3E50;">Nouveau Projet</div>""", unsafe_allow_html=True)
+                with st.form("create_proj_form"):
+                    c1, c2, c3 = st.columns([2, 1, 1])
+                    n_p = c1.text_input("Nom du projet (ex: Voyage Japon)")
+                    t_p = c2.number_input("Cible (€)", min_value=1.0, step=50.0)
+                    o_p = c3.selectbox("Pour qui ?", ["Commun", user_now])
+                    
+                    if st.form_submit_button("Valider la création", type="primary"):
+                        if n_p and n_p not in projets_config:
+                            projets_config[n_p] = {"Cible": t_p, "Date_Fin": "", "Proprietaire": o_p}
+                            # Sauvegarde
+                            rows = []
+                            for k, v in projets_config.items(): 
+                                rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                            save_data(TAB_PROJETS, pd.DataFrame(rows))
+                            st.session_state['show_new_proj'] = False
+                            st.success(f"Projet {n_p} créé !")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Nom invalide ou déjà existant")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        # --- FILTRES ---
+        filter_owner = st.radio("Afficher :", ["Tout", "Commun", "Perso"], horizontal=True, label_visibility="collapsed")
+        st.write("")
+
+        # --- LISTE DES PROJETS ---
+        if not projets_config:
+            st.info("Aucun projet d'épargne en cours.")
+        
+        else:
+            # Tri : On met les projets les plus proches du but en premier ? Non, alphabétique c'est mieux pour retrouver
+            for p_name, p_data in projets_config.items():
+                
+                # Logique de Filtrage
+                proprio = p_data.get("Proprietaire", "Commun")
+                if filter_owner == "Commun" and proprio != "Commun": continue
+                if filter_owner == "Perso" and proprio == "Commun": continue
+                
+                # Calculs
+                saved = df[(df["Projet_Epargne"] == p_name) & (df["Type"] == "Épargne")]["Montant"].sum()
+                target = float(p_data["Cible"])
+                reste = max(0, target - saved)
+                progress = min(saved / target if target > 0 else 0, 1.0)
+                pct = progress * 100
+                
+                # Couleurs dynamiques
+                bar_color = "#10B981" if progress >= 1.0 else "#3B82F6" # Vert si fini, Bleu sinon
+                bg_badge = "#EFF6FF" if proprio == "Commun" else "#FFF7ED" # Bleu pale Commun, Orange pale Perso
+                txt_badge = "#1E40AF" if proprio == "Commun" else "#9A3412"
+
+                # --- MODE ÉDITION ---
+                if st.session_state.get(f"edit_mode_{p_name}", False):
+                    with st.container():
+                        st.markdown(f"""<div style="border:2px solid #3B82F6; border-radius:12px; padding:15px; margin-bottom:15px; background:white;">
+                        <div style="font-weight:bold; color:#3B82F6; margin-bottom:10px;">Modification : {p_name}</div>""", unsafe_allow_html=True)
+                        
+                        c_edit1, c_edit2 = st.columns(2)
+                        new_target = c_edit1.number_input("Nouvelle Cible (€)", value=target, key=f"nt_{p_name}")
+                        new_prop = c_edit2.selectbox("Propriétaire", ["Commun", user_now], index=0 if proprio=="Commun" else 1, key=f"np_{p_name}")
+                        
+                        col_save, col_cancel = st.columns([1, 1])
+                        if col_save.button("💾 Sauvegarder", key=f"save_{p_name}", use_container_width=True):
+                            projets_config[p_name]["Cible"] = new_target
+                            projets_config[p_name]["Proprietaire"] = new_prop
+                            # Sauvegarde
+                            rows = []
+                            for k, v in projets_config.items(): 
+                                rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                            save_data(TAB_PROJETS, pd.DataFrame(rows))
+                            st.session_state[f"edit_mode_{p_name}"] = False
+                            st.rerun()
+                            
+                        if col_cancel.button("Annuler", key=f"cancel_{p_name}", use_container_width=True):
+                            st.session_state[f"edit_mode_{p_name}"] = False
+                            st.rerun()
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                # --- MODE AFFICHAGE (CARTE) ---
+                else:
+                    # Rendu HTML de la carte
+                    st.markdown(f"""
+                    <div style="
+                        background-color: white;
+                        border: 1px solid #E5E7EB;
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin-bottom: 12px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <div>
+                                <div style="font-size: 16px; font-weight: 700; color: #1F2937;">{p_name}</div>
+                                <span style="
+                                    font-size: 10px; 
+                                    font-weight: 600; 
+                                    text-transform: uppercase; 
+                                    background-color: {bg_badge}; 
+                                    color: {txt_badge}; 
+                                    padding: 2px 8px; 
+                                    border-radius: 10px;">
+                                    {proprio}
+                                </span>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 18px; font-weight: 800; color: {bar_color};">{saved:,.0f} €</div>
+                                <div style="font-size: 11px; color: #6B7280;">sur {target:,.0f} €</div>
+                            </div>
+                        </div>
+                        
+                        <div style="width: 100%; background-color: #F3F4F6; border-radius: 4px; height: 8px; margin-bottom: 8px; overflow:hidden;">
+                            <div style="width: {pct}%; background-color: {bar_color}; height: 100%; border-radius: 4px; transition: width 0.5s;"></div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6B7280;">
+                            <div>{pct:.0f}% financé</div>
+                            <div>Reste : <b>{reste:,.0f} €</b></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Boutons d'action (discrets sous la carte)
+                    c_act1, c_act2, c_void = st.columns([1, 1, 4])
+                    if c_act1.button("✏️", key=f"btn_mod_{p_name}", help="Modifier le projet"):
+                        st.session_state[f"edit_mode_{p_name}"] = True
+                        st.rerun()
+                    
+                    if c_act2.button("🗑️", key=f"btn_del_{p_name}", help="Supprimer définitivement"):
+                        del projets_config[p_name]
+                        rows = []
+                        for k, v in projets_config.items(): 
+                            rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                        save_data(TAB_PROJETS, pd.DataFrame(rows))
+                        st.success("Supprimé")
+                        time.sleep(0.5)
+                        st.rerun()
 
 # ================= TAB 5: RÉGLAGES (DESIGN PRO) =================
 with tabs[4]:
@@ -1014,4 +1148,5 @@ with tabs[4]:
             st.success("Règles mises à jour avec succès !")
             time.sleep(1)
             st.rerun()
+
 
