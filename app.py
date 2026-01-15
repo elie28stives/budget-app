@@ -10,11 +10,13 @@ import json
 import time
 from io import BytesIO
 
-# ==========================================
-# 1. CONFIGURATION ET CONSTANTES
-# ==========================================
+# ==============================================================================
+# 1. CONFIGURATION, CONSTANTES ET VARIABLES GLOBALES
+# ==============================================================================
 
 SHEET_NAME = "Budget_Couple_DB"
+
+# Noms des onglets dans Google Sheets
 TAB_DATA = "Data"
 TAB_CONFIG = "Config"
 TAB_OBJECTIFS = "Objectifs"
@@ -24,6 +26,7 @@ TAB_ABONNEMENTS = "Abonnements"
 TAB_PROJETS = "Projets_Config"
 TAB_MOTS_CLES = "Mots_Cles"
 
+# Listes de référence
 USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
 IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
@@ -31,32 +34,54 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# Définition des colonnes
+# Définition stricte des colonnes pour éviter les erreurs de lecture
 COLS_DATA = [
-    "Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", 
-    "Titre", "Description", "Montant", "Paye_Par", "Imputation", 
-    "Compte_Cible", "Projet_Epargne", "Compte_Source"
+    "Date", 
+    "Mois", 
+    "Annee", 
+    "Qui_Connecte", 
+    "Type", 
+    "Categorie", 
+    "Titre", 
+    "Description", 
+    "Montant", 
+    "Paye_Par", 
+    "Imputation", 
+    "Compte_Cible", 
+    "Projet_Epargne", 
+    "Compte_Source"
 ]
-COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 
-# ==========================================
-# 2. STYLE CSS PREMIUM (DESIGN BANQUE)
-# ==========================================
+COLS_PAT = [
+    "Date", 
+    "Mois", 
+    "Annee", 
+    "Compte", 
+    "Montant", 
+    "Proprietaire"
+]
+
+# ==============================================================================
+# 2. STYLE CSS PREMIUM (DESIGN BANQUE PRIVÉE - COMPLET)
+# ==============================================================================
 
 def apply_custom_style():
     st.markdown("""
     <style>
+        /* Import de la police Inter pour un rendu moderne */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #2C3E50;
-            --primary-light: #34495E;
-            --accent: #2980B9;
-            --bg-main: #F8F9FA;
-            --bg-card: #FFFFFF;
-            --text-primary: #1F2937;
-            --text-secondary: #6B7280;
-            --border: #E5E7EB;
+            --primary: #2C3E50;       /* Bleu Nuit Profond */
+            --primary-light: #34495E; /* Gris Bleu */
+            --accent: #2980B9;        /* Bleu Action */
+            --bg-main: #F8F9FA;       /* Gris très clair pro */
+            --bg-card: #FFFFFF;       /* Blanc pur */
+            --text-primary: #1F2937;  /* Gris très foncé */
+            --text-secondary: #6B7280;/* Gris moyen */
+            --border: #E5E7EB;        /* Bordure subtile */
+            --success: #10B981;       /* Vert Finance */
+            --danger: #EF4444;        /* Rouge Alerte */
         }
 
         .stApp {
@@ -65,6 +90,7 @@ def apply_custom_style():
             color: var(--text-primary);
         }
         
+        /* Configuration Pleine Largeur */
         .main .block-container {
             padding-top: 2rem !important;
             padding-left: 2rem !important;
@@ -72,9 +98,10 @@ def apply_custom_style():
             max-width: 100% !important;
         }
         
+        /* Masquer le menu hamburger et le footer par défaut */
         #MainMenu, footer, header {visibility: hidden;}
 
-        /* TABS */
+        /* --- STYLE DES ONGLETS (TABS) --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 24px;
             background-color: transparent;
@@ -82,6 +109,7 @@ def apply_custom_style():
             border-bottom: 2px solid var(--border);
             margin-bottom: 24px;
         }
+        
         .stTabs [data-baseweb="tab"] {
             height: 48px;
             background-color: transparent;
@@ -90,13 +118,15 @@ def apply_custom_style():
             font-weight: 600;
             font-size: 15px;
             padding: 0 10px;
+            transition: color 0.2s ease-in-out;
         }
+        
         .stTabs [aria-selected="true"] {
             color: var(--primary) !important;
             border-bottom: 3px solid var(--primary) !important;
         }
 
-        /* CARDS */
+        /* --- CONTENEURS ET CARTES --- */
         div[data-testid="stMetric"], div.stDataFrame, div.stForm, div[data-testid="stExpander"] {
             background-color: var(--bg-card);
             padding: 24px;
@@ -105,40 +135,77 @@ def apply_custom_style():
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         
-        /* SIDEBAR */
+        /* --- BARRE LATÉRALE (SIDEBAR) --- */
         section[data-testid="stSidebar"] {
             background-color: var(--bg-card);
             border-right: 1px solid var(--border);
         }
-
-        /* INPUTS */
-        .stTextInput input, .stNumberInput input, .stSelectbox > div > div {
-            border-radius: 8px !important;
-            border-color: var(--border) !important;
-            background-color: #FFFFFF !important;
+        
+        section[data-testid="stSidebar"] h3 {
+            color: var(--primary);
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 0;
         }
 
-        /* BOUTONS */
+        /* --- BOUTONS --- */
         div.stButton > button {
             background-color: var(--primary) !important;
             color: white !important;
             border-radius: 8px !important;
             font-weight: 500 !important;
+            font-size: 14px !important;
             border: none !important;
-            padding: 8px 20px !important;
+            padding: 10px 24px !important;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+            transition: all 0.2s ease;
         }
         
-        /* LISTE TRANSACTIONS HOME - FIXE POUR EVITER L'AFFICHAGE DU CODE */
+        div.stButton > button:hover {
+            background-color: var(--primary-light) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* --- CHAMPS DE SAISIE --- */
+        .stTextInput input, .stNumberInput input, .stSelectbox > div > div {
+            border-radius: 8px !important;
+            border-color: var(--border) !important;
+            background-color: #FFFFFF !important;
+            color: var(--text-primary) !important;
+            padding: 8px 12px !important;
+        }
+
+        /* --- TYPOGRAPHIE --- */
+        h1, h2, h3 { 
+            color: var(--text-primary) !important; 
+            font-family: 'Inter', sans-serif !important; 
+            font-weight: 700 !important;
+        }
+        
+        /* --- STYLE SPÉCIFIQUE LISTE TRANSACTIONS (HOME) --- */
         .tx-card {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
+            padding: 14px 0;
             border-bottom: 1px solid #F3F4F6;
+            transition: background-color 0.2s;
         }
-        
-        /* BADGES CATEGORIES */
+        .tx-card:hover {
+            background-color: #FAFAFA;
+        }
+        .tx-left { display: flex; align-items: center; gap: 15px; }
+        .tx-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .tx-title { font-weight: 600; font-size: 14px; color: var(--text-primary); margin-bottom: 2px; }
+        .tx-sub { font-size: 12px; color: var(--text-secondary); }
+        .tx-amount { font-weight: 700; font-size: 15px; }
+
+        /* --- STYLE BADGES CATEGORIES --- */
         .cat-badge {
             display: inline-block;
             padding: 6px 12px;
@@ -151,18 +218,39 @@ def apply_custom_style():
         .cat-badge.depense { background-color: #FFF1F2; color: #E11D48; border-color: #FECDD3; }
         .cat-badge.revenu { background-color: #ECFDF5; color: #059669; border-color: #A7F3D0; }
         .cat-badge.epargne { background-color: #EFF6FF; color: #2563EB; border-color: #BFDBFE; }
+        
+        /* --- STYLE BARRE PROGRESSION PROJET --- */
+        .project-progress-bar {
+            width: 100%;
+            background-color: #F3F4F6;
+            border-radius: 6px;
+            height: 10px;
+            overflow: hidden;
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+        .project-progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s ease-in-out;
+        }
     </style>
     """, unsafe_allow_html=True)
 
 def page_header(title, subtitle=None):
     if subtitle:
-        st.markdown(f"""<div style="margin-bottom: 25px;"><h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:6px;'>{title}</h2><p style='font-size:14px; color:#6B7280; font-weight:400;'>{subtitle}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="margin-bottom: 30px;">
+            <h2 style='font-size:32px; font-weight:800; color:#2C3E50; margin-bottom:8px;'>{title}</h2>
+            <p style='font-size:16px; color:#6B7280; font-weight:400;'>{subtitle}</p>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.markdown(f"<h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:25px;'>{title}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='font-size:32px; font-weight:800; color:#2C3E50; margin-bottom:30px;'>{title}</h2>", unsafe_allow_html=True)
 
-# ==========================================
-# 3. CONNEXION GOOGLE SHEETS
-# ==========================================
+# ==============================================================================
+# 3. CONNEXION GOOGLE SHEETS (AVEC RETRY ANTI-CRASH)
+# ==============================================================================
 
 @st.cache_resource
 def get_gspread_client():
@@ -171,69 +259,96 @@ def get_gspread_client():
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        return gspread.authorize(ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope))
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"Erreur technique : {e}"); return None
+        st.error(f"Erreur technique de connexion : {e}")
+        return None
 
 def get_worksheet(client, sheet_name, tab_name):
     try:
         sh = client.open(sheet_name)
-        try: return sh.worksheet(tab_name)
-        except: return sh.add_worksheet(title=tab_name, rows="100", cols="20")
+        try: ws = sh.worksheet(tab_name)
+        except: ws = sh.add_worksheet(title=tab_name, rows="100", cols="20")
+        return ws
     except Exception as e:
         st.error(f"Erreur d'accès à l'onglet {tab_name} : {e}"); st.stop()
 
-# ==========================================
-# 4. GESTION DES DONNÉES
-# ==========================================
+# ==============================================================================
+# 4. GESTION DES DONNÉES (CACHE & SYSTÈME ROBUSTE)
+# ==============================================================================
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_data_from_sheet(tab_name, colonnes):
     client = get_gspread_client()
     if not client: return pd.DataFrame(columns=colonnes)
-    ws = get_worksheet(client, SHEET_NAME, tab_name)
-    data = ws.get_all_records()
-    df = pd.DataFrame(data)
-    if df.empty: return pd.DataFrame(columns=colonnes)
-    for col in colonnes:
-        if col not in df.columns: df[col] = ""
-    if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
-    return df
+    
+    # BOUCLE DE RÉESSAI AUTOMATIQUE (RETRY LOGIC) POUR EVITER ERREUR 429
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            ws = get_worksheet(client, SHEET_NAME, tab_name)
+            data = ws.get_all_records()
+            df = pd.DataFrame(data)
+            if df.empty: return pd.DataFrame(columns=colonnes)
+            for col in colonnes:
+                if col not in df.columns: df[col] = ""
+            if "Date" in df.columns:
+                df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
+            return df
+        except Exception as e:
+            if "429" in str(e): # Si erreur de quota
+                time.sleep(2 + attempt) # On attend 2s, puis 3s, etc.
+                continue
+            else:
+                # On ne bloque pas l'app, on retourne un DF vide au pire
+                return pd.DataFrame(columns=colonnes)
+    return pd.DataFrame(columns=colonnes)
 
 def save_data_to_sheet(tab_name, df):
     client = get_gspread_client()
     ws = get_worksheet(client, SHEET_NAME, tab_name)
     df_save = df.copy()
     if "Date" in df_save.columns: df_save["Date"] = df_save["Date"].astype(str)
-    ws.clear()
-    if not df_save.empty: ws.update([df_save.columns.values.tolist()] + df_save.values.tolist())
-    else: ws.update([df_save.columns.values.tolist()])
-    st.cache_data.clear()
+    
+    # BOUCLE DE RÉESSAI POUR L'ÉCRITURE AUSSI
+    for attempt in range(5):
+        try:
+            ws.clear()
+            if not df_save.empty: ws.update([df_save.columns.values.tolist()] + df_save.values.tolist())
+            else: ws.update([df_save.columns.values.tolist()])
+            st.cache_data.clear() # On vide le cache pour forcer le rechargement
+            return
+        except Exception as e:
+            if "429" in str(e):
+                time.sleep(2 + attempt)
+                continue
+            else:
+                st.error(f"Erreur sauvegarde {tab_name}: {e}")
+                return
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_configs_cached():
+    # Chargement en bloc optimisé
     return (
         load_data_from_sheet(TAB_CONFIG, ["Type", "Categorie"]),
         load_data_from_sheet(TAB_COMPTES, ["Proprietaire", "Compte", "Type"]),
         load_data_from_sheet(TAB_OBJECTIFS, ["Scope", "Categorie", "Montant"]),
         load_data_from_sheet(TAB_ABONNEMENTS, ["Nom", "Montant", "Jour", "Categorie", "Compte_Source", "Proprietaire", "Imputation", "Frequence"]),
-        load_data_from_sheet(TAB_PROJETS, ["Projet", "Cible", "Date_Fin"]),
+        load_data_from_sheet(TAB_PROJETS, ["Projet", "Cible", "Date_Fin", "Proprietaire"]), # Ajout de la colonne Proprietaire
         load_data_from_sheet(TAB_MOTS_CLES, ["Mot_Cle", "Categorie", "Type", "Compte"])
     )
 
 def clear_cache(): st.cache_data.clear()
 
-# ==========================================
+# ==============================================================================
 # 5. LOGIQUE MÉTIER & CALCULS
-# ==========================================
+# ==============================================================================
 
-# Initialisation du session state pour la fluidité de la saisie
 def init_session_state():
+    # Initialisation pour éviter les erreurs de state
     if 'op_date' not in st.session_state: st.session_state.op_date = datetime.today()
-    if 'op_type' not in st.session_state: st.session_state.op_type = "Dépense"
-    if 'op_montant' not in st.session_state: st.session_state.op_montant = 0.0
-    if 'op_titre' not in st.session_state: st.session_state.op_titre = ""
+    if 'edit_mode_proj' not in st.session_state: st.session_state.edit_mode_proj = {}
 
 def to_excel_download(df):
     output = BytesIO()
@@ -249,25 +364,34 @@ def calculer_soldes_reels(df_transac, df_patri, comptes_list):
     for compte in comptes_list:
         releve = 0.0
         date_releve = pd.to_datetime("2000-01-01").date()
+        
+        # 1. On cherche le dernier relevé "Patrimoine"
         if not df_patri.empty:
             df_c = df_patri[df_patri["Compte"] == compte]
             if not df_c.empty:
                 last = df_c.sort_values(by="Date", ascending=False).iloc[0]
                 releve = float(last["Montant"])
                 date_releve = last["Date"]
+        
         mouvements = 0.0
+        # 2. On ajoute les mouvements depuis ce relevé
         if not df_transac.empty:
             mask = df_transac["Date"] > date_releve
             df_t = df_transac[mask]
+            
             debits = df_t[(df_t["Compte_Source"] == compte) & (df_t["Type"].isin(["Dépense", "Investissement"]))]["Montant"].sum()
             v_out = df_t[(df_t["Compte_Source"] == compte) & (df_t["Type"].isin(["Virement Interne", "Épargne"]))]["Montant"].sum()
+            
             credits = df_t[(df_t["Compte_Source"] == compte) & (df_t["Type"] == "Revenu")]["Montant"].sum()
             v_in = df_t[(df_t["Compte_Cible"] == compte) & (df_t["Type"].isin(["Virement Interne", "Épargne"]))]["Montant"].sum()
+            
             mouvements = credits + v_in - debits - v_out
+            
         soldes[compte] = releve + mouvements
     return soldes
 
 def process_configs():
+    # Traitement des données chargées
     data = load_configs_cached()
     df_cats, df_comptes, df_objs, df_abos, df_projets, df_mots_cles = data
     
@@ -276,7 +400,8 @@ def process_configs():
         for _, row in df_cats.iterrows():
             if row["Type"] in cats and row["Categorie"] not in cats[row["Type"]]:
                 cats[row["Type"]].append(row["Categorie"])
-    if not cats["Dépense"]: cats["Dépense"] = ["Alimentation", "Loyer", "Autre"]
+    if not cats["Dépense"]: # Valeurs par défaut si vide
+        cats["Dépense"] = ["Alimentation", "Loyer", "Autre"]
         
     comptes = {"Pierre": [], "Elie": [], "Commun": []}
     comptes_types = {}
@@ -287,12 +412,12 @@ def process_configs():
             c_type = row.get("Type", "Courant")
             comptes_types[row["Compte"]] = c_type
             
-    objs_list = df_objs.to_dict('records') if not df_objs.empty else []
-            
+    # Gestion des projets avec le champ Propriétaire
     projets_data = {}
     if not df_projets.empty:
         for _, row in df_projets.iterrows():
-            projets_data[row["Projet"]] = {"Cible": float(row["Cible"]), "Date_Fin": row["Date_Fin"]}
+            proprio = row.get("Proprietaire", "Commun") # Défaut Commun si colonne manquante
+            projets_data[row["Projet"]] = {"Cible": float(row["Cible"]), "Date_Fin": row["Date_Fin"], "Proprietaire": proprio}
     
     mots_cles_dict = {}
     if not df_mots_cles.empty:
@@ -303,9 +428,12 @@ def process_configs():
                 "Compte": row["Compte"]
             }
             
+    # Conversion objectifs en liste d'objets
+    objs_list = df_objs.to_dict('records')
+    
     return cats, comptes, objs_list, df_abos, projets_data, comptes_types, mots_cles_dict
 
-# Save Functions
+# Fonctions de sauvegarde spécifiques
 def save_config_cats(d): save_data_to_sheet(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in d.items() for c in l]))
 def save_comptes_struct(d, types_map): 
     rows = []
@@ -318,7 +446,7 @@ def save_abonnements(df): save_data_to_sheet(TAB_ABONNEMENTS, df)
 def save_projets_targets(d): 
     rows = []
     for p, data in d.items():
-        rows.append({"Projet": p, "Cible": data["Cible"], "Date_Fin": data["Date_Fin"]})
+        rows.append({"Projet": p, "Cible": data["Cible"], "Date_Fin": data["Date_Fin"], "Proprietaire": data.get("Proprietaire", "Commun")})
     save_data_to_sheet(TAB_PROJETS, pd.DataFrame(rows))
 def save_mots_cles(d):
     rows = []
@@ -327,11 +455,11 @@ def save_mots_cles(d):
     save_data_to_sheet(TAB_MOTS_CLES, pd.DataFrame(rows))
 
 
-# ==========================================
-# 6. APPLICATION STREAMLIT
-# ==========================================
+# ==============================================================================
+# 6. APPLICATION STREAMLIT (CORPS PRINCIPAL)
+# ==============================================================================
 
-st.set_page_config(page_title="Ma Banque V69", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque V74", layout="wide", page_icon="🏦")
 apply_custom_style()
 init_session_state()
 
@@ -347,11 +475,13 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 1. Calcul des comptes dispos
+    # ---------------------------------------------------------
+    # CALCUL CENTRALISÉ DES COMPTES (CRITIQUE)
+    # ---------------------------------------------------------
     comptes_user_only = comptes_structure.get(user_actuel, [])
     comptes_communs = comptes_structure.get("Commun", [])
     comptes_visibles = comptes_user_only + comptes_communs
-    comptes_disponibles = list(set(comptes_visibles + ["Autre / Externe"]))
+    comptes_disponibles = list(set(comptes_visibles + ["Autre / Externe"])) # Variable Globale pour les selectbox
     
     soldes = calculer_soldes_reels(df, df_patrimoine, comptes_disponibles)
     
@@ -409,9 +539,7 @@ with st.sidebar:
 # --- TABS PRINCIPAUX ---
 tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Réglages"])
 
-# ==========================================
-# TAB 1: ACCUEIL (DASHBOARD)
-# ==========================================
+# ================= TAB 1: ACCUEIL (DASHBOARD) =================
 with tabs[0]:
     page_header("Synthèse du mois", f"Vue d'ensemble pour {user_actuel}")
     
@@ -443,6 +571,7 @@ with tabs[0]:
     
     st.markdown("---")
     
+    # 5 DERNIÈRES TRANSACTIONS + FILTRE (DESIGN CORRIGÉ)
     c1, c2 = st.columns([3, 2])
     with c1:
         h_col1, h_col2 = st.columns([1, 1])
@@ -466,24 +595,21 @@ with tabs[0]:
                 if r['Type'] == "Épargne": icon_char = "🐷"
                 if r['Type'] == "Virement Interne": icon_char = "↔️"
                 
-                # HTML CORRECTEMENT FORMATÉ (SANS INDENTATION INTERNE QUI CASSE LE RENDU)
-                html_card = f"""
-<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F3F4F6;">
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: {bg_icon}; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-            {icon_char}
-        </div>
-        <div>
-            <div style="font-weight: 600; color: #1F2937; font-size: 14px;">{r['Titre']}</div>
-            <div style="font-size: 12px; color: #6B7280;">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
-        </div>
-    </div>
-    <div style="font-weight: 700; font-size: 15px; color: {txt_color};">
-        {signe} {r['Montant']:,.2f} €
-    </div>
-</div>
-"""
-                st.markdown(html_card, unsafe_allow_html=True)
+                # HTML CORRECT POUR CARTE
+                st.markdown(f"""
+                <div class="tx-card">
+                    <div class="tx-left">
+                        <div class="tx-icon" style="background-color: {bg_icon};">{icon_char}</div>
+                        <div>
+                            <div class="tx-title">{r['Titre']}</div>
+                            <div class="tx-sub">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
+                        </div>
+                    </div>
+                    <div class="tx-amount" style="color: {txt_color};">
+                        {signe} {r['Montant']:,.2f} €
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
             st.info("Aucune activité.")
             
@@ -588,7 +714,7 @@ with tabs[1]:
             
             # 2. Sauvegarde Projet
             if type_op == "Épargne" and p_epg and p_epg not in projets_config:
-                projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
+                projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": "", "Proprietaire": user_actuel}
                 save_projets_targets(projets_config)
                 
             # 3. Sauvegarde Transaction
@@ -779,7 +905,7 @@ with tabs[2]:
                             if st.button("Suppr", key=f"do_{idx}"):
                                 objectifs_list.pop(idx); save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
 
-# ================= TAB 4: PATRIMOINE =================
+# ================= TAB 4: PATRIMOINE (AVEC PROJETS AMELIORES) =================
 with tabs[3]:
     page_header("Patrimoine")
     
@@ -792,7 +918,9 @@ with tabs[3]:
         st.dataframe(df[mk].sort_values(by="Date", ascending=False).head(10)[["Date","Titre","Montant","Type"]], use_container_width=True, hide_index=True)
 
     st.markdown("---")
-    s1, s2 = st.tabs(["Projets", "Ajustement"])
+    
+    # --- MODULE PROJETS AMÉLIORÉ ---
+    st1, st2 = st.tabs(["Projets", "Ajustement"])
     
     with st1:
         # --- EN-TÊTE & CRÉATION ---
@@ -813,7 +941,7 @@ with tabs[3]:
                     c1, c2, c3 = st.columns([2, 1, 1])
                     n_p = c1.text_input("Nom du projet (ex: Voyage Japon)")
                     t_p = c2.number_input("Cible (€)", min_value=1.0, step=50.0)
-                    o_p = c3.selectbox("Pour qui ?", ["Commun", user_now])
+                    o_p = c3.selectbox("Pour qui ?", ["Commun", user_actuel])
                     
                     if st.form_submit_button("Valider la création", type="primary"):
                         if n_p and n_p not in projets_config:
@@ -822,7 +950,7 @@ with tabs[3]:
                             rows = []
                             for k, v in projets_config.items(): 
                                 rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                            save_data(TAB_PROJETS, pd.DataFrame(rows))
+                            save_projets_targets(projets_config)
                             st.session_state['show_new_proj'] = False
                             st.success(f"Projet {n_p} créé !")
                             time.sleep(0.5)
@@ -868,7 +996,7 @@ with tabs[3]:
                         
                         c_edit1, c_edit2 = st.columns(2)
                         new_target = c_edit1.number_input("Nouvelle Cible (€)", value=target, key=f"nt_{p_name}")
-                        new_prop = c_edit2.selectbox("Propriétaire", ["Commun", user_now], index=0 if proprio=="Commun" else 1, key=f"np_{p_name}")
+                        new_prop = c_edit2.selectbox("Propriétaire", ["Commun", user_actuel], index=0 if proprio=="Commun" else 1, key=f"np_{p_name}")
                         
                         col_save, col_cancel = st.columns([1, 1])
                         if col_save.button("💾 Sauvegarder", key=f"save_{p_name}", use_container_width=True):
@@ -878,7 +1006,7 @@ with tabs[3]:
                             rows = []
                             for k, v in projets_config.items(): 
                                 rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                            save_data(TAB_PROJETS, pd.DataFrame(rows))
+                            save_projets_targets(projets_config)
                             st.session_state[f"edit_mode_{p_name}"] = False
                             st.rerun()
                             
@@ -941,10 +1069,16 @@ with tabs[3]:
                         rows = []
                         for k, v in projets_config.items(): 
                             rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                        save_data(TAB_PROJETS, pd.DataFrame(rows))
+                        save_projets_targets(projets_config)
                         st.success("Supprimé")
                         time.sleep(0.5)
                         st.rerun()
+
+    with s2:
+        with st.form("adj"):
+            d=st.date_input("Date"); m=st.number_input("Solde Réel")
+            if st.form_submit_button("Enregistrer"):
+                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":acc_choice,"Montant":m,"Proprietaire":user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.rerun()
 
 # ================= TAB 5: RÉGLAGES (DESIGN PRO) =================
 with tabs[4]:
@@ -1148,5 +1282,3 @@ with tabs[4]:
             st.success("Règles mises à jour avec succès !")
             time.sleep(1)
             st.rerun()
-
-
