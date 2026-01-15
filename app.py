@@ -137,6 +137,20 @@ def apply_custom_style():
             padding: 12px 0;
             border-bottom: 1px solid #F3F4F6;
         }
+        
+        /* BADGES CATEGORIES */
+        .cat-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 0 6px 6px 0;
+            border: 1px solid transparent;
+        }
+        .cat-badge.depense { background-color: #FFF1F2; color: #E11D48; border-color: #FECDD3; }
+        .cat-badge.revenu { background-color: #ECFDF5; color: #059669; border-color: #A7F3D0; }
+        .cat-badge.epargne { background-color: #EFF6FF; color: #2563EB; border-color: #BFDBFE; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -798,31 +812,206 @@ with tabs[3]:
             if st.form_submit_button("Enregistrer"):
                 df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":acc_choice,"Montant":m,"Proprietaire":user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.rerun()
 
-# ================= TAB 5: RÉGLAGES =================
+# ================= TAB 5: RÉGLAGES (DESIGN PRO) =================
 with tabs[4]:
-    page_header("Réglages")
-    with st.expander("Ajouter un compte"):
-        with st.form("nac"):
-            n=st.text_input("Nom"); t=st.selectbox("Type", TYPES_COMPTE); c=st.checkbox("Commun")
-            if st.form_submit_button("Ajouter"):
-                p = "Commun" if c else user_actuel
-                if n and n not in comptes_structure.get(p, []):
-                    comptes_structure.setdefault(p, []).append(n); comptes_types_map[n]=t; save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+    page_header("Centre de Configuration")
     
-    for p in [user_actuel, "Commun"]:
-        if p in comptes_structure:
-            st.markdown(f"**{p}**")
-            for a in comptes_structure[p]:
-                c1,c2 = st.columns([4,1]); c1.write(f"- {a}"); 
-                if c2.button("X", key=f"d_{a}"): comptes_structure[p].remove(a); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+    # On utilise des sous-onglets plus larges pour respirer
+    c_tab1, c_tab2, c_tab3 = st.tabs(["🏷️ Catégories", "💳 Comptes", "⚡ Automatisation"])
     
-    st.markdown("---")
-    t1, t2 = st.tabs(["Catégories", "Mots-Clés"])
-    with t1:
-        ty=st.selectbox("Type", TYPES, key="st"); nc=st.text_input("Nom")
-        if st.button("Ajouter"): cats_memoire.setdefault(ty, []).append(nc); save_config_cats(cats_memoire); st.rerun()
-    with t2:
-        with st.form("amc"):
-            alc = [c for l in cats_memoire.values() for c in l]
-            m=st.text_input("Mot"); c=st.selectbox("Cat", alc); ty=st.selectbox("Type", TYPES, key="kt"); co=st.selectbox("Cpt", comptes_disponibles)
-            if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
+    # --- 1. GESTION DES CATÉGORIES (VISUEL & FLUIDE) ---
+    with c_tab1:
+        st.markdown("### Organisez vos dépenses")
+        
+        # Zone d'ajout (Card)
+        with st.container():
+            st.markdown("""<div style="background:white; padding:20px; border-radius:12px; border:1px solid #E5E7EB; margin-bottom:20px;">
+            <div style="font-weight:600; margin-bottom:10px;">Ajouter une catégorie</div>""", unsafe_allow_html=True)
+            
+            c1, c2, c3 = st.columns([2, 3, 1])
+            type_add = c1.selectbox("Type de flux", TYPES, key="add_cat_type", label_visibility="collapsed")
+            name_add = c2.text_input("Nom de la catégorie", placeholder="ex: Pharmacie, Cadeaux...", key="add_cat_name", label_visibility="collapsed")
+            
+            if c3.button("Créer", use_container_width=True, type="primary"):
+                if name_add:
+                    if name_add not in cats_memoire.get(type_add, []):
+                        cats_memoire.setdefault(type_add, []).append(name_add)
+                        save_config_cats(cats_memoire)
+                        st.success("Ajouté !")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.warning("Existe déjà")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # Zone de Visualisation & Suppression (2 Colonnes)
+        col_dep, col_rev = st.columns(2)
+        
+        with col_dep:
+            st.markdown("#### 📉 Dépenses & Charges")
+            # Affichage en "Nuage de tags" simulé
+            cats_dep = cats_memoire.get("Dépense", [])
+            if cats_dep:
+                html_badges = ""
+                for c in cats_dep:
+                    html_badges += f'<span class="cat-badge depense">{c}</span>'
+                st.markdown(html_badges, unsafe_allow_html=True)
+            
+            st.write("")
+            # Suppression Dépenses
+            to_del_dep = st.multiselect("Supprimer des catégories Dépense", cats_dep, placeholder="Choisir pour supprimer...")
+            if to_del_dep:
+                if st.button("🗑️ Confirmer suppression (Dépenses)", key="btn_del_dep"):
+                    for c in to_del_dep: cats_memoire["Dépense"].remove(c)
+                    save_config_cats(cats_memoire)
+                    st.rerun()
+
+        with col_rev:
+            st.markdown("#### 📈 Revenus & Épargne")
+            # Concaténation des autres types
+            cats_other = cats_memoire.get("Revenu", []) + cats_memoire.get("Épargne", [])
+            if cats_other:
+                html_badges = ""
+                for c in cats_other:
+                    # Couleur selon le type (approximatif pour l'affichage groupé)
+                    style = "revenu" if c in cats_memoire.get("Revenu", []) else "epargne"
+                    html_badges += f'<span class="cat-badge {style}">{c}</span>'
+                st.markdown(html_badges, unsafe_allow_html=True)
+                
+            st.write("")
+            # Suppression Autres
+            to_del_other = st.multiselect("Supprimer (Revenu/Épargne)", cats_other, placeholder="Choisir pour supprimer...")
+            if to_del_other:
+                if st.button("🗑️ Confirmer suppression (Autres)", key="btn_del_other"):
+                    # On cherche dans quel type c'était
+                    for c in to_del_other:
+                        for t in ["Revenu", "Épargne", "Investissement"]:
+                            if c in cats_memoire.get(t, []): cats_memoire[t].remove(c)
+                    save_config_cats(cats_memoire)
+                    st.rerun()
+
+    # --- 2. GESTION DES COMPTES (STYLE CARTES) ---
+    with c_tab2:
+        st.markdown("### Vos Comptes Bancaires")
+        
+        # Formulaire d'ajout compact
+        with st.expander("➕ Ouvrir un nouveau compte", expanded=False):
+            with st.form("add_bank_account"):
+                c1, c2, c3 = st.columns([3, 2, 2])
+                n_acc = c1.text_input("Nom de la banque / Compte")
+                t_acc = c2.selectbox("Type", TYPES_COMPTE)
+                is_jt = c3.checkbox("Compte Commun ?")
+                
+                if st.form_submit_button("Ajouter ce compte", type="primary"):
+                    target_user = "Commun" if is_jt else user_actuel
+                    if n_acc not in comptes_structure.get(target_user, []):
+                        comptes_structure.setdefault(target_user, []).append(n_acc)
+                        comptes_types_map[n_acc] = t_acc
+                        save_comptes_struct(comptes_structure, comptes_types_map)
+                        st.success("Compte créé avec succès")
+                        time.sleep(0.5)
+                        st.rerun()
+        
+        st.write("")
+        
+        # Affichage des cartes de comptes
+        my_accounts = comptes_structure.get(user_actuel, [])
+        joint_accounts = comptes_structure.get("Commun", [])
+        
+        if my_accounts:
+            st.caption(f"Comptes Personnels de {user_actuel}")
+            for acc in my_accounts:
+                c1, c2 = st.columns([4, 1])
+                with c1:
+                    icon = "💳" if comptes_types_map.get(acc) == "Courant" else "🐷"
+                    st.markdown(f"""
+                    <div style="padding:15px; background:white; border:1px solid #E5E7EB; border-radius:10px; display:flex; align-items:center; gap:15px;">
+                        <div style="font-size:24px;">{icon}</div>
+                        <div>
+                            <div style="font-weight:700; color:#1F2937;">{acc}</div>
+                            <div style="font-size:12px; color:#6B7280;">{comptes_types_map.get(acc, 'Courant')}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c2:
+                    st.write("") # Spacer
+                    if st.button("Suppr.", key=f"del_acc_{acc}"):
+                        comptes_structure[user_actuel].remove(acc)
+                        save_comptes_struct(comptes_structure, comptes_types_map)
+                        st.rerun()
+                        
+        if joint_accounts:
+            st.write("")
+            st.caption("Comptes Communs")
+            for acc in joint_accounts:
+                c1, c2 = st.columns([4, 1])
+                with c1:
+                    st.markdown(f"""
+                    <div style="padding:15px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; display:flex; align-items:center; gap:15px;">
+                        <div style="font-size:24px;">🤝</div>
+                        <div>
+                            <div style="font-weight:700; color:#1F2937;">{acc}</div>
+                            <div style="font-size:12px; color:#6B7280;">Compte Joint • {comptes_types_map.get(acc, 'Courant')}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c2:
+                    st.write("")
+                    if st.button("Suppr.", key=f"del_joint_{acc}"):
+                        comptes_structure["Commun"].remove(acc)
+                        save_comptes_struct(comptes_structure, comptes_types_map)
+                        st.rerun()
+
+    # --- 3. AUTOMATISATION (DATA EDITOR PUISSANT) ---
+    with c_tab3:
+        st.markdown("### ⚡ Mots-clés Automatiques")
+        st.caption("Définissez des règles : si le titre contient 'X', alors Catégorie = 'Y'.")
+        
+        # Préparation des données pour l'éditeur
+        # On transforme le dict en liste de dicts pour le DataFrame
+        data_rules = []
+        for kw, details in mots_cles_map.items():
+            data_rules.append({
+                "Mot-Clé (déclencheur)": kw,
+                "Catégorie": details["Categorie"],
+                "Compte": details["Compte"],
+                "Type": details["Type"]
+            })
+        
+        df_rules = pd.DataFrame(data_rules)
+        
+        # Configuration des colonnes pour l'éditeur
+        all_cats_flat = [c for sublist in cats_memoire.values() for c in sublist]
+        
+        edited_df = st.data_editor(
+            df_rules,
+            num_rows="dynamic", # Permet d'ajouter des lignes directement !
+            column_config={
+                "Mot-Clé (déclencheur)": st.column_config.TextColumn(required=True),
+                "Catégorie": st.column_config.SelectboxColumn(options=all_cats_flat, required=True),
+                "Type": st.column_config.SelectboxColumn(options=TYPES, required=True),
+                "Compte": st.column_config.SelectboxColumn(options=comptes_disponibles, required=True)
+            },
+            use_container_width=True,
+            key="editor_rules"
+        )
+        
+        # Bouton de sauvegarde globale des règles
+        if st.button("💾 Sauvegarder les règles", type="primary"):
+            # On reconstruit le dictionnaire à partir du DataFrame édité
+            new_map = {}
+            for _, row in edited_df.iterrows():
+                if row["Mot-Clé (déclencheur)"]: # On évite les lignes vides
+                    new_map[row["Mot-Clé (déclencheur)"].lower()] = {
+                        "Categorie": row["Catégorie"],
+                        "Type": row["Type"],
+                        "Compte": row["Compte"]
+                    }
+            
+            # Sauvegarde
+            mots_cles_map = new_map
+            save_mots_cles(mots_cles_map)
+            st.success("Règles mises à jour avec succès !")
+            time.sleep(1)
+            st.rerun()
+
