@@ -31,7 +31,7 @@ FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-# Colonnes
+# Définition des colonnes
 COLS_DATA = [
     "Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", 
     "Titre", "Description", "Montant", "Paye_Par", "Imputation", 
@@ -40,7 +40,7 @@ COLS_DATA = [
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 
 # ==========================================
-# 2. STYLE CSS (DESIGN BANQUE PRO)
+# 2. STYLE CSS PREMIUM (DESIGN BANQUE)
 # ==========================================
 
 def apply_custom_style():
@@ -52,13 +52,11 @@ def apply_custom_style():
             --primary: #2C3E50;
             --primary-light: #34495E;
             --accent: #2980B9;
-            --bg-main: #F4F6F8;
+            --bg-main: #F8F9FA;
             --bg-card: #FFFFFF;
             --text-primary: #1F2937;
             --text-secondary: #6B7280;
             --border: #E5E7EB;
-            --success: #10B981;
-            --danger: #EF4444;
         }
 
         .stApp {
@@ -84,7 +82,6 @@ def apply_custom_style():
             border-bottom: 2px solid var(--border);
             margin-bottom: 24px;
         }
-        
         .stTabs [data-baseweb="tab"] {
             height: 48px;
             background-color: transparent;
@@ -93,9 +90,7 @@ def apply_custom_style():
             font-weight: 600;
             font-size: 15px;
             padding: 0 10px;
-            transition: color 0.2s;
         }
-        
         .stTabs [aria-selected="true"] {
             color: var(--primary) !important;
             border-bottom: 3px solid var(--primary) !important;
@@ -134,7 +129,7 @@ def apply_custom_style():
             box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
         }
         
-        /* LISTE TRANSACTIONS HOME */
+        /* LISTE TRANSACTIONS HOME - FIXE POUR EVITER L'AFFICHAGE DU CODE */
         .tx-card {
             display: flex;
             justify-content: space-between;
@@ -142,26 +137,17 @@ def apply_custom_style():
             padding: 12px 0;
             border-bottom: 1px solid #F3F4F6;
         }
-        .tx-left { display: flex; align-items: center; gap: 15px; }
-        .tx-icon {
-            width: 42px; height: 42px; border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px;
-        }
-        .tx-title { font-weight: 600; font-size: 14px; color: var(--text-primary); }
-        .tx-sub { font-size: 12px; color: var(--text-secondary); }
-        .tx-amount { font-weight: 700; font-size: 15px; }
     </style>
     """, unsafe_allow_html=True)
 
 def page_header(title, subtitle=None):
     if subtitle:
-        st.markdown(f"""<div style="margin-bottom: 25px;"><h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:6px;'>{title}</h2><p style='font-size:15px; color:#6B7280; font-weight:400;'>{subtitle}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="margin-bottom: 25px;"><h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:6px;'>{title}</h2><p style='font-size:14px; color:#6B7280; font-weight:400;'>{subtitle}</p></div>""", unsafe_allow_html=True)
     else:
         st.markdown(f"<h2 style='font-size:28px; font-weight:700; color:#2C3E50; margin-bottom:25px;'>{title}</h2>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. CONNEXION
+# 3. CONNEXION GOOGLE SHEETS
 # ==========================================
 
 @st.cache_resource
@@ -184,7 +170,7 @@ def get_worksheet(client, sheet_name, tab_name):
         st.error(f"Erreur d'accès à l'onglet {tab_name} : {e}"); st.stop()
 
 # ==========================================
-# 4. DATA LOADING
+# 4. GESTION DES DONNÉES
 # ==========================================
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -225,8 +211,15 @@ def load_configs_cached():
 def clear_cache(): st.cache_data.clear()
 
 # ==========================================
-# 5. LOGIQUE MÉTIER
+# 5. LOGIQUE MÉTIER & CALCULS
 # ==========================================
+
+# Initialisation du session state pour la fluidité de la saisie
+def init_session_state():
+    if 'op_date' not in st.session_state: st.session_state.op_date = datetime.today()
+    if 'op_type' not in st.session_state: st.session_state.op_type = "Dépense"
+    if 'op_montant' not in st.session_state: st.session_state.op_montant = 0.0
+    if 'op_titre' not in st.session_state: st.session_state.op_titre = ""
 
 def to_excel_download(df):
     output = BytesIO()
@@ -321,25 +314,26 @@ def save_mots_cles(d):
 
 
 # ==========================================
-# 6. APP STREAMLIT
+# 6. APPLICATION STREAMLIT
 # ==========================================
 
-st.set_page_config(page_title="Ma Banque", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque V69", layout="wide", page_icon=None)
 apply_custom_style()
+init_session_state()
 
-# Chargement
+# Chargement initial des données
 df = load_data_from_sheet(TAB_DATA, COLS_DATA)
 df_patrimoine = load_data_from_sheet(TAB_PATRIMOINE, COLS_PAT)
 cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_configs()
 
-# --- SIDEBAR ---
+# --- SIDEBAR (MENU & FILTRES) ---
 with st.sidebar:
     st.markdown("### Menu Principal")
     user_actuel = st.selectbox("Utilisateur", USERS)
     
     st.markdown("---")
     
-    # 1. Calcul Comptes
+    # 1. Calcul des comptes dispos
     comptes_user_only = comptes_structure.get(user_actuel, [])
     comptes_communs = comptes_structure.get("Commun", [])
     comptes_visibles = comptes_user_only + comptes_communs
@@ -398,10 +392,12 @@ with st.sidebar:
         clear_cache()
         st.rerun()
 
-# --- TABS ---
+# --- TABS PRINCIPAUX ---
 tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Réglages"])
 
-# ================= TAB 1: ACCUEIL =================
+# ==========================================
+# TAB 1: ACCUEIL (DASHBOARD)
+# ==========================================
 with tabs[0]:
     page_header("Synthèse du mois", f"Vue d'ensemble pour {user_actuel}")
     
@@ -433,12 +429,11 @@ with tabs[0]:
     
     st.markdown("---")
     
-    # TRANSACTIONS RECENTES (DESIGN CORRECT)
     c1, c2 = st.columns([3, 2])
     with c1:
-        h1, h2 = st.columns([1, 1])
-        with h1: st.subheader("Activités")
-        with h2: 
+        h_col1, h_col2 = st.columns([1, 1])
+        with h_col1: st.subheader("Activités")
+        with h_col2: 
             filtre_tx = st.radio("Filtre", ["Tout", "Sorties", "Entrées"], horizontal=True, label_visibility="collapsed", key="filt_home")
 
         tx_data = df[df['Qui_Connecte'] == user_actuel].sort_values(by='Date', ascending=False)
@@ -457,20 +452,24 @@ with tabs[0]:
                 if r['Type'] == "Épargne": icon_char = "🐷"
                 if r['Type'] == "Virement Interne": icon_char = "↔️"
                 
-                st.markdown(f"""
-                <div class="tx-card">
-                    <div class="tx-left">
-                        <div class="tx-icon" style="background-color: {bg_icon};">{icon_char}</div>
-                        <div>
-                            <div class="tx-title">{r['Titre']}</div>
-                            <div class="tx-sub">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
-                        </div>
-                    </div>
-                    <div class="tx-amount" style="color: {txt_color};">
-                        {signe} {r['Montant']:,.2f} €
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                # HTML CORRECTEMENT FORMATÉ (SANS INDENTATION INTERNE QUI CASSE LE RENDU)
+                html_card = f"""
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F3F4F6;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: {bg_icon}; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+            {icon_char}
+        </div>
+        <div>
+            <div style="font-weight: 600; color: #1F2937; font-size: 14px;">{r['Titre']}</div>
+            <div style="font-size: 12px; color: #6B7280;">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
+        </div>
+    </div>
+    <div style="font-weight: 700; font-size: 15px; color: {txt_color};">
+        {signe} {r['Montant']:,.2f} €
+    </div>
+</div>
+"""
+                st.markdown(html_card, unsafe_allow_html=True)
         else:
             st.info("Aucune activité.")
             
@@ -492,24 +491,24 @@ with tabs[0]:
                     st.progress(min(r/budget, 1.0))
         if not has_alert: st.success("Budget maîtrisé !")
 
-# ================= TAB 2: OPÉRATIONS =================
+# ================= TAB 2: OPÉRATIONS (SAISIE DYNAMIQUE) =================
 with tabs[1]:
     op1, op2, op3 = st.tabs(["Saisie", "Journal", "Abonnements"])
     
-    # 1. SAISIE (FLUIDE ET INTELLIGENTE)
+    # 1. SAISIE DE TRANSACTION (SANS ST.FORM POUR LA DYNAMIQUE)
     with op1:
         st.subheader("Nouvelle Transaction")
         
-        # ON N'UTILISE PAS ST.FORM POUR GARDER LA FLUIDITÉ DES SELECTEURS
+        # Champs principaux (Hors Formulaire pour interactivité)
         c1, c2, c3 = st.columns(3)
         date_op = c1.date_input("Date", datetime.today(), key="s_date")
-        type_op = c2.selectbox("Type", TYPES, key="s_type")
+        type_op = c2.selectbox("Type", TYPES, key="s_type") # Le changement ici recharge la page et met à jour les catégories
         montant_op = c3.number_input("Montant (€)", min_value=0.0, step=0.01, key="s_montant")
         
         c4, c5 = st.columns(2)
         titre_op = c4.text_input("Titre (ex: Auchan)", key="s_titre")
         
-        # AUTO COMPLETE
+        # Auto-completion Mots-clés
         cat_finale = "Autre"
         compte_auto = None
         if titre_op and mots_cles_map:
@@ -519,9 +518,10 @@ with tabs[1]:
                     compte_auto = data["Compte"]
                     break
         
-        # CATEGORIE DYNAMIQUE
+        # Catégories dynamiques selon le Type
         cats = cats_memoire.get(type_op, [])
         cat_options = cats + ["Autre (nouvelle)"]
+        # Index par défaut
         idx_cat = cats.index(cat_finale) if cat_finale in cats else 0
         cat_sel = c5.selectbox("Catégorie", cat_options, index=idx_cat, key="s_cat")
         
@@ -539,7 +539,7 @@ with tabs[1]:
         # Imputation
         imput = cc2.radio("Imputation", IMPUTATIONS, horizontal=True, key="s_imp")
         
-        # Slider si Autre %
+        # Slider si Autre % (DYNAMIQUE)
         final_imput = imput
         if imput == "Commun (Autre %)":
             part_pierre = cc3.slider("Part Pierre (%)", 0, 100, 50, key="s_slide")
@@ -547,7 +547,7 @@ with tabs[1]:
         elif type_op == "Virement Interne":
             final_imput = "Neutre"
             
-        # Champs conditionnels selon type
+        # Champs conditionnels selon type (DYNAMIQUE)
         c_tgt = ""
         p_epg = ""
         
@@ -563,6 +563,7 @@ with tabs[1]:
             c_tgt = st.selectbox("Vers Compte", comptes_visibles, key="s_tgt_v")
             
         st.write("")
+        # Bouton de validation final
         if st.button("Valider la transaction", type="primary", use_container_width=True):
             # 1. Sauvegarde catégorie
             if cat_sel == "Autre (nouvelle)" and final_cat_val:
@@ -592,7 +593,7 @@ with tabs[1]:
 
     # 2. JOURNAL
     with op2:
-        search = st.text_input("Rechercher...", key="search_j")
+        search = st.text_input("Rechercher dans l'historique...", key="search_j")
         if not df.empty:
             df_e = df.copy().sort_values(by="Date", ascending=False)
             if search: df_e = df_e[df_e.apply(lambda r: str(r).lower().find(search.lower()) > -1, axis=1)]
@@ -680,7 +681,7 @@ with tabs[1]:
 
 # ================= TAB 3: ANALYSES =================
 with tabs[2]:
-    an1, an2 = st.tabs(["Graphiques", "Objectifs Budget"])
+    an1, an2 = st.tabs(["Vue Globale", "Objectifs & Budgets"])
     
     with an1:
         if not df_mois.empty:
@@ -702,220 +703,126 @@ with tabs[2]:
                 fig_s = go.Figure(data=[go.Sankey(node=dict(pad=15, thickness=20, label=labels, color="black"), link=dict(source=s, target=t, value=v, color=c))])
                 st.plotly_chart(fig_s, use_container_width=True)
                 
+        # Equilibre
+        df_c = df_mois[df_mois["Imputation"].str.contains("Commun", na=False)]
+        pp = df_c[df_c["Paye_Par"]=="Pierre"]["Montant"].sum()
+        ep = df_c[df_c["Paye_Par"]=="Elie"]["Montant"].sum()
+        diff = (pp - ep)/2
+        
+        st.markdown("### Équilibre")
+        c1, c2 = st.columns(2)
+        c1.metric("Pierre a payé", f"{pp:,.0f} €")
+        c2.metric("Elie a payé", f"{ep:,.0f} €")
+        if diff > 0: st.info(f"Elie doit {abs(diff):,.0f} € à Pierre")
+        elif diff < 0: st.info(f"Pierre doit {abs(diff):,.0f} € à Elie")
+        else: st.success("Comptes équilibrés")
+
     with an2:
         st.markdown("### 🎯 Mes Budgets")
-        
-        # Bouton pour ajouter un objectif (plus discret)
-        with st.expander("➕ Créer un nouveau budget", expanded=False):
-            with st.form("add_obj_modern"):
-                c1, c2, c3 = st.columns([1, 2, 1])
-                sc = c1.selectbox("Qui ?", ["Perso", "Commun"])
-                cat = c2.selectbox("Catégorie", cats_memoire.get("Dépense", []))
-                mt = c3.number_input("Plafond (€)", min_value=0.0, step=50.0)
-                
-                if st.form_submit_button("Valider le budget", use_container_width=True, type="primary"):
-                    objectifs_list.append({"Scope": sc, "Categorie": cat, "Montant": mt})
-                    save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                    st.success("Budget créé !")
-                    time.sleep(0.5)
-                    st.rerun()
-        
-        st.markdown("---")
+        with st.expander("Créer un budget", expanded=False):
+            with st.form("new_obj"):
+                c1,c2,c3 = st.columns(3); sc=c1.selectbox("Scope", ["Perso", "Commun"]); ca=c2.selectbox("Cat", cats_memoire.get("Dépense", [])); mt=c3.number_input("Max €")
+                if st.form_submit_button("Ajouter"):
+                    objectifs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt}); save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
         
         if not objectifs_list:
-            st.info("Aucun budget défini. Commencez par en ajouter un ci-dessus (ex: Alimentation 400€).")
+            st.info("Aucun budget défini.")
         else:
-            # Grille de budgets (2 par ligne pour un look dashboard)
             for i in range(0, len(objectifs_list), 2):
-                cols = st.columns(2)
-                for j, col in enumerate(cols):
-                    if i + j < len(objectifs_list):
-                        idx = i + j
-                        o = objectifs_list[idx]
+                cs = st.columns(2)
+                for j, col in enumerate(cs):
+                    if i+j < len(objectifs_list):
+                        idx = i+j; o = objectifs_list[idx]
+                        if o['Scope']=="Perso" and user_actuel not in USERS: continue
                         
-                        # Filtrage si c'est un budget perso de l'autre utilisateur
-                        if o['Scope'] == "Perso" and user_actuel not in USERS: continue 
-
-                        # --- CALCULS ---
-                        # On filtre les dépenses réelles du mois
-                        mask = (df_mois["Type"] == "Dépense") & (df_mois["Categorie"] == o["Categorie"])
+                        msk = (df_mois["Type"]=="Dépense") & (df_mois["Categorie"]==o["Categorie"])
+                        if o["Scope"]=="Perso": msk = msk & (df_mois["Imputation"]=="Perso") & (df_mois["Qui_Connecte"]==user_actuel)
+                        else: msk = msk & (df_mois["Imputation"].str.contains("Commun"))
                         
-                        if o["Scope"] == "Perso":
-                            mask = mask & (df_mois["Imputation"] == "Perso") & (df_mois["Qui_Connecte"] == user_actuel)
-                        else:
-                            mask = mask & (df_mois["Imputation"].str.contains("Commun", na=False))
+                        real = df_mois[msk]["Montant"].sum(); targ = float(o["Montant"]); rat = real/targ if targ>0 else 0
+                        bcol = "#EF4444" if rat>=1 else ("#F59E0B" if rat>=0.8 else "#10B981")
+                        sttxt = "DÉPASSÉ" if rat>=1 else ("ATTENTION" if rat>=0.8 else "OK")
                         
-                        real = df_mois[mask]["Montant"].sum()
-                        target = float(o["Montant"])
-                        
-                        # Logique de couleurs Revolut
-                        ratio = real / target if target > 0 else 0
-                        reste = target - real
-                        
-                        if ratio >= 1.0:
-                            bar_color = "#EF4444" # Rouge (Dépassé)
-                            bg_icon = "#FEF2F2"
-                            status_txt = "DÉPASSÉ"
-                        elif ratio >= 0.8:
-                            bar_color = "#F59E0B" # Orange (Attention)
-                            bg_icon = "#FFFBEB"
-                            status_txt = "ATTENTION"
-                        else:
-                            bar_color = "#10B981" # Vert (OK)
-                            bg_icon = "#ECFDF5"
-                            status_txt = "EN COURS"
-
-                        # --- AFFICHAGE CARTE HTML ---
+                        # CARTE BUDGET HTML PROPRE
+                        html_budget = f"""
+<div style="background:white; border-radius:12px; padding:15px; border:1px solid #eee; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+        <div style="font-weight:bold;">{o['Categorie']}</div>
+        <div style="font-size:12px; color:#888;">{o['Scope']}</div>
+    </div>
+    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+        <div style="font-weight:bold; color:{bcol};">{real:.0f} €</div>
+        <div style="font-size:12px;">sur {targ:.0f} €</div>
+    </div>
+    <div style="width:100%; background:#eee; height:6px; border-radius:3px;">
+        <div style="width:{min(rat*100, 100)}%; background:{bcol}; height:100%; border-radius:3px;"></div>
+    </div>
+    <div style="text-align:right; font-size:10px; font-weight:bold; color:{bcol}; margin-top:5px;">{sttxt}</div>
+</div>
+"""
                         with col:
-                            st.markdown(f"""
-                            <div style="
-                                background-color: white; 
-                                border-radius: 16px; 
-                                padding: 20px; 
-                                box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-                                border: 1px solid #F3F4F6;
-                                margin-bottom: 15px;
-                                position: relative;">
-                                
-                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                                    <div style="display: flex; gap: 12px; align-items: center;">
-                                        <div style="
-                                            width: 40px; height: 40px; 
-                                            border-radius: 10px; 
-                                            background-color: {bg_icon}; 
-                                            display: flex; align-items: center; justify-content: center;
-                                            font-size: 20px;">
-                                            📊
-                                        </div>
-                                        <div>
-                                            <div style="font-weight: 700; color: #1F2937; font-size: 15px;">{o['Categorie']}</div>
-                                            <div style="font-size: 12px; color: #9CA3AF; font-weight: 500;">{o['Scope'].upper()}</div>
-                                        </div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-weight: 800; font-size: 18px; color: {bar_color};">{real:,.0f} €</div>
-                                        <div style="font-size: 11px; color: #9CA3AF;">sur {target:,.0f} €</div>
-                                    </div>
-                                </div>
-
-                                <div style="width: 100%; background-color: #F3F4F6; border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 8px;">
-                                    <div style="width: {min(ratio*100, 100)}%; background-color: {bar_color}; height: 100%; border-radius: 6px; transition: width 0.5s;"></div>
-                                </div>
-
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="font-size: 10px; font-weight: 700; color: {bar_color}; background: {bg_icon}; padding: 2px 8px; border-radius: 4px;">
-                                        {status_txt}
-                                    </div>
-                                    <div style="font-size: 12px; font-weight: 600; color: #6B7280;">
-                                        Reste : <span style="color: #1F2937;">{reste:,.0f} €</span>
-                                    </div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # Bouton de suppression discret sous la carte
-                            if st.button("Supprimer ce budget", key=f"del_btn_obj_{idx}"):
-                                objectifs_list.pop(idx)
-                                save_objectifs_from_df(pd.DataFrame(objectifs_list))
-                                st.rerun()
+                            st.markdown(html_budget, unsafe_allow_html=True)
+                            if st.button("Suppr", key=f"do_{idx}"):
+                                objectifs_list.pop(idx); save_objectifs_from_df(pd.DataFrame(objectifs_list)); st.rerun()
 
 # ================= TAB 4: PATRIMOINE =================
 with tabs[3]:
     page_header("Patrimoine")
     
-    # 1. Sélection de compte
-    acc_choice = st.selectbox("Sélectionner un compte", comptes_visibles)
-    
+    acc_choice = st.selectbox("Compte", comptes_visibles)
     if acc_choice:
-        solde_acc = soldes.get(acc_choice, 0.0)
-        col_solde = "green" if solde_acc >= 0 else "red"
-        st.markdown(f"## Solde : <span style='color:{col_solde}'>{solde_acc:,.2f} €</span>", unsafe_allow_html=True)
-        
-        st.markdown("#### Historique")
-        mask_acc = (df["Compte_Source"] == acc_choice) | (df["Compte_Cible"] == acc_choice)
-        st.dataframe(df[mask_acc].sort_values(by="Date", ascending=False).head(10)[["Date", "Titre", "Montant", "Type"]], use_container_width=True, hide_index=True)
+        sl = soldes.get(acc_choice, 0.0)
+        cl = "green" if sl>=0 else "red"
+        st.markdown(f"## <span style='color:{cl}'>{sl:,.2f} €</span>", unsafe_allow_html=True)
+        mk = (df["Compte_Source"]==acc_choice)|(df["Compte_Cible"]==acc_choice)
+        st.dataframe(df[mk].sort_values(by="Date", ascending=False).head(10)[["Date","Titre","Montant","Type"]], use_container_width=True, hide_index=True)
 
     st.markdown("---")
+    s1, s2 = st.tabs(["Projets", "Ajustement"])
     
-    st1, st2 = st.tabs(["Projets Épargne", "Ajustement Solde"])
-    
-    with st1:
-        st.subheader("Mes Projets")
+    with s1:
+        st.subheader("Mes Projets Épargne")
         for p, d in projets_config.items():
             s = df[(df["Projet_Epargne"]==p)&(df["Type"]=="Épargne")]["Montant"].sum()
             t = float(d["Cible"])
-            st.write(f"**{p}** : {s:.0f} / {t:.0f} €")
-            st.progress(min(s/t if t>0 else 0, 1.0))
-            if st.button(f"Supprimer {p}", key=f"del_p_{p}"):
-                del projets_config[p]
-                save_projets_targets(projets_config)
-                st.rerun()
-        
-        with st.expander("Créer un projet"):
-            n = st.text_input("Nom Projet"); t = st.number_input("Cible (€)")
-            if st.button("Créer Projet"): 
-                projets_config[n] = {"Cible": t, "Date_Fin": ""}
-                save_projets_targets(projets_config)
-                st.rerun()
-
-    with st2:
+            st.write(f"**{p}** : {s:.0f} / {t:.0f} €"); st.progress(min(s/t if t>0 else 0, 1.0))
+            if st.button(f"Supprimer {p}", key=f"dp_{p}"): del projets_config[p]; save_projets_targets(projets_config); st.rerun()
+            
+        with st.expander("Nouveau Projet"):
+            n=st.text_input("Nom", key="pn"); t=st.number_input("Cible", key="pt")
+            if st.button("Créer"): projets_config[n]={"Cible":t, "Date_Fin":""}; save_projets_targets(projets_config); st.rerun()
+            
+    with s2:
         with st.form("adj"):
-            d = st.date_input("Date Relevé"); m = st.number_input("Solde Réel")
+            d=st.date_input("Date"); m=st.number_input("Solde Réel")
             if st.form_submit_button("Enregistrer"):
-                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date": d, "Mois": d.month, "Annee": d.year, "Compte": acc_choice, "Montant": m, "Proprietaire": user_actuel}])], ignore_index=True)
-                save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine)
-                st.rerun()
+                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":acc_choice,"Montant":m,"Proprietaire":user_actuel}])], ignore_index=True); save_data_to_sheet(TAB_PATRIMOINE, df_patrimoine); st.rerun()
 
 # ================= TAB 5: RÉGLAGES =================
 with tabs[4]:
     page_header("Réglages")
+    with st.expander("Ajouter un compte"):
+        with st.form("nac"):
+            n=st.text_input("Nom"); t=st.selectbox("Type", TYPES_COMPTE); c=st.checkbox("Commun")
+            if st.form_submit_button("Ajouter"):
+                p = "Commun" if c else user_actuel
+                if n and n not in comptes_structure.get(p, []):
+                    comptes_structure.setdefault(p, []).append(n); comptes_types_map[n]=t; save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
     
-    st.subheader("Gestion des Comptes")
-    with st.expander("Ajouter un compte", expanded=False):
-        with st.form("add_cpt_clean"):
-            c1, c2 = st.columns(2)
-            n_new = c1.text_input("Nom du compte")
-            t_new = c2.selectbox("Type", TYPES_COMPTE)
-            is_comm = st.checkbox("Compte Commun ?")
-            if st.form_submit_button("Valider"):
-                p_new = "Commun" if is_comm else user_actuel
-                if p_new not in comptes_structure: comptes_structure[p_new] = []
-                comptes_structure[p_new].append(n_new)
-                comptes_types_map[n_new] = t_new
-                save_comptes_struct(comptes_structure, comptes_types_map)
-                st.success("Compte ajouté")
-                time.sleep(1); st.rerun()
-
-    st.markdown("#### Vos comptes actifs")
-    props_to_show = [user_actuel, "Commun"]
-    for prop in props_to_show:
-        if prop in comptes_structure and comptes_structure[prop]:
-            st.markdown(f"**{prop}**")
-            for acc in comptes_structure[prop]:
-                col_txt, col_btn = st.columns([4, 1])
-                with col_txt: st.write(f"- {acc} ({comptes_types_map.get(acc, 'Courant')})")
-                with col_btn:
-                    if st.button("Supprimer", key=f"del_{acc}"):
-                        comptes_structure[prop].remove(acc)
-                        save_comptes_struct(comptes_structure, comptes_types_map)
-                        st.rerun()
-
+    for p in [user_actuel, "Commun"]:
+        if p in comptes_structure:
+            st.markdown(f"**{p}**")
+            for a in comptes_structure[p]:
+                c1,c2 = st.columns([4,1]); c1.write(f"- {a}"); 
+                if c2.button("X", key=f"d_{a}"): comptes_structure[p].remove(a); save_comptes_struct(comptes_structure, comptes_types_map); st.rerun()
+    
     st.markdown("---")
-    t1, t2 = st.tabs(["Catégories", "Mots-Clés Auto"])
+    t1, t2 = st.tabs(["Catégories", "Mots-Clés"])
     with t1:
-        ty = st.selectbox("Type", TYPES, key="sc_type"); new_c = st.text_input("Nouvelle catégorie")
-        if st.button("Ajouter"): 
-            cats_memoire.setdefault(ty, []).append(new_c)
-            save_config_cats(cats_memoire); st.rerun()
-            
-        st.write("Liste actuelle :")
-        st.write(", ".join(cats_memoire.get(ty, [])))
-        
+        ty=st.selectbox("Type", TYPES, key="st"); nc=st.text_input("Nom")
+        if st.button("Ajouter"): cats_memoire.setdefault(ty, []).append(nc); save_config_cats(cats_memoire); st.rerun()
     with t2:
         with st.form("amc"):
-            all_categories = [c for l in cats_memoire.values() for c in l]
-            m = st.text_input("Mot-clé"); c = st.selectbox("Catégorie", all_categories); ty = st.selectbox("Type", TYPES, key="tmc"); co = st.selectbox("Compte", comptes_disponibles)
-            if st.form_submit_button("Lier"): 
-                mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}
-                save_mots_cles(mots_cles_map); st.rerun()
-
+            alc = [c for l in cats_memoire.values() for c in l]
+            m=st.text_input("Mot"); c=st.selectbox("Cat", alc); ty=st.selectbox("Type", TYPES, key="kt"); co=st.selectbox("Cpt", comptes_disponibles)
+            if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
