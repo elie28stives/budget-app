@@ -118,7 +118,7 @@ def apply_custom_style():
             border-radius: 8px !important;
             font-weight: 500 !important;
             border: none !important;
-            padding: 8px 20px !important;
+            padding: 10px 24px !important;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
         }
         div.stButton > button:hover {
@@ -134,13 +134,10 @@ def apply_custom_style():
 
         h1, h2, h3 { color: var(--text-primary) !important; font-family: 'Inter', sans-serif !important; }
         
-        /* TRANSACTIONS CARD */
-        .tx-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #F3F4F6;
+        /* LISTE TRANSACTIONS */
+        .tx-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
         }
     </style>
     """, unsafe_allow_html=True)
@@ -165,7 +162,7 @@ def get_gspread_client():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"Erreur technique de connexion : {e}")
+        st.error(f"Erreur technique : {e}")
         return None
 
 def get_worksheet(client, sheet_name, tab_name):
@@ -219,9 +216,18 @@ def load_configs_cached():
 def clear_cache(): st.cache_data.clear()
 
 # ==========================================
-# 5. LOGIQUE MÉTIER & CALCULS
+# 5. LOGIQUE MÉTIER & STATE
 # ==========================================
 
+def init_session_state():
+    # Initialisation des variables pour la fluidité de la saisie
+    if 'op_date' not in st.session_state: st.session_state.op_date = datetime.today()
+    if 'op_type' not in st.session_state: st.session_state.op_type = "Dépense"
+    if 'op_montant' not in st.session_state: st.session_state.op_montant = 0.0
+    if 'op_titre' not in st.session_state: st.session_state.op_titre = ""
+    if 'op_cat' not in st.session_state: st.session_state.op_cat = "Autre"
+    if 'op_compte' not in st.session_state: st.session_state.op_compte = ""
+    
 def to_excel_download(df):
     output = BytesIO()
     df_export = df.copy()
@@ -293,7 +299,6 @@ def process_configs():
             
     return cats, comptes, objs_list, df_abos, projets_data, comptes_types, mots_cles_dict
 
-# Fonctions de sauvegarde
 def save_config_cats(d): save_data_to_sheet(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in d.items() for c in l]))
 def save_comptes_struct(d, types_map): 
     rows = []
@@ -316,11 +321,12 @@ def save_mots_cles(d):
 
 
 # ==========================================
-# 6. APPLICATION STREAMLIT (LE CŒUR)
+# 6. APPLICATION STREAMLIT
 # ==========================================
 
-st.set_page_config(page_title="Ma Banque", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque V68", layout="wide", page_icon=None)
 apply_custom_style()
+init_session_state()
 
 # Chargement initial des données
 df = load_data_from_sheet(TAB_DATA, COLS_DATA)
@@ -334,20 +340,18 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # ---------------------------------------------------------
-    # CALCUL CENTRALISÉ DES COMPTES (CRITIQUE)
-    # ---------------------------------------------------------
+    # 1. Calcul des comptes dispos
     comptes_user_only = comptes_structure.get(user_actuel, [])
     comptes_communs = comptes_structure.get("Commun", [])
     comptes_visibles = comptes_user_only + comptes_communs
-    comptes_disponibles = list(set(comptes_visibles + ["Autre / Externe"])) # Variable Globale pour les selectbox
+    comptes_disponibles = list(set(comptes_visibles + ["Autre / Externe"]))
     
     soldes = calculer_soldes_reels(df, df_patrimoine, comptes_disponibles)
     
-    total_courant = 0
-    total_epargne = 0
     list_courant = []
     list_epargne = []
+    total_courant = 0
+    total_epargne = 0
     
     for cpt in comptes_visibles:
         val = soldes.get(cpt, 0.0)
@@ -432,7 +436,6 @@ with tabs[0]:
     
     st.markdown("---")
     
-    # 5 DERNIÈRES TRANSACTIONS + FILTRE (DESIGN CORRIGÉ)
     c1, c2 = st.columns([3, 2])
     with c1:
         h_col1, h_col2 = st.columns([1, 1])
@@ -452,12 +455,10 @@ with tabs[0]:
                 bg_icon = "#FFF1F2" if is_dep else "#ECFDF5"
                 txt_color = "#E11D48" if is_dep else "#059669"
                 signe = "-" if is_dep else "+"
-                # Icône textuelle simple
                 icon_char = "💸" if is_dep else "💰"
                 if r['Type'] == "Épargne": icon_char = "🐷"
                 if r['Type'] == "Virement Interne": icon_char = "↔️"
                 
-                # HTML SANS ERREUR D'AFFICHAGE
                 st.markdown(f"""
                 <div class="tx-card" style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
                     <div style="display:flex; align-items:center; gap:15px;">
@@ -496,101 +497,91 @@ with tabs[0]:
         if not has_alert: st.success("Budget maîtrisé !")
 
 # ==========================================
-# TAB 2: OPÉRATIONS (SAISIE, JOURNAL, ABOS)
+# TAB 2: OPÉRATIONS (SAISIE FLUIDE)
 # ==========================================
 with tabs[1]:
     op1, op2, op3 = st.tabs(["Saisie", "Journal", "Abonnements"])
     
-    # 1. SAISIE DE TRANSACTION (RESTITUTION DES FONCTIONNALITÉS)
+    # 1. SAISIE DE TRANSACTION
     with op1:
-        with st.form("add_op"):
+        st.subheader("Nouvelle Transaction")
+        
+        # Pour éviter le lag, on utilise un formulaire unique
+        with st.form("add_op_form"):
             c1, c2, c3 = st.columns(3)
-            date_op = c1.date_input("Date", datetime.today(), key="d_op")
-            type_op = c2.selectbox("Type", TYPES, key="t_op")
-            montant_op = c3.number_input("Montant (€)", min_value=0.0, step=0.01, key="m_op")
+            date_op = c1.date_input("Date", datetime.today())
+            type_op = c2.selectbox("Type", TYPES)
+            montant_op = c3.number_input("Montant (€)", min_value=0.0, step=0.01)
             
             c4, c5 = st.columns(2)
-            titre_op = c4.text_input("Titre", placeholder="Ex: Auchan", key="tit_op")
+            titre_op = c4.text_input("Titre (ex: Auchan)")
             
-            # --- AUTO-COMPLETION ---
-            cat_finale = "Autre"
-            compte_auto = None
-            if titre_op and mots_cles_map:
-                for mc, data in mots_cles_map.items():
-                    if mc in titre_op.lower() and data["Type"] == type_op:
-                        cat_finale = data["Categorie"]
-                        compte_auto = data["Compte"]
-                        break
+            # Suggestion de catégorie (statique dans le form pour fluidité)
+            # Si l'utilisateur veut l'auto-complete, il doit valider une première fois ou on perd la fluidité du form
+            # Compromis: On laisse l'utilisateur choisir.
             
-            # --- GESTION CATÉGORIE + NOUVELLE ---
             cats = cats_memoire.get(type_op, [])
-            # On ajoute "Autre (nouvelle)" à la liste
-            options_cat = cats + ["Autre (nouvelle)"]
+            # Ajout option pour nouvelle catégorie
+            cat_options = cats + ["Autre (nouvelle)"]
+            cat_sel = c5.selectbox("Catégorie", cat_options)
             
-            # Trouver l'index par défaut
-            idx_cat = 0
-            if cat_finale in cats:
-                idx_cat = cats.index(cat_finale)
-            
-            cat_sel = c5.selectbox("Catégorie", options_cat, index=idx_cat)
-            
-            # Si "Autre (nouvelle)" est choisi, on affiche un champ texte
-            cat_finale_val = cat_sel
-            if cat_sel == "Autre (nouvelle)":
-                new_cat_name = st.text_input("Nom de la nouvelle catégorie")
-                if new_cat_name:
-                    cat_finale_val = new_cat_name
-            
+            # Champ pour nouvelle catégorie si sélectionnée
+            new_cat_input = st.text_input("Nom de la nouvelle catégorie (si 'Autre')", placeholder="Entrez le nom...")
+
             st.write("")
             cc1, cc2, cc3 = st.columns(3)
-            idx_cpt = comptes_visibles.index(compte_auto) if (compte_auto and compte_auto in comptes_visibles) else 0
-            c_src = cc1.selectbox("Compte", comptes_visibles, index=idx_cpt)
+            c_src = cc1.selectbox("Compte Source", comptes_visibles)
             
-            # --- GESTION PARTAGE / IMPUTATION ---
-            imput_radio = cc2.radio("Imputation", IMPUTATIONS, horizontal=True)
-            imput_finale = imput_radio
+            # GESTION AVANCÉE DU PARTAGE
+            imput = cc2.radio("Imputation", IMPUTATIONS, horizontal=True)
             
-            # Si "Commun (Autre %)" est choisi, afficher le slider
-            if imput_radio == "Commun (Autre %)":
-                part_pierre = st.slider("Part Pierre (%)", 0, 100, 50)
-                imput_finale = f"Commun ({part_pierre}/{100-part_pierre})"
+            # Slider conditionnel (hack visuel: on l'affiche toujours mais on ne l'utilise que si besoin)
+            part_pierre = cc3.slider("Part Pierre (%) - Si Commun (Autre %)", 0, 100, 50)
             
             # Champs conditionnels
-            c_tgt = ""
-            p_epg = ""
-            paye_par = user_actuel
-            
-            if type_op == "Épargne":
-                c_tgt = st.selectbox("Vers Compte Épargne", [c for c in comptes_visibles if comptes_types_map.get(c) == "Épargne"])
-                p_sel = st.selectbox("Pour Projet", ["Aucun"] + list(projets_config.keys()))
-                if p_sel != "Aucun": p_epg = p_sel
-            elif type_op == "Virement Interne":
-                c_tgt = st.selectbox("Vers Compte", comptes_visibles)
-                imput_finale = "Neutre"
-            
-            if st.form_submit_button("Valider la transaction"):
-                # Sauvegarde nouvelle catégorie si besoin
-                if cat_sel == "Autre (nouvelle)" and new_cat_name:
-                    if type_op not in cats_memoire: cats_memoire[type_op] = []
-                    cats_memoire[type_op].append(new_cat_name)
-                    save_config_cats(cats_memoire)
-                
-                # Création projet auto si besoin
-                if type_op == "Épargne" and p_epg and p_epg not in projets_config:
-                    projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": ""}
-                    save_projets_targets(projets_config)
+            st.divider()
+            st.caption("Options avancées (selon le type)")
+            col_adv1, col_adv2 = st.columns(2)
+            c_tgt = col_adv1.selectbox("Compte Cible (Virement/Epargne)", [""] + comptes_visibles)
+            p_epg = col_adv2.selectbox("Projet lié (Epargne)", ["Aucun"] + list(projets_config.keys()))
 
+            if st.form_submit_button("Valider la transaction", type="primary"):
+                # Logique post-submit
+                
+                # 1. Gestion Catégorie
+                final_cat = cat_sel
+                if cat_sel == "Autre (nouvelle)" and new_cat_input:
+                    final_cat = new_cat_input
+                    # Sauvegarde nouvelle catégorie
+                    if type_op not in cats_memoire: cats_memoire[type_op] = []
+                    if new_cat_input not in cats_memoire[type_op]:
+                        cats_memoire[type_op].append(new_cat_input)
+                        save_config_cats(cats_memoire)
+
+                # 2. Gestion Imputation
+                final_imput = imput
+                if imput == "Commun (Autre %)":
+                    final_imput = f"Commun ({part_pierre}/{100-part_pierre})"
+                elif type_op == "Virement Interne":
+                    final_imput = "Neutre"
+
+                # 3. Gestion Projet
+                final_projet = ""
+                if type_op == "Épargne" and p_epg != "Aucun":
+                    final_projet = p_epg
+
+                # 4. Sauvegarde
                 new_row = {
                     "Date": date_op, "Mois": date_op.month, "Annee": date_op.year,
-                    "Qui_Connecte": user_actuel, "Type": type_op, "Categorie": cat_finale_val,
+                    "Qui_Connecte": user_actuel, "Type": type_op, "Categorie": final_cat,
                     "Titre": titre_op, "Description": "", "Montant": montant_op,
-                    "Paye_Par": paye_par, "Imputation": imput_finale, "Compte_Cible": c_tgt,
-                    "Projet_Epargne": p_epg, "Compte_Source": c_src
+                    "Paye_Par": user_actuel, "Imputation": final_imput, 
+                    "Compte_Cible": c_tgt, "Projet_Epargne": final_projet, "Compte_Source": c_src
                 }
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data_to_sheet(TAB_DATA, df)
-                st.success("Enregistré !")
-                time.sleep(0.5)
+                st.success("Transaction enregistrée !")
+                time.sleep(1)
                 st.rerun()
 
     # 2. JOURNAL
@@ -621,7 +612,7 @@ with tabs[1]:
                 a4, a5 = st.columns(2)
                 c = a4.selectbox("Catégorie", cats_memoire.get("Dépense", [])); cp = a5.selectbox("Compte débité", comptes_visibles)
                 
-                # Gestion Imputation Abo
+                # Ajout de l'imputation pour les abonnements aussi
                 imp_abo = st.selectbox("Imputation", IMPUTATIONS)
                 
                 if st.form_submit_button("Créer"):
@@ -763,6 +754,7 @@ with tabs[4]:
                 st.rerun()
 
     st.markdown("#### Vos comptes actifs")
+    # Affiche uniquement les comptes que l'utilisateur a le droit de modifier (Les siens + Commun)
     props_to_show = [user_actuel, "Commun"]
     for prop in props_to_show:
         if prop in comptes_structure and comptes_structure[prop]:
@@ -781,6 +773,7 @@ with tabs[4]:
         if st.button("Ajouter"): cats_memoire.setdefault(ty, []).append(new_c); save_config_cats(cats_memoire); st.rerun()
     with t2:
         with st.form("amc"):
+            # Liste plate des catégories
             all_categories = [c for l in cats_memoire.values() for c in l]
             m = st.text_input("Mot-clé"); c = st.selectbox("Catégorie", all_categories); ty = st.selectbox("Type", TYPES, key="tmc"); co = st.selectbox("Compte", comptes_disponibles)
             if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
