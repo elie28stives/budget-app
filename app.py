@@ -367,43 +367,197 @@ with tabs[1]:
             ed = st.data_editor(dfe, hide_index=True, column_config={"X": st.column_config.CheckboxColumn("Suppr", width="small")})
             if st.button("Supprimer"): save_data(TAB_DATA, ed[ed["X"]==False].drop(columns=["X"])); st.rerun()
 
+   # 3. ABONNEMENTS (DESIGN REVOLUT / GRILLE)
     with op3:
-        st.subheader("Mes Abonnements")
-        with st.expander("Nouveau"):
-            with st.form("na"):
-                a1,a2,a3 = st.columns(3); n=a1.text_input("Nom"); m=a2.number_input("Montant"); j=a3.number_input("Jour", 1, 31)
-                a4,a5 = st.columns(2); c=a4.selectbox("Cat", cats_mem.get("Dépense", [])); cp=a5.selectbox("Cpt", cpt_visibles)
-                im = st.selectbox("Imp", IMPUTATIONS)
-                if st.form_submit_button("Ajouter"):
-                    df_abos = pd.concat([df_abos, pd.DataFrame([{"Nom": n, "Montant": m, "Jour": j, "Categorie": c, "Compte_Source": cp, "Proprietaire": user_now, "Imputation": im, "Frequence": "Mensuel"}])], ignore_index=True); save_data(TAB_ABONNEMENTS, df_abos); st.rerun()
-        
-        if not df_abos.empty:
-            ma = df_abos[df_abos["Proprietaire"]==user_now]
-            tg = []
-            for ix, r in ma.iterrows():
-                paid = not df_m[(df_m["Titre"]==r["Nom"])&(df_m["Montant"]==float(r["Montant"]))].empty
-                if not paid: tg.append(r)
-            if tg and st.button(f"Générer {len(tg)} manquants"):
-                nt = []
-                for r in tg:
-                    try: d = datetime(a_sel, m_sel, int(r["Jour"])).date()
-                    except: d = datetime(a_sel, m_sel, 28).date()
-                    nt.append({"Date": d, "Mois": m_sel, "Annee": a_sel, "Qui_Connecte": r["Proprietaire"], "Type": "Dépense", "Categorie": r["Categorie"], "Titre": r["Nom"], "Description": "Auto", "Montant": float(r["Montant"]), "Paye_Par": r["Proprietaire"], "Imputation": r["Imputation"], "Compte_Cible": "", "Projet_Epargne": "", "Compte_Source": r["Compte_Source"]})
-                df = pd.concat([df, pd.DataFrame(nt)], ignore_index=True); save_data(TAB_DATA, df); st.rerun()
+        # En-tête avec bouton d'ajout
+        c_head, c_btn = st.columns([3, 1])
+        with c_head:
+            st.markdown("### 📅 Mes Abonnements Fixes")
+        with c_btn:
+            if st.button("➕ Nouvel Abonnement", use_container_width=True):
+                st.session_state['show_new_abo'] = not st.session_state.get('show_new_abo', False)
 
-            for ix, r in ma.iterrows():
-                with st.container():
-                    c1,c2,c3,c4 = st.columns([2,2,1,1])
-                    if not st.session_state.get(f"ed_{ix}", False):
-                        c1.write(f"**{r['Nom']}**"); c2.write(f"{r['Montant']}€ (J{r['Jour']})")
-                        if c3.button("📝", key=f"e_{ix}"): st.session_state[f"ed_{ix}"]=True; st.rerun()
-                        if c4.button("❌", key=f"d_{ix}"): df_abos=df_abos.drop(ix); save_data(TAB_ABONNEMENTS, df_abos); st.rerun()
-                    else:
-                        with st.form(f"fe_{ix}"):
-                            nn=st.text_input("N", value=r['Nom']); nm=st.number_input("M", value=float(r['Montant'])); nj=st.number_input("J", value=int(r['Jour']))
-                            if st.form_submit_button("Ok"):
-                                df_abos.at[ix,'Nom']=nn; df_abos.at[ix,'Montant']=nm; df_abos.at[ix,'Jour']=nj; save_data(TAB_ABONNEMENTS, df_abos); st.session_state[f"ed_{ix}"]=False; st.rerun()
-                    st.markdown("---")
+        # Formulaire d'ajout (caché par défaut)
+        if st.session_state.get('show_new_abo', False):
+            with st.container():
+                st.markdown("""<div style="background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:20px;">""", unsafe_allow_html=True)
+                with st.form("new_abo_form"):
+                    c1, c2, c3 = st.columns(3)
+                    n = c1.text_input("Nom (ex: Netflix)")
+                    m = c2.number_input("Montant (€)", min_value=0.0, step=0.01)
+                    j = c3.number_input("Jour du prélèvement", 1, 31, 1)
+                    
+                    c4, c5, c6 = st.columns(3)
+                    c = c4.selectbox("Catégorie", cats_memoire.get("Dépense", []))
+                    cp = c5.selectbox("Compte débité", comptes_visibles)
+                    im = c6.selectbox("Imputation", IMPUTATIONS)
+                    
+                    if st.form_submit_button("Valider la création", type="primary"):
+                        new_abo = pd.DataFrame([{
+                            "Nom": n, "Montant": m, "Jour": j, 
+                            "Categorie": c, "Compte_Source": cp, 
+                            "Proprietaire": user_actuel, "Imputation": im, 
+                            "Frequence": "Mensuel"
+                        }])
+                        df_abonnements = pd.concat([df_abonnements, new_abo], ignore_index=True)
+                        save_abonnements(df_abonnements)
+                        st.session_state['show_new_abo'] = False
+                        st.success("Abonnement ajouté !")
+                        time.sleep(0.5)
+                        st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        # --- LISTE DES ABONNEMENTS ---
+        if not df_abonnements.empty:
+            # Filtrer pour l'utilisateur
+            my_abos = df_abonnements[df_abonnements["Proprietaire"] == user_actuel]
+            
+            if not my_abos.empty:
+                # 1. Vérification des paiements ce mois-ci
+                to_generate = []
+                abo_status = [] # Liste pour stocker les infos enrichies
+                
+                for idx, row in my_abos.iterrows():
+                    # On cherche si une dépense du même nom et montant existe ce mois-ci
+                    is_paid = not df_mois[
+                        (df_mois["Titre"].str.lower() == row["Nom"].lower()) & 
+                        (df_mois["Montant"] == float(row["Montant"]))
+                    ].empty
+                    
+                    if not is_paid:
+                        to_generate.append(row)
+                    
+                    abo_status.append({
+                        "idx": idx,
+                        "data": row,
+                        "is_paid": is_paid
+                    })
+
+                # 2. Bouton Génération Globale (si manquants)
+                if to_generate:
+                    st.warning(f"⚠️ {len(to_generate)} abonnements n'ont pas encore été débités ce mois-ci.")
+                    if st.button(f"🚀 Générer les {len(to_generate)} transactions manquantes", type="primary", use_container_width=True):
+                        new_txs = []
+                        for r in to_generate:
+                            # Calcul de la date (si jour passé, on met la date réelle, sinon date du jour ou fin de mois)
+                            try: 
+                                date_prevue = datetime(annee_selection, mois_selection, int(r["Jour"])).date()
+                            except: 
+                                date_prevue = datetime(annee_selection, mois_selection, 28).date()
+                            
+                            new_txs.append({
+                                "Date": date_prevue,
+                                "Mois": mois_selection,
+                                "Annee": annee_selection,
+                                "Qui_Connecte": r["Proprietaire"],
+                                "Type": "Dépense",
+                                "Categorie": r["Categorie"],
+                                "Titre": r["Nom"],
+                                "Description": "Abonnement Automatique",
+                                "Montant": float(r["Montant"]),
+                                "Paye_Par": r["Proprietaire"],
+                                "Imputation": r["Imputation"],
+                                "Compte_Cible": "",
+                                "Projet_Epargne": "",
+                                "Compte_Source": r["Compte_Source"]
+                            })
+                        
+                        df = pd.concat([df, pd.DataFrame(new_txs)], ignore_index=True)
+                        save_data_to_sheet(TAB_DATA, df)
+                        st.success("Transactions générées !")
+                        time.sleep(1)
+                        st.rerun()
+                    st.divider()
+
+                # 3. Affichage en Grille (Cards)
+                cols = st.columns(3) # 3 Cartes par ligne
+                
+                for i, item in enumerate(abo_status):
+                    col = cols[i % 3] # Distribution dans les colonnes
+                    idx = item['idx']
+                    r = item['data']
+                    paid = item['is_paid']
+                    
+                    with col:
+                        # Mode Édition
+                        if st.session_state.get(f"edit_abo_{idx}", False):
+                            with st.container():
+                                st.markdown(f"""<div style="border:1px solid #3B82F6; border-radius:12px; padding:10px; background:white;">""", unsafe_allow_html=True)
+                                with st.form(f"edit_abo_form_{idx}"):
+                                    en = st.text_input("Nom", value=r['Nom'])
+                                    em = st.number_input("Montant", value=float(r['Montant']))
+                                    ej = st.number_input("Jour", value=int(r['Jour']))
+                                    
+                                    c_s1, c_s2 = st.columns(2)
+                                    if c_s1.form_submit_button("💾"):
+                                        df_abonnements.at[idx, 'Nom'] = en
+                                        df_abonnements.at[idx, 'Montant'] = em
+                                        df_abonnements.at[idx, 'Jour'] = ej
+                                        save_abonnements(df_abonnements)
+                                        st.session_state[f"edit_abo_{idx}"] = False
+                                        st.rerun()
+                                    if c_s2.form_submit_button("❌"):
+                                        st.session_state[f"edit_abo_{idx}"] = False
+                                        st.rerun()
+                                st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        # Mode Lecture (Carte Visuelle)
+                        else:
+                            # Style dynamique
+                            status_col = "#10B981" if paid else "#F59E0B"
+                            status_bg = "#ECFDF5" if paid else "#FFFBEB"
+                            status_txt = "PAYÉ" if paid else "EN ATTENTE"
+                            initiale = r['Nom'][0].upper() if r['Nom'] else "?"
+                            
+                            # HTML Carte
+                            st.markdown(f"""
+                            <div style="
+                                background-color: white;
+                                border: 1px solid #E5E7EB;
+                                border-radius: 16px;
+                                padding: 15px;
+                                margin-bottom: 15px;
+                                box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+                                position: relative;
+                            ">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <div style="
+                                        width: 35px; height: 35px; 
+                                        background-color: {status_bg}; 
+                                        color: {status_col}; 
+                                        border-radius: 50%; 
+                                        display: flex; align-items: center; justify-content: center; 
+                                        font-weight: 800; font-size: 14px;">
+                                        {initiale}
+                                    </div>
+                                    <div style="background-color: {status_bg}; color: {status_col}; font-size: 9px; font-weight: 700; padding: 4px 8px; border-radius: 10px;">
+                                        {status_txt}
+                                    </div>
+                                </div>
+                                
+                                <div style="font-weight: 700; font-size: 15px; color: #1F2937; margin-bottom: 2px;">{r['Nom']}</div>
+                                <div style="font-weight: 800; font-size: 18px; color: #1F2937; margin-bottom: 8px;">{float(r['Montant']):.2f} €</div>
+                                
+                                <div style="font-size: 11px; color: #6B7280; display:flex; justify-content:space-between; border-top:1px solid #F3F4F6; padding-top:8px;">
+                                    <span>📅 Le {r['Jour']} du mois</span>
+                                    <span>🏷️ {r['Categorie']}</span>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Boutons d'action (petits icônes)
+                            ca1, ca2, void = st.columns([1, 1, 3])
+                            if ca1.button("✏️", key=f"ed_a_{idx}", help="Modifier"):
+                                st.session_state[f"edit_abo_{idx}"] = True
+                                st.rerun()
+                            if ca2.button("🗑️", key=f"del_a_{idx}", help="Supprimer"):
+                                df_abonnements = df_abonnements.drop(idx)
+                                save_abonnements(df_abonnements)
+                                st.rerun()
+            else:
+                st.info("Aucun abonnement configuré pour vous.")
+        else:
+            st.info("Commencez par ajouter un abonnement ci-dessus.")
 
 # TAB 3: ANALYSES (SEPARATION BUDGETS)
 with tabs[2]:
@@ -640,3 +794,4 @@ with tabs[4]:
                 rows = []
                 for mc, data in new_map.items(): rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
                 save_data(TAB_MOTS_CLES, pd.DataFrame(rows)); st.rerun()
+
