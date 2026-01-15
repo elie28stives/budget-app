@@ -475,7 +475,6 @@ with tabs[0]:
     
     # SECTION DU BAS : Dernières Transactions & Alertes
     c1, c2 = st.columns([3, 2])
-    
     with c1:
         # En-tête avec titre et filtre sur la même ligne
         c_titre, c_filtre = st.columns([1, 1])
@@ -834,4 +833,5 @@ with tabs[4]:
             
             m = st.text_input("Mot-clé"); c = st.selectbox("Catégorie", all_categories); ty = st.selectbox("Type", TYPES, key="tmc"); co = st.selectbox("Compte", comptes_disponibles)
             if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
+
 
