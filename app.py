@@ -477,28 +477,88 @@ with tabs[0]:
     c1, c2 = st.columns([3, 2])
     
     with c1:
-        st.subheader("Dernières Transactions")
-        # Récupération des 5 dernières transactions globales de l'utilisateur
-        recent = df[df['Qui_Connecte'] == user_actuel].sort_values(by='Date', ascending=False).head(5)
+        # En-tête avec titre et filtre sur la même ligne
+        c_titre, c_filtre = st.columns([1, 1])
+        with c_titre:
+            st.subheader("Activités")
+        with c_filtre:
+            # Filtre horizontal compact
+            filtre_tx = st.radio(
+                "Filtre transactions", 
+                ["Tout", "Sorties", "Entrées"], 
+                horizontal=True, 
+                label_visibility="collapsed",
+                key="filtre_activite_home"
+            )
+
+        # 1. Récupération des transactions de l'utilisateur
+        tx_data = df[df['Qui_Connecte'] == user_actuel].sort_values(by='Date', ascending=False)
+
+        # 2. Application du filtre
+        if filtre_tx == "Sorties":
+            tx_data = tx_data[tx_data['Type'].isin(["Dépense", "Virement Interne", "Épargne", "Investissement"])]
+        elif filtre_tx == "Entrées":
+            tx_data = tx_data[tx_data['Type'] == "Revenu"]
         
+        # 3. On garde les 5 dernières après filtrage
+        recent = tx_data.head(5)
+        
+        # 4. Affichage style "Liste Bancaire" propre
         if not recent.empty:
             for _, r in recent.iterrows():
-                # Mise en page compacte d'une transaction
-                c1_tx, c2_tx, c3_tx = st.columns([1, 4, 2])
-                with c1_tx:
-                    bg_col = "#FFE5D9" if r['Type'] in ["Dépense", "Virement Interne"] else "#D1FAE5"
-                    st.markdown(f"<div style='background-color:{bg_col}; width:40px; height:40px; border-radius:10px;'></div>", unsafe_allow_html=True)
-                with c2_tx:
-                    st.write(f"**{r['Titre']}**")
-                    st.caption(f"{r['Date']} • {r['Categorie']}")
-                with c3_tx:
-                    col_mt = "#EF4444" if r['Type'] in ["Dépense", "Virement Interne"] else "#10B981"
-                    sig = "-" if r['Type'] in ["Dépense", "Virement Interne"] else "+"
-                    st.markdown(f"<div style='color:{col_mt}; font-weight:bold; text-align:right; font-size:16px;'>{sig}{r['Montant']:.2f} €</div>", unsafe_allow_html=True)
-                st.divider()
+                # Détermination du style (Couleur et Signe)
+                is_depense = r['Type'] in ["Dépense", "Virement Interne", "Épargne", "Investissement"]
+                
+                # Couleurs douces pour le fond de l'icône
+                bg_icon = "#FFF1F2" if is_depense else "#ECFDF5"  # Rouge pastel / Vert pastel
+                # Couleur du texte montant
+                txt_color = "#E11D48" if is_depense else "#059669"
+                signe = "-" if is_depense else "+"
+                # Icône selon le type
+                icon = "💸" if is_depense else "💰"
+                if r['Type'] == "Épargne": icon = "🐷"
+                if r['Type'] == "Virement Interne": icon = "🔄"
+
+                # HTML Card pour un rendu parfait
+                st.markdown(f"""
+                <div style="
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: space-between; 
+                    padding: 12px 0; 
+                    border-bottom: 1px solid #F3F4F6;">
+                    
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="
+                            width: 42px; 
+                            height: 42px; 
+                            border-radius: 10px; 
+                            background-color: {bg_icon}; 
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center; 
+                            font-size: 20px;">
+                            {icon}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1F2937; font-size: 14px;">{r['Titre']}</div>
+                            <div style="font-size: 12px; color: #9CA3AF;">{r['Date'].strftime('%d/%m')} • {r['Categorie']}</div>
+                        </div>
+                    </div>
+
+                    <div style="font-weight: 700; font-size: 15px; color: {txt_color};">
+                        {signe} {r['Montant']:,.2f} €
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            # Petit bouton discret pour voir tout
+            if st.button("Voir tout l'historique", key="btn_see_all_home", use_container_width=True):
+                # Astuce pour switcher d'onglet (nécessite de recharger ou de juste informer l'utilisateur)
+                st.info("Allez dans l'onglet 'Opérations' pour voir l'historique complet.")
+                
         else:
-            st.info("Aucune activité récente.")
-            
+            st.info("Aucune transaction trouvée pour ce filtre.")
     with c2:
         st.subheader("Alertes Budget")
         objs_perso = [o for o in objectifs_list if o["Scope"] in ["Perso", user_actuel]]
@@ -774,3 +834,4 @@ with tabs[4]:
             
             m = st.text_input("Mot-clé"); c = st.selectbox("Catégorie", all_categories); ty = st.selectbox("Type", TYPES, key="tmc"); co = st.selectbox("Compte", comptes_disponibles)
             if st.form_submit_button("Lier"): mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}; save_mots_cles(mots_cles_map); st.rerun()
+
