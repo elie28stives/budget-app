@@ -88,36 +88,24 @@ def get_ws(client, tab):
 def load_data(tab, cols):
     c = get_client()
     if not c: return pd.DataFrame(columns=cols)
-    # Retry logic simple
-    for i in range(3):
-        try:
-            data = get_ws(c, tab).get_all_records()
-            df = pd.DataFrame(data)
-            if df.empty: return pd.DataFrame(columns=cols)
-            for col in cols: 
-                if col not in df.columns: df[col] = ""
-            if "Date" in df.columns: df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
-            return df
-        except Exception as e:
-            if "429" in str(e): time.sleep(2); continue
-            return pd.DataFrame(columns=cols)
-    return pd.DataFrame(columns=cols)
+    try:
+        data = get_ws(c, tab).get_all_records()
+        df = pd.DataFrame(data)
+        if df.empty: return pd.DataFrame(columns=cols)
+        for col in cols: 
+            if col not in df.columns: df[col] = ""
+        if "Date" in df.columns: df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
+        return df
+    except: return pd.DataFrame(columns=cols)
 
 def save_data(tab, df):
     c = get_client()
     ws = get_ws(c, tab)
     df_s = df.copy()
     if "Date" in df_s.columns: df_s["Date"] = df_s["Date"].astype(str)
-    
-    for i in range(3):
-        try:
-            ws.clear()
-            ws.update([df_s.columns.values.tolist()] + df_s.values.tolist())
-            st.cache_data.clear()
-            return
-        except Exception as e:
-            if "429" in str(e): time.sleep(2); continue
-            st.error(f"Erreur sauvegarde: {e}"); return
+    ws.clear()
+    ws.update([df_s.columns.values.tolist()] + df_s.values.tolist())
+    st.cache_data.clear()
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_all_configs():
@@ -190,7 +178,7 @@ def process_data():
 # ==========================================
 # 5. APP MAIN
 # ==========================================
-st.set_page_config(page_title="Ma Banque V75", layout="wide", page_icon=None)
+st.set_page_config(page_title="Ma Banque", layout="wide", page_icon=None)
 apply_custom_style()
 init_state()
 
@@ -402,39 +390,75 @@ with tabs[2]:
         if not df_m.empty:
             fig = px.pie(df_m[df_m["Type"]=="Dépense"], values="Montant", names="Categorie", hole=0.5)
             st.plotly_chart(fig, use_container_width=True)
+            
+            dr = df_m[df_m["Type"]=="Revenu"]; dd = df_m[df_m["Type"]=="Dépense"]
+            rf = dr.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
+            dfd = dd.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
+            lbs = list(set(rf["Categorie"].tolist()+rf["Compte_Source"].tolist()+dfd["Compte_Source"].tolist()+dfd["Categorie"].tolist()))
+            lmp = {n:i for i,n in enumerate(lbs)}
+            s,t,v,c = [],[],[],[]
+            for _,r in rf.iterrows(): s.append(lmp[r["Categorie"]]); t.append(lmp[r["Compte_Source"]]); v.append(r["Montant"]); c.append("green")
+            for _,r in dfd.iterrows(): 
+                if r["Compte_Source"] in lmp: s.append(lmp[r["Compte_Source"]]); t.append(lmp[r["Categorie"]]); v.append(r["Montant"]); c.append("red")
+            if v:
+                fg = go.Figure(data=[go.Sankey(node=dict(pad=15, thickness=20, label=lbs, color="black"), link=dict(source=s, target=t, value=v, color=c))])
+                st.plotly_chart(fg, use_container_width=True)
+                
     with a2:
-        st.markdown("### Mes Budgets")
-        with st.expander("Créer un budget"):
-            with st.form("nob"):
-                c1,c2,c3 = st.columns(3); sc=c1.selectbox("Qui", ["Perso", "Commun"]); ca=c2.selectbox("Cat", cats_mem.get("Dépense", [])); mt=c3.number_input("Max")
-                if st.form_submit_button("Ajouter"): 
+        st.markdown("### 🎯 Mes Budgets")
+        with st.expander("Créer un budget", expanded=False):
+            with st.form("new_obj"):
+                c1,c2,c3 = st.columns(3); sc=c1.selectbox("Scope", ["Perso", "Commun"]); ca=c2.selectbox("Cat", cats_mem.get("Dépense", [])); mt=c3.number_input("Max €")
+                if st.form_submit_button("Ajouter"):
                     objs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt}); save_data(TAB_OBJECTIFS, pd.DataFrame(objs_list)); st.rerun()
         
-        if objs_list:
+        if not objs_list:
+            st.info("Aucun budget défini.")
+        else:
             for i in range(0, len(objs_list), 2):
                 cs = st.columns(2)
                 for j, col in enumerate(cs):
                     if i+j < len(objs_list):
                         idx = i+j; o = objs_list[idx]
                         if o['Scope']=="Perso" and user_now not in USERS: continue
+                        
                         msk = (df_m["Type"]=="Dépense") & (df_m["Categorie"]==o["Categorie"])
                         if o["Scope"]=="Perso": msk = msk & (df_m["Imputation"]=="Perso") & (df_m["Qui_Connecte"]==user_now)
                         else: msk = msk & (df_m["Imputation"].str.contains("Commun"))
+                        
                         real = df_m[msk]["Montant"].sum(); targ = float(o["Montant"]); rat = real/targ if targ>0 else 0
-                        bc = "#EF4444" if rat>=1 else ("#F59E0B" if rat>=0.8 else "#10B981")
+                        bcol = "#EF4444" if rat>=1 else ("#F59E0B" if rat>=0.8 else "#10B981")
+                        sttxt = "DÉPASSÉ" if rat>=1 else ("ATTENTION" if rat>=0.8 else "OK")
+                        
                         with col:
-                            st.markdown(f"""<div class="proj-card"><div style="display:flex; justify-content:space-between;"><b>{o['Categorie']}</b><span style="color:#888">{o['Scope']}</span></div><div style="font-weight:bold; color:{bc};">{real:.0f} / {targ:.0f} €</div><div style="background:#eee;height:6px;border-radius:3px;margin-top:5px;"><div style="width:{min(rat*100,100)}%;background:{bc};height:100%;border-radius:3px;"></div></div></div>""", unsafe_allow_html=True)
-                            if st.button("Suppr", key=f"do_{idx}"): objs_list.pop(idx); save_data(TAB_OBJECTIFS, pd.DataFrame(objs_list)); st.rerun()
+                            st.markdown(f"""
+                            <div style="background:white; border-radius:12px; padding:15px; border:1px solid #eee; margin-bottom:10px;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                                    <div style="font-weight:bold;">{o['Categorie']}</div>
+                                    <div style="font-size:12px; color:#888;">{o['Scope']}</div>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                    <div style="font-weight:bold; color:{bcol};">{real:.0f} €</div>
+                                    <div style="font-size:12px;">sur {targ:.0f} €</div>
+                                </div>
+                                <div style="width:100%; background:#eee; height:6px; border-radius:3px;">
+                                    <div style="width:{min(rat*100, 100)}%; background:{bcol}; height:100%; border-radius:3px;"></div>
+                                </div>
+                                <div style="text-align:right; font-size:10px; font-weight:bold; color:{bcol}; margin-top:5px;">{sttxt}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button("Suppr", key=f"do_{idx}"):
+                                objs_list.pop(idx); save_data(TAB_OBJECTIFS, pd.DataFrame(objs_list)); st.rerun()
 
 # TAB 4: PATRIMOINE
 with tabs[3]:
     page_header("Patrimoine")
-    ac = st.selectbox("Compte", cpt_visibles)
-    if ac:
-        sl = soldes.get(ac, 0.0)
+    acc_choice = st.selectbox("Compte", cpt_visibles)
+    if acc_choice:
+        sl = soldes.get(acc_choice, 0.0)
         cl = "green" if sl>=0 else "red"
         st.markdown(f"## <span style='color:{cl}'>{sl:,.2f} €</span>", unsafe_allow_html=True)
-        mk = (df["Compte_Source"]==ac)|(df["Compte_Cible"]==ac)
+        mk = (df["Compte_Source"]==acc_choice)|(df["Compte_Cible"]==acc_choice)
         st.dataframe(df[mk].sort_values(by="Date", ascending=False).head(10)[["Date","Titre","Montant","Type"]], use_container_width=True, hide_index=True)
 
     st.markdown("---")
@@ -529,12 +553,12 @@ with tabs[3]:
                         st.success("Supprimé")
                         time.sleep(0.5)
                         st.rerun()
-    
-    with s2:
+
+    with st2: # <--- CORRECTION DU BUG ICI (c'était 'with s2:')
         with st.form("adj"):
             d=st.date_input("Date"); m=st.number_input("Solde Réel")
             if st.form_submit_button("Enregistrer"):
-                df_pat = pd.concat([df_pat, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":ac,"Montant":m,"Proprietaire":user_now}])], ignore_index=True); save_data(TAB_PATRIMOINE, df_pat); st.rerun()
+                df_pat = pd.concat([df_pat, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":acc_choice,"Montant":m,"Proprietaire":user_now}])], ignore_index=True); save_data(TAB_PATRIMOINE, df_pat); st.rerun()
 
 # TAB 5: REGLAGES
 with tabs[4]:
@@ -544,11 +568,11 @@ with tabs[4]:
             n=st.text_input("Nom"); t=st.selectbox("Type", TYPES_COMPTE); c=st.checkbox("Commun")
             if st.form_submit_button("Ajouter"):
                 p = "Commun" if c else user_now
-                if n and n not in cpt_struct.get(p, []):
+                if n not in cpt_struct.get(p, []):
                     cpt_struct.setdefault(p, []).append(n)
                     rows = []
                     for pr, l in cpt_struct.items():
-                        for ct in l: rows.append({"Proprietaire": pr, "Compte": ct, "Type": cpt_types.get(ct, t)}) # Save type
+                        for ct in l: rows.append({"Proprietaire": pr, "Compte": ct, "Type": cpt_types.get(ct, t)})
                     save_data(TAB_COMPTES, pd.DataFrame(rows)); st.rerun()
     
     st.markdown("#### Comptes Actifs")
