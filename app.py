@@ -26,7 +26,6 @@ TAB_MOTS_CLES = "Mots_Cles"
 USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
 IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
-FREQUENCES = ["Mensuel", "Annuel", "Trimestriel", "Hebdomadaire"]
 TYPES_COMPTE = ["Courant", "Épargne"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
@@ -66,6 +65,7 @@ def apply_custom_style():
         .cat-badge { display: inline-block; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: 600; margin: 0 5px 5px 0; border: 1px solid transparent; }
         .cat-badge.depense { background-color: #FFF1F2; color: #991b1b; }
         .cat-badge.revenu { background-color: #ECFDF5; color: #065f46; }
+        .cat-badge.epargne { background-color: #EFF6FF; color: #1e40af; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -74,7 +74,7 @@ def page_header(title, subtitle=None):
     if subtitle: st.markdown(f"<p style='font-size:14px; color:#6B7280; margin-bottom:20px;'>{subtitle}</p>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. BACKEND (GSPREAD)
+# 3. BACKEND (GSPREAD AVEC RETRY)
 # ==============================================================================
 @st.cache_resource
 def get_client():
@@ -169,6 +169,7 @@ def calc_soldes(df_t, df_p, comptes):
 def process_data():
     raw = load_all_configs()
     
+    # Catégories
     cats = {k: [] for k in TYPES}
     if not raw[0].empty:
         for _, r in raw[0].iterrows():
@@ -176,17 +177,20 @@ def process_data():
                 cats[r["Type"]].append(r["Categorie"])
     if not cats["Dépense"]: cats["Dépense"] = ["Alimentation", "Loyer"]
     
+    # Comptes
     comptes, c_types = {}, {}
     if not raw[1].empty:
         for _, r in raw[1].iterrows():
             comptes.setdefault(r["Proprietaire"], []).append(r["Compte"])
             c_types[r["Compte"]] = r.get("Type", "Courant")
             
+    # Projets
     projets = {}
     if not raw[4].empty:
         for _, r in raw[4].iterrows():
             projets[r["Projet"]] = {"Cible": float(r["Cible"]), "Proprietaire": r.get("Proprietaire", "Commun"), "Date_Fin": r["Date_Fin"]}
             
+    # Mots clés
     mots = {r["Mot_Cle"].lower(): {"Categorie":r["Categorie"], "Type":r["Type"], "Compte":r["Compte"]} for _, r in raw[5].iterrows()} if not raw[5].empty else {}
     
     return cats, comptes, raw[2].to_dict('records'), raw[3], projets, c_types, mots
@@ -194,10 +198,11 @@ def process_data():
 # ==============================================================================
 # 5. APP MAIN
 # ==============================================================================
-st.set_page_config(page_title="Ma Banque V78", layout="wide", page_icon="🏦")
+st.set_page_config(page_title="Ma Banque V79", layout="wide", page_icon="🏦")
 apply_custom_style()
 init_state()
 
+# Chargement données
 df = load_data(TAB_DATA, COLS_DATA)
 df_patrimoine = load_data(TAB_PATRIMOINE, COLS_PAT)
 cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_data()
@@ -451,7 +456,7 @@ with tabs[2]:
                 if st.form_submit_button("Ajouter"): 
                     objectifs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt}); save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list)); st.rerun()
         
-        if objs_list:
+        if objectifs_list:
             # Séparation Perso / Commun
             b_perso = [o for o in objectifs_list if o['Scope'] == "Perso"]
             b_commun = [o for o in objectifs_list if o['Scope'] == "Commun"]
@@ -466,7 +471,7 @@ with tabs[2]:
                         real_idx = objectifs_list.index(o)
                         
                         msk = (df_mois["Type"]=="Dépense") & (df_mois["Categorie"]==o["Categorie"])
-                        if o["Scope"]=="Perso": msk = msk & (df_mois["Imputation"]=="Perso") & (df_mois["Qui_Connecte"]==user_now)
+                        if o["Scope"]=="Perso": msk = msk & (df_mois["Imputation"]=="Perso") & (df_mois["Qui_Connecte"]==user_actuel)
                         else: msk = msk & (df_mois["Imputation"].str.contains("Commun"))
                         
                         real = df_mois[msk]["Montant"].sum(); targ = float(o["Montant"]); rat = real/targ if targ>0 else 0
@@ -534,7 +539,7 @@ with tabs[3]:
                 if st.session_state.get(f"edp_{p}", False):
                     with st.form(f"fep_{p}"):
                         nt = st.number_input("Nouvelle Cible", value=float(d["Cible"]))
-                        np = st.selectbox("Propriétaire", ["Commun", user_now], index=0 if prop=="Commun" else 1)
+                        np = st.selectbox("Propriétaire", ["Commun", user_actuel], index=0 if prop=="Commun" else 1)
                         if st.form_submit_button("Sauvegarder"):
                             projets_config[p]["Cible"] = nt; projets_config[p]["Proprietaire"] = np
                             rows = []
@@ -543,7 +548,7 @@ with tabs[3]:
 
         with st.expander("➕ Nouveau Projet"):
             with st.form("new_proj"):
-                n=st.text_input("Nom"); t=st.number_input("Cible"); prop=st.selectbox("Pour qui ?", ["Commun", user_now])
+                n=st.text_input("Nom"); t=st.number_input("Cible"); prop=st.selectbox("Pour qui ?", ["Commun", user_actuel])
                 if st.form_submit_button("Créer"): 
                     projets_config[n]={"Cible":t, "Date_Fin":"", "Proprietaire": prop}
                     rows = []
@@ -554,7 +559,7 @@ with tabs[3]:
         with st.form("adj"):
             d=st.date_input("Date"); m=st.number_input("Solde Réel")
             if st.form_submit_button("Enregistrer"):
-                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":ac,"Montant":m,"Proprietaire":user_now}])], ignore_index=True); save_data(TAB_PATRIMOINE, df_patrimoine); st.rerun()
+                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":ac,"Montant":m,"Proprietaire":user_actuel}])], ignore_index=True); save_data(TAB_PATRIMOINE, df_patrimoine); st.rerun()
 
 # TAB 5: REGLAGES
 with tabs[4]:
@@ -599,7 +604,7 @@ with tabs[4]:
             with st.form("nac"):
                 n=st.text_input("Nom"); t=st.selectbox("Type", TYPES_COMPTE); c=st.checkbox("Commun")
                 if st.form_submit_button("Ajouter"):
-                    p = "Commun" if c else user_now
+                    p = "Commun" if c else user_actuel
                     if n and n not in comptes_structure.get(p, []):
                         comptes_structure.setdefault(p, []).append(n)
                         rows = []
@@ -608,7 +613,7 @@ with tabs[4]:
                         save_data(TAB_COMPTES, pd.DataFrame(rows)); st.rerun()
         
         st.markdown("#### Vos comptes")
-        for p in [user_now, "Commun"]:
+        for p in [user_actuel, "Commun"]:
             if p in comptes_structure:
                 st.caption(p)
                 for a in comptes_structure[p]:
