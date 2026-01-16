@@ -1494,90 +1494,237 @@ with tabs[3]:
 
 # TAB 5: REGLAGES
 with tabs[4]:
-    page_header("Configuration")
+    page_header("Configuration", "Personnalisez vos catégories, comptes et automatisations")
+    
     c_t1, c_t2, c_t3 = st.tabs(["🏷️ Catégories", "💳 Comptes", "⚡ Automatisation"])
     
-    # 1. Catégories
+    # === 1. CATÉGORIES ===
     with c_t1:
-        st.markdown("### Ajouter une catégorie")
-        c1, c2, c3 = st.columns([2, 3, 1])
-        ty = c1.selectbox("Type", TYPES, key="sc_type", label_visibility="collapsed")
-        new_c = c2.text_input("Nom", key="ncat", placeholder="Nouvelle catégorie", label_visibility="collapsed")
-        if c3.button("Ajouter", use_container_width=True): 
-            cats_memoire.setdefault(ty, []).append(new_c); save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l])); st.rerun()
+        st.markdown("### Gérer les catégories")
+        st.caption("Organisez vos transactions par catégories personnalisées")
+        
+        # Ajout de catégorie
+        with st.container():
+            st.markdown("""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #1F2937; margin-bottom: 1rem;">➕ Ajouter une catégorie</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            c1, c2, c3 = st.columns([2, 3, 1])
+            ty = c1.selectbox("Type", TYPES, key="sc_type")
+            new_c = c2.text_input("Nom de la catégorie", key="ncat", placeholder="Ex: Restaurant, Salaire...")
+            if c3.button("✅ Ajouter", use_container_width=True, key="add_cat_btn"):
+                if new_c:
+                    cats_memoire.setdefault(ty, []).append(new_c)
+                    save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
+                    st.success(f"✅ Catégorie '{new_c}' ajoutée !")
+                    time.sleep(0.5)
+                    st.rerun()
         
         st.write("")
-        col_dep, col_rev = st.columns(2)
-        with col_dep:
-            st.caption("Dépenses")
-            for c in cats_memoire.get("Dépense", []):
-                st.markdown(f'<span class="cat-badge depense">{c}</span>', unsafe_allow_html=True)
-            to_del_dep = st.multiselect("Supprimer (Dépenses)", cats_memoire.get("Dépense", []))
-            if to_del_dep and st.button("🗑️ Confirmer (Dépenses)"):
-                for d in to_del_dep: cats_memoire["Dépense"].remove(d)
-                save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l])); st.rerun()
-
-        with col_rev:
-            st.caption("Revenus & Épargne")
-            others = cats_memoire.get("Revenu", []) + cats_memoire.get("Épargne", [])
-            for c in others:
-                st.markdown(f'<span class="cat-badge revenu">{c}</span>', unsafe_allow_html=True)
-            to_del_oth = st.multiselect("Supprimer (Autres)", others)
-            if to_del_oth and st.button("🗑️ Confirmer (Autres)"):
-                for d in to_del_oth:
-                    for t in ["Revenu", "Épargne"]: 
-                        if d in cats_memoire.get(t, []): cats_memoire[t].remove(d)
-                save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l])); st.rerun()
-
-    # 2. Comptes
-    with c_t2:
-        with st.expander("Ajouter un compte", expanded=False):
-            with st.form("nac"):
-                n=st.text_input("Nom"); t=st.selectbox("Type", TYPES_COMPTE); c=st.checkbox("Commun")
-                if st.form_submit_button("Ajouter"):
-                    p = "Commun" if c else user_actuel
-                    if n and n not in comptes_structure.get(p, []):
-                        comptes_structure.setdefault(p, []).append(n)
-                        rows = []
-                        for pr, l in comptes_structure.items():
-                            for ct in l: rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, t)})
-                        save_data(TAB_COMPTES, pd.DataFrame(rows)); st.rerun()
         
-        st.markdown("#### Vos comptes")
-        for p in [user_actuel, "Commun"]:
-            if p in comptes_structure:
-                st.caption(p)
-                for a in comptes_structure[p]:
-                    c1,c2 = st.columns([4,1])
-                    with c1: st.markdown(f"💳 **{a}** <span style='color:grey'>({comptes_types_map.get(a, 'Courant')})</span>", unsafe_allow_html=True)
-                    if c2.button("Suppr", key=f"del_{a}"): 
-                        comptes_structure[p].remove(a)
-                        rows = []
-                        for pr, l in comptes_structure.items():
-                            for ct in l: rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
-                        save_data(TAB_COMPTES, pd.DataFrame(rows)); st.rerun()
+        # Affichage des catégories
+        col_dep, col_rev = st.columns(2)
+        
+        with col_dep:
+            st.markdown("""
+            <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #DC2626; margin: 0;">💸 Dépenses</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if cats_memoire.get("Dépense", []):
+                for c in cats_memoire.get("Dépense", []):
+                    st.markdown(f'<span class="cat-badge depense">{c}</span>', unsafe_allow_html=True)
+                
+                st.write("")
+                to_del_dep = st.multiselect("Supprimer des catégories", cats_memoire.get("Dépense", []), key="del_dep")
+                if to_del_dep:
+                    if st.button("🗑️ Confirmer la suppression", use_container_width=True, key="confirm_del_dep"):
+                        for d in to_del_dep:
+                            cats_memoire["Dépense"].remove(d)
+                        save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
+                        st.success("✅ Catégories supprimées !")
+                        time.sleep(0.5)
+                        st.rerun()
+            else:
+                st.info("Aucune catégorie de dépense")
+        
+        with col_rev:
+            st.markdown("""
+            <div style="background: #F0FDF4; border: 1px solid #86EFAC; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #16A34A; margin: 0;">💰 Revenus & Épargne</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            others = cats_memoire.get("Revenu", []) + cats_memoire.get("Épargne", [])
+            if others:
+                for c in others:
+                    st.markdown(f'<span class="cat-badge revenu">{c}</span>', unsafe_allow_html=True)
+                
+                st.write("")
+                to_del_oth = st.multiselect("Supprimer des catégories", others, key="del_oth")
+                if to_del_oth:
+                    if st.button("🗑️ Confirmer la suppression", use_container_width=True, key="confirm_del_oth"):
+                        for d in to_del_oth:
+                            for t in ["Revenu", "Épargne"]:
+                                if d in cats_memoire.get(t, []):
+                                    cats_memoire[t].remove(d)
+                        save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
+                        st.success("✅ Catégories supprimées !")
+                        time.sleep(0.5)
+                        st.rerun()
+            else:
+                st.info("Aucune catégorie de revenu/épargne")
 
-    # 3. Mots-Clés
+    # === 2. COMPTES ===
+    with c_t2:
+        st.markdown("### Gérer les comptes")
+        st.caption("Ajoutez et organisez vos comptes bancaires")
+        
+        # Ajout de compte
+        col_add, col_list = st.columns([1, 1])
+        
+        with col_add:
+            st.markdown("""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #1F2937; margin-bottom: 1rem;">➕ Ajouter un compte</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.form("nac"):
+                n = st.text_input("Nom du compte", placeholder="Ex: Compte Courant BNP")
+                t = st.selectbox("Type de compte", TYPES_COMPTE)
+                c = st.checkbox("Compte commun")
+                
+                if st.form_submit_button("✅ Créer le compte", use_container_width=True):
+                    if n:
+                        p = "Commun" if c else user_actuel
+                        if n not in comptes_structure.get(p, []):
+                            comptes_structure.setdefault(p, []).append(n)
+                            rows = []
+                            for pr, l in comptes_structure.items():
+                                for ct in l:
+                                    rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, t)})
+                            save_data(TAB_COMPTES, pd.DataFrame(rows))
+                            st.success(f"✅ Compte '{n}' créé !")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Ce compte existe déjà !")
+                    else:
+                        st.warning("Veuillez entrer un nom de compte")
+        
+        with col_list:
+            st.markdown("""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #1F2937; margin-bottom: 1rem;">📋 Mes comptes</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            for p in [user_actuel, "Commun"]:
+                if p in comptes_structure and comptes_structure[p]:
+                    st.markdown(f"**{p}**")
+                    for a in comptes_structure[p]:
+                        compte_type = comptes_types_map.get(a, 'Courant')
+                        icon = "💰" if compte_type == "Épargne" else "💳"
+                        
+                        col_name, col_del = st.columns([4, 1])
+                        with col_name:
+                            st.markdown(f"""
+                            <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
+                                <span style="font-size: 16px; margin-right: 0.5rem;">{icon}</span>
+                                <span style="font-weight: 600; color: #1F2937;">{a}</span>
+                                <span style="color: #6B7280; font-size: 12px; margin-left: 0.5rem;">• {compte_type}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with col_del:
+                            if st.button("🗑️", key=f"del_{a}", use_container_width=True):
+                                comptes_structure[p].remove(a)
+                                rows = []
+                                for pr, l in comptes_structure.items():
+                                    for ct in l:
+                                        rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
+                                save_data(TAB_COMPTES, pd.DataFrame(rows))
+                                st.rerun()
+                    st.write("")
+
+    # === 3. AUTOMATISATION ===
     with c_t3:
+        st.markdown("### Règles d'automatisation")
+        st.caption("Créez des règles pour catégoriser automatiquement vos transactions")
+        
+        # Ajout de règle
+        st.markdown("""
+        <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+            <h4 style="font-size: 14px; font-weight: 700; color: #1F2937; margin-bottom: 1rem;">➕ Créer une règle</h4>
+        </div>
+        """, unsafe_allow_html=True)
+        
         with st.form("amc"):
             alc = [c for l in cats_memoire.values() for c in l]
-            m=st.text_input("Si le titre contient...", placeholder="ex: Uber"); c=st.selectbox("Catégorie à appliquer", alc); ty=st.selectbox("Type", TYPES, key="kt"); co=st.selectbox("Compte par défaut", cpt_calc)
-            if st.form_submit_button("Créer la règle"): 
-                mots_cles_map[m.lower()] = {"Categorie":c,"Type":ty,"Compte":co}
-                rows = []
-                for mc, data in mots_cles_map.items(): rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
-                save_data(TAB_MOTS_CLES, pd.DataFrame(rows)); st.rerun()
+            
+            col1, col2 = st.columns(2)
+            m = col1.text_input("Si le titre contient", placeholder="Ex: Uber, Netflix, Carrefour...")
+            c = col2.selectbox("Appliquer la catégorie", alc)
+            
+            col3, col4 = st.columns(2)
+            ty = col3.selectbox("Type de transaction", TYPES, key="kt")
+            co = col4.selectbox("Compte par défaut", cpt_calc)
+            
+            if st.form_submit_button("✅ Créer la règle", use_container_width=True):
+                if m:
+                    mots_cles_map[m.lower()] = {"Categorie": c, "Type": ty, "Compte": co}
+                    rows = []
+                    for mc, data in mots_cles_map.items():
+                        rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
+                    save_data(TAB_MOTS_CLES, pd.DataFrame(rows))
+                    st.success(f"✅ Règle créée pour '{m}' !")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("Veuillez entrer un mot-clé")
         
+        # Affichage des règles existantes
         if mots_cles_map:
-            st.write("Règles actives :")
-            data_rules = [{"Mot-Clé": k, "Catégorie": v["Categorie"], "Compte": v["Compte"]} for k,v in mots_cles_map.items()]
-            edited_df = st.data_editor(pd.DataFrame(data_rules), num_rows="dynamic", use_container_width=True)
-            if st.button("💾 Sauvegarder les modifications"):
-                new_map = {}
-                for _, row in edited_df.iterrows():
-                    if row["Mot-Clé"]:
-                        orig_type = mots_cles_map.get(row["Mot-Clé"], {}).get("Type", "Dépense")
-                        new_map[row["Mot-Clé"].lower()] = {"Categorie": row["Catégorie"], "Type": orig_type, "Compte": row["Compte"]}
-                rows = []
-                for mc, data in new_map.items(): rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
-                save_data(TAB_MOTS_CLES, pd.DataFrame(rows)); st.rerun()
+            st.markdown("### 📋 Règles actives")
+            st.caption(f"{len(mots_cles_map)} règle(s) configurée(s)")
+            
+            for idx, (k, v) in enumerate(mots_cles_map.items()):
+                with st.container():
+                    col_info, col_del = st.columns([5, 1])
+                    
+                    with col_info:
+                        st.markdown(f"""
+                        <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem; animation: fadeIn 0.3s ease;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; color: #1F2937; margin-bottom: 0.5rem;">
+                                        <span style="background: #EFF6FF; color: #2563EB; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-right: 0.5rem;">"{k}"</span>
+                                        → {v["Categorie"]}
+                                    </div>
+                                    <div style="font-size: 12px; color: #6B7280;">
+                                        Type: {v["Type"]} • Compte: {v["Compte"]}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col_del:
+                        if st.button("🗑️", key=f"del_rule_{idx}", use_container_width=True):
+                            del mots_cles_map[k]
+                            rows = []
+                            for mc, data in mots_cles_map.items():
+                                rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
+                            save_data(TAB_MOTS_CLES, pd.DataFrame(rows))
+                            st.rerun()
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem 2rem; background: white; border-radius: 12px; border: 2px dashed #E5E7EB;">
+                <div style="font-size: 48px; margin-bottom: 1rem; opacity: 0.5;">⚡</div>
+                <h4 style="color: #1F2937; margin-bottom: 0.5rem; font-weight: 700;">Aucune règle configurée</h4>
+                <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez des règles pour automatiser la catégorisation de vos transactions</p>
+            </div>
+            """, unsafe_allow_html=True)
