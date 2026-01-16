@@ -989,65 +989,67 @@ with tabs[2]:
             st.markdown("---")
             st.write("")
             
-            # === SANKEY DIAGRAM ===
-            st.markdown("### 🌊 Flux financiers du mois")
-            st.caption("Visualisation des mouvements d'argent entre revenus, comptes et dépenses")
+            # === ÉVOLUTION PAR CATÉGORIE ===
+            st.markdown("### 📊 Comparaison Revenus vs Dépenses")
             
-            dr = df_mois[df_mois["Type"]=="Revenu"]
-            dd = df_mois[df_mois["Type"]=="Dépense"]
+            # Préparation des données
+            revenus_cat = df_mois[df_mois["Type"]=="Revenu"].groupby("Categorie")["Montant"].sum().reset_index()
+            depenses_cat = df_mois[df_mois["Type"]=="Dépense"].groupby("Categorie")["Montant"].sum().reset_index()
             
-            if not dr.empty or not dd.empty:
-                rf = dr.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
-                dfd = dd.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
+            if not revenus_cat.empty or not depenses_cat.empty:
+                col_graph1, col_graph2 = st.columns(2)
                 
-                lbs = list(set(rf["Categorie"].tolist() + rf["Compte_Source"].tolist() + dfd["Compte_Source"].tolist() + dfd["Categorie"].tolist()))
-                lmp = {n:i for i,n in enumerate(lbs)}
-                
-                s, t, v, c = [], [], [], []
-                
-                # Revenus → Comptes (vert)
-                for _, r in rf.iterrows():
-                    s.append(lmp[r["Categorie"]])
-                    t.append(lmp[r["Compte_Source"]])
-                    v.append(r["Montant"])
-                    c.append("rgba(16, 185, 129, 0.4)")
-                
-                # Comptes → Dépenses (rouge)
-                for _, r in dfd.iterrows():
-                    if r["Compte_Source"] in lmp:
-                        s.append(lmp[r["Compte_Source"]])
-                        t.append(lmp[r["Categorie"]])
-                        v.append(r["Montant"])
-                        c.append("rgba(239, 68, 68, 0.4)")
-                
-                if v:
-                    fg = go.Figure(data=[go.Sankey(
-                        node=dict(
-                            pad=20,
-                            thickness=20,
-                            line=dict(color="white", width=2),
-                            label=lbs,
-                            color="#4F46E5"
-                        ),
-                        link=dict(
-                            source=s,
-                            target=t,
-                            value=v,
-                            color=c
+                with col_graph1:
+                    st.markdown("#### 💰 Revenus par catégorie")
+                    if not revenus_cat.empty:
+                        fig_rev = go.Figure(data=[
+                            go.Bar(
+                                x=revenus_cat["Categorie"],
+                                y=revenus_cat["Montant"],
+                                marker_color='#10B981',
+                                text=revenus_cat["Montant"].apply(lambda x: f'{x:,.0f} €'),
+                                textposition='outside',
+                                hovertemplate='<b>%{x}</b><br>%{y:,.0f} €<extra></extra>'
+                            )
+                        ])
+                        fig_rev.update_layout(
+                            height=350,
+                            margin=dict(t=20, b=20, l=20, r=20),
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            showlegend=False,
+                            xaxis=dict(showgrid=False, title=""),
+                            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', title="Montant (€)")
                         )
-                    )])
-                    
-                    fg.update_layout(
-                        height=500,
-                        margin=dict(t=10, b=10, l=10, r=10),
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(size=12, family="Inter")
-                    )
-                    
-                    st.plotly_chart(fg, use_container_width=True)
-                else:
-                    st.info("Pas assez de données pour afficher les flux")
+                        st.plotly_chart(fig_rev, use_container_width=True)
+                    else:
+                        st.info("Aucun revenu")
+                
+                with col_graph2:
+                    st.markdown("#### 💸 Dépenses par catégorie")
+                    if not depenses_cat.empty:
+                        fig_dep = go.Figure(data=[
+                            go.Bar(
+                                x=depenses_cat["Categorie"],
+                                y=depenses_cat["Montant"],
+                                marker_color='#EF4444',
+                                text=depenses_cat["Montant"].apply(lambda x: f'{x:,.0f} €'),
+                                textposition='outside',
+                                hovertemplate='<b>%{x}</b><br>%{y:,.0f} €<extra></extra>'
+                            )
+                        ])
+                        fig_dep.update_layout(
+                            height=350,
+                            margin=dict(t=20, b=20, l=20, r=20),
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            showlegend=False,
+                            xaxis=dict(showgrid=False, title=""),
+                            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', title="Montant (€)")
+                        )
+                        st.plotly_chart(fig_dep, use_container_width=True)
+                    else:
+                        st.info("Aucune dépense")
             else:
                 st.info("Aucune transaction ce mois-ci")
         else:
