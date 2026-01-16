@@ -875,22 +875,189 @@ with tabs[1]:
 with tabs[2]:
     a1, a2 = st.tabs(["Vue Globale", "Budgets"])
     with a1:
+        page_header("Vue Globale", f"Analyse de {m_nom} {a_sel}")
+        
         if not df_mois.empty:
-            fig = px.pie(df_mois[df_mois["Type"]=="Dépense"], values="Montant", names="Categorie", hole=0.5)
-            st.plotly_chart(fig, use_container_width=True)
+            # === RÉSUMÉ EN CHIFFRES ===
+            st.markdown("### 📊 Résumé du mois")
+            col1, col2, col3, col4 = st.columns(4)
             
-            dr = df_mois[df_mois["Type"]=="Revenu"]; dd = df_mois[df_mois["Type"]=="Dépense"]
-            rf = dr.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
-            dfd = dd.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
-            lbs = list(set(rf["Categorie"].tolist()+rf["Compte_Source"].tolist()+dfd["Compte_Source"].tolist()+dfd["Categorie"].tolist()))
-            lmp = {n:i for i,n in enumerate(lbs)}
-            s,t,v,c = [],[],[],[]
-            for _,r in rf.iterrows(): s.append(lmp[r["Categorie"]]); t.append(lmp[r["Compte_Source"]]); v.append(r["Montant"]); c.append("green")
-            for _,r in dfd.iterrows(): 
-                if r["Compte_Source"] in lmp: s.append(lmp[r["Compte_Source"]]); t.append(lmp[r["Categorie"]]); v.append(r["Montant"]); c.append("red")
-            if v:
-                fg = go.Figure(data=[go.Sankey(node=dict(pad=15, thickness=20, label=lbs, color="black"), link=dict(source=s, target=t, value=v, color=c))])
-                st.plotly_chart(fg, use_container_width=True)
+            total_revenus = df_mois[df_mois["Type"]=="Revenu"]["Montant"].sum()
+            total_depenses = df_mois[df_mois["Type"]=="Dépense"]["Montant"].sum()
+            total_epargne = df_mois[df_mois["Type"]=="Épargne"]["Montant"].sum()
+            solde = total_revenus - total_depenses
+            
+            with col1:
+                st.markdown(f"""
+                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease;">
+                    <div style="color: #10B981; font-size: 32px; margin-bottom: 0.5rem;">↑</div>
+                    <div style="color: #6B7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Revenus</div>
+                    <div style="color: #10B981; font-size: 24px; font-weight: 700;">+{total_revenus:,.0f} €</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease 0.1s; animation-fill-mode: both;">
+                    <div style="color: #EF4444; font-size: 32px; margin-bottom: 0.5rem;">↓</div>
+                    <div style="color: #6B7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Dépenses</div>
+                    <div style="color: #EF4444; font-size: 24px; font-weight: 700;">-{total_depenses:,.0f} €</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease 0.2s; animation-fill-mode: both;">
+                    <div style="color: #4F46E5; font-size: 32px; margin-bottom: 0.5rem;">→</div>
+                    <div style="color: #6B7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Épargne</div>
+                    <div style="color: #4F46E5; font-size: 24px; font-weight: 700;">{total_epargne:,.0f} €</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                solde_color = "#10B981" if solde >= 0 else "#EF4444"
+                solde_sign = "+" if solde >= 0 else ""
+                st.markdown(f"""
+                <div style="background: {solde_color}; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease 0.3s; animation-fill-mode: both;">
+                    <div style="color: white; font-size: 32px; margin-bottom: 0.5rem;">{"✓" if solde >= 0 else "✗"}</div>
+                    <div style="color: rgba(255,255,255,0.9); font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Solde</div>
+                    <div style="color: white; font-size: 24px; font-weight: 700;">{solde_sign}{solde:,.0f} €</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.write("")
+            
+            # === GRAPHIQUES ===
+            c1, c2 = st.columns([1, 1])
+            
+            with c1:
+                st.markdown("### 🥧 Répartition des dépenses")
+                df_depenses = df_mois[df_mois["Type"]=="Dépense"]
+                if not df_depenses.empty:
+                    # Graphique donut moderne
+                    fig = px.pie(
+                        df_depenses, 
+                        values="Montant", 
+                        names="Categorie",
+                        hole=0.5,
+                        color_discrete_sequence=px.colors.qualitative.Set3
+                    )
+                    fig.update_traces(
+                        textposition='inside',
+                        textinfo='percent+label',
+                        hovertemplate='<b>%{label}</b><br>%{value:,.0f} €<br>%{percent}<extra></extra>'
+                    )
+                    fig.update_layout(
+                        showlegend=False,
+                        margin=dict(t=0, b=0, l=0, r=0),
+                        height=300,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Aucune dépense ce mois-ci")
+            
+            with c2:
+                st.markdown("### 📈 Top 5 des dépenses")
+                if not df_depenses.empty:
+                    top_cat = df_depenses.groupby("Categorie")["Montant"].sum().sort_values(ascending=False).head(5)
+                    
+                    for idx, (cat, montant) in enumerate(top_cat.items()):
+                        pct = (montant / total_depenses * 100) if total_depenses > 0 else 0
+                        
+                        # Couleurs alternées
+                        colors = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"]
+                        color = colors[idx % len(colors)]
+                        
+                        st.markdown(f"""
+                        <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; animation: slideIn 0.3s ease {idx * 0.1}s; animation-fill-mode: both;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600; color: #1F2937; font-size: 14px;">#{idx+1} {cat}</span>
+                                <span style="font-weight: 700; color: {color}; font-size: 16px;">{montant:,.0f} €</span>
+                            </div>
+                            <div style="width: 100%; background: #F3F4F6; height: 6px; border-radius: 3px; overflow: hidden;">
+                                <div style="width: {pct:.1f}%; background: {color}; height: 100%; border-radius: 3px; transition: width 0.5s ease;"></div>
+                            </div>
+                            <div style="text-align: right; margin-top: 0.25rem; font-size: 11px; color: #6B7280; font-weight: 600;">{pct:.1f}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("Aucune dépense à afficher")
+            
+            st.write("")
+            st.markdown("---")
+            st.write("")
+            
+            # === SANKEY DIAGRAM ===
+            st.markdown("### 🌊 Flux financiers du mois")
+            st.caption("Visualisation des mouvements d'argent entre revenus, comptes et dépenses")
+            
+            dr = df_mois[df_mois["Type"]=="Revenu"]
+            dd = df_mois[df_mois["Type"]=="Dépense"]
+            
+            if not dr.empty or not dd.empty:
+                rf = dr.groupby(["Categorie", "Compte_Source"])["Montant"].sum().reset_index()
+                dfd = dd.groupby(["Compte_Source", "Categorie"])["Montant"].sum().reset_index()
+                
+                lbs = list(set(rf["Categorie"].tolist() + rf["Compte_Source"].tolist() + dfd["Compte_Source"].tolist() + dfd["Categorie"].tolist()))
+                lmp = {n:i for i,n in enumerate(lbs)}
+                
+                s, t, v, c = [], [], [], []
+                
+                # Revenus → Comptes (vert)
+                for _, r in rf.iterrows():
+                    s.append(lmp[r["Categorie"]])
+                    t.append(lmp[r["Compte_Source"]])
+                    v.append(r["Montant"])
+                    c.append("rgba(16, 185, 129, 0.4)")
+                
+                # Comptes → Dépenses (rouge)
+                for _, r in dfd.iterrows():
+                    if r["Compte_Source"] in lmp:
+                        s.append(lmp[r["Compte_Source"]])
+                        t.append(lmp[r["Categorie"]])
+                        v.append(r["Montant"])
+                        c.append("rgba(239, 68, 68, 0.4)")
+                
+                if v:
+                    fg = go.Figure(data=[go.Sankey(
+                        node=dict(
+                            pad=20,
+                            thickness=20,
+                            line=dict(color="white", width=2),
+                            label=lbs,
+                            color="#4F46E5"
+                        ),
+                        link=dict(
+                            source=s,
+                            target=t,
+                            value=v,
+                            color=c
+                        )
+                    )])
+                    
+                    fg.update_layout(
+                        height=500,
+                        margin=dict(t=10, b=10, l=10, r=10),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(size=12, family="Inter")
+                    )
+                    
+                    st.plotly_chart(fg, use_container_width=True)
+                else:
+                    st.info("Pas assez de données pour afficher les flux")
+            else:
+                st.info("Aucune transaction ce mois-ci")
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 4rem 2rem; background: white; border-radius: 12px; border: 2px dashed #E5E7EB;">
+                <div style="font-size: 64px; margin-bottom: 1rem; opacity: 0.3;">📊</div>
+                <h3 style="color: #6B7280; font-weight: 600;">Aucune donnée pour ce mois</h3>
+                <p style="color: #9CA3AF; font-size: 14px;">Commencez à enregistrer vos transactions</p>
+            </div>
+            """, unsafe_allow_html=True)
                 
     with a2:
         # HEADER avec bouton d'ajout
