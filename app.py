@@ -753,50 +753,158 @@ with tabs[0]:
 with tabs[1]:
     op1, op2, op3 = st.tabs(["Saisie", "Journal", "Abonnements"])
     with op1:
-        st.subheader("Nouvelle Transaction")
-        c1, c2, c3 = st.columns(3)
-        d_op = c1.date_input("Date", datetime.today()); t_op = c2.selectbox("Type", TYPES); m_op = c3.number_input("Montant", min_value=0.0, step=0.01)
+        page_header("Nouvelle Transaction", "Enregistrez vos revenus, dépenses et virements")
         
-        c4, c5 = st.columns(2)
-        tit = c4.text_input("Titre"); cat_f = "Autre"; cpt_a = None
-        if tit and mots_cles_map:
-            for mc, d in mots_cles_map.items():
-                if mc in tit.lower() and d["Type"] == t_op: cat_f=d["Categorie"]; cpt_a=d["Compte"]; break
-        
-        cats = cats_memoire.get(t_op, []); idx_c = cats.index(cat_f) if cat_f in cats else 0
-        cat_s = c5.selectbox("Catégorie", cats + ["Autre (nouvelle)"], index=idx_c)
-        fin_c = st.text_input("Nom catégorie") if cat_s == "Autre (nouvelle)" else cat_s
-        
-        st.write("")
-        cc1, cc2, cc3 = st.columns(3)
-        idx_cp = cpt_visibles.index(cpt_a) if (cpt_a and cpt_a in cpt_visibles) else 0
-        c_src = cc1.selectbox("Compte Source", cpt_visibles, index=idx_cp)
-        imp = cc2.radio("Imputation", IMPUTATIONS, horizontal=True)
-        
-        fin_imp = imp
-        if imp == "Commun (Autre %)":
-            pt = cc3.slider("Part Pierre %", 0, 100, 50); fin_imp = f"Commun ({pt}/{100-pt})"
-        elif t_op == "Virement Interne": fin_imp = "Neutre"
-        
-        c_tgt, p_epg = "", ""
-        if t_op == "Épargne":
-            ce1, ce2 = st.columns(2)
-            c_tgt = ce1.selectbox("Vers Compte", [c for c in cpt_visibles if comptes_types_map.get(c)=="Épargne"])
-            ps = ce2.selectbox("Projet", ["Aucun"]+list(projets_config.keys()))
-            if ps!="Aucun": p_epg = ps
-        elif t_op == "Virement Interne": c_tgt = st.selectbox("Vers Compte", cpt_visibles)
+        # === FORMULAIRE DE SAISIE ===
+        with st.container():
+            st.markdown("""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 2rem; margin-bottom: 1rem;">
+                <h4 style="font-size: 16px; font-weight: 700; color: #1F2937; margin-bottom: 1.5rem;">📝 Informations de base</h4>
+            </div>
+            """, unsafe_allow_html=True)
             
-        if st.button("Valider Transaction", type="primary", use_container_width=True):
-            if cat_s == "Autre (nouvelle)" and fin_c:
-                cats_memoire.setdefault(t_op, []).append(fin_c); save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
-            if t_op=="Épargne" and p_epg and p_epg not in projets_config:
-                projets_config[p_epg]={"Cible":0.0, "Date_Fin":"", "Proprietaire": user_actuel}
-                rows = []
-                for k, v in projets_config.items(): rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                save_data(TAB_PROJETS, pd.DataFrame(rows))
+            # Ligne 1 : Date, Type, Montant
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                d_op = st.date_input("📅 Date", datetime.today())
+            with c2:
+                t_op = st.selectbox("🔖 Type", TYPES)
+            with c3:
+                m_op = st.number_input("💰 Montant (€)", min_value=0.0, step=0.01, format="%.2f")
             
-            nr = {"Date": d_op, "Mois": d_op.month, "Annee": d_op.year, "Qui_Connecte": user_actuel, "Type": t_op, "Categorie": fin_c, "Titre": tit, "Description": "", "Montant": m_op, "Paye_Par": user_actuel, "Imputation": fin_imp, "Compte_Cible": c_tgt, "Projet_Epargne": p_epg, "Compte_Source": c_src}
-            df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True); save_data(TAB_DATA, df); st.success("Enregistré !"); time.sleep(0.5); st.rerun()
+            st.write("")
+            
+            # Ligne 2 : Titre et Catégorie
+            c4, c5 = st.columns(2)
+            with c4:
+                tit = st.text_input("📌 Titre", placeholder="Ex: Courses Carrefour, Salaire...")
+            
+            # Auto-détection catégorie
+            cat_f = "Autre"
+            cpt_a = None
+            if tit and mots_cles_map:
+                for mc, d in mots_cles_map.items():
+                    if mc in tit.lower() and d["Type"] == t_op:
+                        cat_f = d["Categorie"]
+                        cpt_a = d["Compte"]
+                        break
+            
+            with c5:
+                cats = cats_memoire.get(t_op, [])
+                idx_c = cats.index(cat_f) if cat_f in cats else 0
+                cat_s = st.selectbox("🏷️ Catégorie", cats + ["➕ Autre (nouvelle)"], index=idx_c)
+            
+            # Si nouvelle catégorie
+            if cat_s == "➕ Autre (nouvelle)":
+                fin_c = st.text_input("Nom de la nouvelle catégorie", placeholder="Ex: Restaurant, Courses...")
+            else:
+                fin_c = cat_s
+            
+            st.markdown("---")
+            
+            # === SECTION AVANCÉE ===
+            st.markdown("""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 2rem; margin-bottom: 1rem; margin-top: 1rem;">
+                <h4 style="font-size: 16px; font-weight: 700; color: #1F2937; margin-bottom: 1.5rem;">⚙️ Détails de la transaction</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Ligne 3 : Compte source et Imputation
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                idx_cp = cpt_visibles.index(cpt_a) if (cpt_a and cpt_a in cpt_visibles) else 0
+                c_src = st.selectbox("💳 Compte Source", cpt_visibles, index=idx_cp)
+            
+            with cc2:
+                imp = st.selectbox("👥 Imputation", IMPUTATIONS)
+            
+            # Gestion imputation personnalisée
+            fin_imp = imp
+            if imp == "Commun (Autre %)":
+                pt = st.slider("📊 Répartition - Part de Pierre", 0, 100, 50, help="Le reste sera pour Elie")
+                st.caption(f"Pierre: {pt}% • Elie: {100-pt}%")
+                fin_imp = f"Commun ({pt}/{100-pt})"
+            elif t_op == "Virement Interne":
+                fin_imp = "Neutre"
+            
+            # Champs conditionnels selon le type
+            c_tgt, p_epg = "", ""
+            
+            if t_op == "Épargne":
+                st.write("")
+                st.markdown("**💰 Détails de l'épargne**")
+                ce1, ce2 = st.columns(2)
+                with ce1:
+                    comptes_epargne = [c for c in cpt_visibles if comptes_types_map.get(c) == "Épargne"]
+                    if comptes_epargne:
+                        c_tgt = st.selectbox("🏦 Vers Compte Épargne", comptes_epargne)
+                    else:
+                        st.warning("⚠️ Aucun compte épargne configuré")
+                        c_tgt = ""
+                with ce2:
+                    ps = st.selectbox("🎯 Projet (optionnel)", ["Aucun"] + list(projets_config.keys()))
+                    if ps != "Aucun":
+                        p_epg = ps
+            
+            elif t_op == "Virement Interne":
+                st.write("")
+                st.markdown("**🔄 Destination du virement**")
+                c_tgt = st.selectbox("📤 Vers Compte", [c for c in cpt_visibles if c != c_src], help="Le compte de destination")
+            
+            st.write("")
+            
+            # === BOUTON DE VALIDATION ===
+            col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
+            with col_btn2:
+                if st.button("✅ Valider Transaction", type="primary", use_container_width=True):
+                    # Validation
+                    if not tit:
+                        st.error("⚠️ Veuillez entrer un titre")
+                    elif not fin_c:
+                        st.error("⚠️ Veuillez sélectionner ou créer une catégorie")
+                    elif m_op <= 0:
+                        st.error("⚠️ Le montant doit être supérieur à 0")
+                    elif t_op == "Épargne" and not c_tgt:
+                        st.error("⚠️ Veuillez sélectionner un compte épargne")
+                    elif t_op == "Virement Interne" and not c_tgt:
+                        st.error("⚠️ Veuillez sélectionner un compte de destination")
+                    else:
+                        # Sauvegarde nouvelle catégorie si nécessaire
+                        if cat_s == "➕ Autre (nouvelle)" and fin_c:
+                            cats_memoire.setdefault(t_op, []).append(fin_c)
+                            save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
+                        
+                        # Sauvegarde nouveau projet si nécessaire
+                        if t_op == "Épargne" and p_epg and p_epg not in projets_config:
+                            projets_config[p_epg] = {"Cible": 0.0, "Date_Fin": "", "Proprietaire": user_actuel}
+                            rows = []
+                            for k, v in projets_config.items():
+                                rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                            save_data(TAB_PROJETS, pd.DataFrame(rows))
+                        
+                        # Création de la transaction
+                        nr = {
+                            "Date": d_op,
+                            "Mois": d_op.month,
+                            "Annee": d_op.year,
+                            "Qui_Connecte": user_actuel,
+                            "Type": t_op,
+                            "Categorie": fin_c,
+                            "Titre": tit,
+                            "Description": "",
+                            "Montant": m_op,
+                            "Paye_Par": user_actuel,
+                            "Imputation": fin_imp,
+                            "Compte_Cible": c_tgt,
+                            "Projet_Epargne": p_epg,
+                            "Compte_Source": c_src
+                        }
+                        
+                        df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True)
+                        save_data(TAB_DATA, df)
+                        st.success("✅ Transaction enregistrée avec succès !")
+                        time.sleep(0.8)
+                        st.rerun()
 
     with op2:
         sch = st.text_input("Chercher")
