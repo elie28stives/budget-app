@@ -1233,83 +1233,263 @@ with tabs[2]:
 
 # TAB 4: PATRIMOINE
 with tabs[3]:
-    page_header("Patrimoine")
-    ac = st.selectbox("Compte", cpt_visibles)
+    page_header("Patrimoine", "Gérez vos comptes et projets d'épargne")
+    
+    # === SÉLECTION DE COMPTE ===
+    st.markdown("### 💳 Détails du compte")
+    
+    col_select, col_actions = st.columns([3, 1])
+    with col_select:
+        ac = st.selectbox("Sélectionner un compte", cpt_visibles, label_visibility="collapsed")
+    with col_actions:
+        if st.button("🔄 Actualiser", use_container_width=True):
+            st.rerun()
+    
     if ac:
         sl = soldes.get(ac, 0.0)
-        cl = "green" if sl>=0 else "red"
-        st.markdown(f"## <span style='color:{cl}'>{sl:,.2f} €</span>", unsafe_allow_html=True)
+        compte_type = comptes_types_map.get(ac, "Courant")
+        
+        # === SOLDE DU COMPTE ===
+        solde_color = "#10B981" if sl >= 0 else "#EF4444"
+        solde_bg = "#F0FDF4" if sl >= 0 else "#FEF2F2"
+        solde_icon = "✓" if sl >= 0 else "⚠"
+        
+        st.markdown(f"""
+        <div style="background: {solde_bg}; border: 2px solid {solde_color}; border-radius: 12px; padding: 2rem; text-align: center; margin-bottom: 2rem; animation: scaleIn 0.3s ease;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+                <span style="font-size: 32px;">{solde_icon}</span>
+                <div>
+                    <div style="color: #6B7280; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Solde actuel</div>
+                    <div style="color: #1F2937; font-size: 11px; font-weight: 500; margin-top: 0.25rem;">{ac} • {compte_type}</div>
+                </div>
+            </div>
+            <div style="color: {solde_color}; font-size: 48px; font-weight: 700;">{sl:,.2f} €</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # === DERNIÈRES TRANSACTIONS ===
+        st.markdown("### 📋 Dernières transactions")
         mk = (df["Compte_Source"]==ac)|(df["Compte_Cible"]==ac)
-        st.dataframe(df[mk].sort_values(by="Date", ascending=False).head(10)[["Date","Titre","Montant","Type"]], use_container_width=True, hide_index=True)
+        df_compte = df[mk].sort_values(by="Date", ascending=False).head(10)
+        
+        if not df_compte.empty:
+            for idx, (_, r) in enumerate(df_compte.iterrows()):
+                is_debit = r["Compte_Source"] == ac and r["Type"] in ["Dépense", "Virement Interne", "Épargne", "Investissement"]
+                is_credit = r["Compte_Cible"] == ac or (r["Compte_Source"] == ac and r["Type"] == "Revenu")
+                
+                if is_debit:
+                    color = "#EF4444"
+                    bg = "#FEF2F2"
+                    icon = "↓"
+                    sign = "-"
+                elif is_credit:
+                    color = "#10B981"
+                    bg = "#F0FDF4"
+                    icon = "↑"
+                    sign = "+"
+                else:
+                    color = "#6B7280"
+                    bg = "#F9FAFB"
+                    icon = "→"
+                    sign = ""
+                
+                st.markdown(f"""
+                <div class="transaction-card" style="animation-delay: {idx * 0.05}s;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+                            <div style="width: 40px; height: 40px; border-radius: 8px; background: {bg}; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: {color};">{icon}</div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #1F2937; font-size: 14px; margin-bottom: 0.25rem;">{r['Titre']}</div>
+                                <div style="font-size: 12px; color: #6B7280;">
+                                    <span style="background: {bg}; padding: 2px 6px; border-radius: 4px; margin-right: 0.5rem;">{r['Type']}</span>
+                                    {r['Date'].strftime('%d/%m/%Y')}
+                                    {f" • {r['Categorie']}" if r['Categorie'] else ""}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="font-weight: 700; font-size: 16px; color: {color}; white-space: nowrap; margin-left: 1rem;">{sign}{r['Montant']:,.2f} €</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Aucune transaction pour ce compte")
 
     st.markdown("---")
-    st1, st2 = st.tabs(["Projets", "Ajustement"])
+    
+    # === ONGLETS PROJETS / AJUSTEMENT ===
+    st1, st2 = st.tabs(["💰 Projets d'Épargne", "⚙️ Ajustement de Solde"])
+    
     with st1:
-        st.subheader("Mes Projets Épargne")
-        f_own = st.radio("Filtre", ["Tout", "Commun", "Perso"], horizontal=True, label_visibility="collapsed")
+        st.markdown("### Mes Projets d'Épargne")
         
-        for p, d in projets_config.items():
-            prop = d.get("Proprietaire", "Commun")
-            if f_own == "Commun" and prop != "Commun": continue
-            if f_own == "Perso" and prop == "Commun": continue
+        # Filtre
+        col_filter, col_new = st.columns([3, 1])
+        with col_filter:
+            f_own = st.radio("Filtrer par", ["Tout", "Commun", "Perso"], horizontal=True, label_visibility="collapsed")
+        with col_new:
+            if st.button("➕ Nouveau Projet", use_container_width=True):
+                st.session_state['new_project_modal'] = not st.session_state.get('new_project_modal', False)
+        
+        # Modal création projet
+        if st.session_state.get('new_project_modal', False):
+            st.markdown("""
+            <div style="background: #4F46E5; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; animation: slideIn 0.3s ease;">
+                <h4 style="color: white; margin: 0; font-weight: 700; font-size: 16px;">Créer un nouveau projet</h4>
+            </div>
+            """, unsafe_allow_html=True)
             
-            with st.container():
-                c1, c2 = st.columns([3, 1])
-                s = df[(df["Projet_Epargne"]==p)&(df["Type"]=="Épargne")]["Montant"].sum()
-                t = float(d["Cible"])
-                pct = min(s/t if t>0 else 0, 1.0)*100
-                bg = "#EFF6FF" if prop == "Commun" else "#FFF7ED"
-                
-                with c1:
-                    st.markdown(f"""
-                    <div class="budget-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <span style="font-weight: 700; font-size: 16px; color: #1F2937;">{p}</span>
-                            <span style="font-size: 11px; background: #F3F4F6; color: #6B7280; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{prop}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 1rem;">
-                            <span style="font-weight: 600; color: #4F46E5;">{s:,.0f} € épargnés</span>
-                            <span style="color: #6B7280;">Objectif: {t:,.0f} €</span>
-                        </div>
-                        <div style="width: 100%; background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="width: {pct}%; background: #4F46E5; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
-                        </div>
-                        <div style="text-align: right; margin-top: 0.5rem; font-size: 12px; color: #4F46E5; font-weight: 600;">{pct:.0f}%</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with c2:
-                    if st.button("✏️", key=f"e_p_{p}"): st.session_state[f"edp_{p}"]=True; st.rerun()
-                    if st.button("🗑️", key=f"d_p_{p}"):
-                        del projets_config[p]
-                        rows = []
-                        for k, v in projets_config.items(): rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                        save_data(TAB_PROJETS, pd.DataFrame(rows)); st.rerun()
-                
-                if st.session_state.get(f"edp_{p}", False):
-                    with st.form(f"fep_{p}"):
-                        nt = st.number_input("Nouvelle Cible", value=float(d["Cible"]))
-                        np = st.selectbox("Propriétaire", ["Commun", user_actuel], index=0 if prop=="Commun" else 1)
-                        if st.form_submit_button("Sauvegarder"):
-                            projets_config[p]["Cible"] = nt; projets_config[p]["Proprietaire"] = np
-                            rows = []
-                            for k, v in projets_config.items(): rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                            save_data(TAB_PROJETS, pd.DataFrame(rows)); st.session_state[f"edp_{p}"]=False; st.rerun()
-
-        with st.expander("➕ Nouveau Projet"):
             with st.form("new_proj"):
-                n=st.text_input("Nom"); t=st.number_input("Cible"); prop=st.selectbox("Pour qui ?", ["Commun", user_actuel])
-                if st.form_submit_button("Créer"): 
-                    projets_config[n]={"Cible":t, "Date_Fin":"", "Proprietaire": prop}
+                c1, c2, c3 = st.columns(3)
+                n = c1.text_input("Nom du projet")
+                t = c2.number_input("Objectif (€)", min_value=0.0, step=100.0)
+                prop = c3.selectbox("Propriétaire", ["Commun", user_actuel])
+                
+                col_btn1, col_btn2 = st.columns(2)
+                if col_btn1.form_submit_button("✅ Créer", use_container_width=True):
+                    projets_config[n] = {"Cible": t, "Date_Fin": "", "Proprietaire": prop}
                     rows = []
-                    for k, v in projets_config.items(): rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
-                    save_data(TAB_PROJETS, pd.DataFrame(rows)); st.rerun()
+                    for k, v in projets_config.items():
+                        rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                    save_data(TAB_PROJETS, pd.DataFrame(rows))
+                    st.session_state['new_project_modal'] = False
+                    st.rerun()
+                if col_btn2.form_submit_button("❌ Annuler", use_container_width=True):
+                    st.session_state['new_project_modal'] = False
+                    st.rerun()
+        
+        st.write("")
+        
+        # Affichage des projets
+        if projets_config:
+            cols_proj = st.columns(2)
+            proj_index = 0
+            
+            for p, d in projets_config.items():
+                prop = d.get("Proprietaire", "Commun")
+                if f_own == "Commun" and prop != "Commun": continue
+                if f_own == "Perso" and prop == "Commun": continue
+                
+                col = cols_proj[proj_index % 2]
+                
+                with col:
+                    s = df[(df["Projet_Epargne"]==p)&(df["Type"]=="Épargne")]["Montant"].sum()
+                    t = float(d["Cible"])
+                    pct = min(s/t if t>0 else 0, 1.0)*100
+                    
+                    # Couleur selon progression
+                    if pct >= 100:
+                        prog_color = "#10B981"
+                        prog_bg = "#F0FDF4"
+                    elif pct >= 75:
+                        prog_color = "#3B82F6"
+                        prog_bg = "#EFF6FF"
+                    elif pct >= 50:
+                        prog_color = "#F59E0B"
+                        prog_bg = "#FFFBEB"
+                    else:
+                        prog_color = "#6B7280"
+                        prog_bg = "#F9FAFB"
+                    
+                    if not st.session_state.get(f"edp_{p}", False):
+                        st.markdown(f"""
+                        <div class="budget-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 16px; color: #1F2937; margin-bottom: 0.25rem;">{p}</div>
+                                    <span style="font-size: 11px; background: {prog_bg}; color: {prog_color}; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{prop}</span>
+                                </div>
+                                <div style="font-size: 32px;">{("🎯" if pct >= 100 else "💰")}</div>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem;">
+                                <div>
+                                    <span style="font-weight: 700; color: {prog_color}; font-size: 24px;">{s:,.0f} €</span>
+                                    <span style="color: #6B7280; font-size: 13px; margin-left: 0.5rem;">/ {t:,.0f} €</span>
+                                </div>
+                                <span style="color: {prog_color}; font-size: 14px; font-weight: 700;">{pct:.0f}%</span>
+                            </div>
+                            
+                            <div style="width: 100%; background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 0.75rem;">
+                                <div style="width: {pct}%; background: {prog_color}; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
+                            </div>
+                            
+                            <div style="font-size: 12px; color: #6B7280; text-align: center;">
+                                {"✓ Objectif atteint !" if pct >= 100 else f"Reste {t-s:,.0f} € pour atteindre l'objectif"}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        c1, c2 = st.columns(2)
+                        if c1.button("✏️ Modifier", key=f"e_p_{p}", use_container_width=True):
+                            st.session_state[f"edp_{p}"] = True
+                            st.rerun()
+                        if c2.button("🗑️ Supprimer", key=f"d_p_{p}", use_container_width=True):
+                            del projets_config[p]
+                            rows = []
+                            for k, v in projets_config.items():
+                                rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                            save_data(TAB_PROJETS, pd.DataFrame(rows))
+                            st.rerun()
+                    else:
+                        st.markdown("""
+                        <div style="background: #EEF2FF; border: 2px solid #4F46E5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="color: #4F46E5; font-weight: 700; font-size: 14px;">✏️ Modification du projet</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        with st.form(f"fep_{p}"):
+                            nt = st.number_input("Nouvelle Cible (€)", value=float(d["Cible"]), min_value=0.0, step=100.0)
+                            np = st.selectbox("Propriétaire", ["Commun", user_actuel], index=0 if prop=="Commun" else 1)
+                            
+                            col_save, col_cancel = st.columns(2)
+                            if col_save.form_submit_button("💾 Sauvegarder", use_container_width=True):
+                                projets_config[p]["Cible"] = nt
+                                projets_config[p]["Proprietaire"] = np
+                                rows = []
+                                for k, v in projets_config.items():
+                                    rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
+                                save_data(TAB_PROJETS, pd.DataFrame(rows))
+                                st.session_state[f"edp_{p}"] = False
+                                st.rerun()
+                            if col_cancel.form_submit_button("❌ Annuler", use_container_width=True):
+                                st.session_state[f"edp_{p}"] = False
+                                st.rerun()
+                    
+                    proj_index += 1
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem 2rem; background: white; border-radius: 12px; border: 2px dashed #E5E7EB;">
+                <div style="font-size: 48px; margin-bottom: 1rem; opacity: 0.5;">🎯</div>
+                <h4 style="color: #1F2937; margin-bottom: 0.5rem; font-weight: 700;">Aucun projet d'épargne</h4>
+                <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez un projet pour suivre vos objectifs</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     with st2:
+        st.markdown("### Ajuster le solde d'un compte")
+        st.caption("Utilisez cette fonction pour corriger le solde d'un compte si nécessaire")
+        
         with st.form("adj"):
-            d=st.date_input("Date"); m=st.number_input("Solde Réel")
-            if st.form_submit_button("Enregistrer"):
-                df_patrimoine = pd.concat([df_patrimoine, pd.DataFrame([{"Date":d,"Mois":d.month,"Annee":d.year,"Compte":ac,"Montant":m,"Proprietaire":user_actuel}])], ignore_index=True); save_data(TAB_PATRIMOINE, df_patrimoine); st.rerun()
+            col1, col2 = st.columns(2)
+            d = col1.date_input("Date de référence", datetime.today())
+            m = col2.number_input("Solde réel (€)", min_value=0.0, step=0.01)
+            
+            if st.form_submit_button("💾 Enregistrer l'ajustement", use_container_width=True):
+                df_patrimoine = pd.concat([
+                    df_patrimoine, 
+                    pd.DataFrame([{
+                        "Date": d,
+                        "Mois": d.month,
+                        "Annee": d.year,
+                        "Compte": ac,
+                        "Montant": m,
+                        "Proprietaire": user_actuel
+                    }])
+                ], ignore_index=True)
+                save_data(TAB_PATRIMOINE, df_patrimoine)
+                st.success("✅ Ajustement enregistré !")
+                time.sleep(1)
+                st.rerun()
 
 # TAB 5: REGLAGES
 with tabs[4]:
