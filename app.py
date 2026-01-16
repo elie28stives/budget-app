@@ -38,389 +38,442 @@ COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 def apply_custom_style():
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
         /* === VARIABLES === */
         :root {
-            --primary: #0070BA;
-            --primary-dark: #005EA6;
-            --primary-light: #E8F4FD;
-            --secondary: #142C8E;
-            --success: #2DB87C;
-            --warning: #FFC439;
-            --danger: #DC3545;
-            --bg-main: #F5F7FA;
-            --bg-card: #FFFFFF;
-            --text-primary: #2C2E2F;
-            --text-secondary: #687385;
-            --border: #E1E4E8;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-            --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --secondary: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --bg: #FAFAFA;
+            --surface: #FFFFFF;
+            --text: #1F2937;
+            --text-light: #6B7280;
+            --border: #E5E7EB;
+            --shadow: rgba(0, 0, 0, 0.05);
         }
         
         /* === BASE === */
+        * {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
         .stApp {
-            background: linear-gradient(135deg, #F5F7FA 0%, #E8EBF1 100%);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: var(--text-primary);
+            background: var(--bg);
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
         }
         
         .main .block-container {
-            padding-top: 2rem !important;
-            padding-bottom: 3rem !important;
+            padding: 3rem 2rem !important;
             max-width: 1400px;
         }
         
-        /* === HIDE STREAMLIT BRANDING === */
-        #MainMenu, footer, header {visibility: hidden;}
+        #MainMenu, footer, header {
+            visibility: hidden;
+        }
         
         /* === SIDEBAR === */
         section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #142C8E 0%, #0070BA 100%) !important;
-            padding: 2rem 1rem !important;
+            background: var(--surface) !important;
+            border-right: 1px solid var(--border);
+            box-shadow: 2px 0 12px var(--shadow);
         }
         
-        section[data-testid="stSidebar"] .stMarkdown {
-            color: white !important;
-        }
-        
-        section[data-testid="stSidebar"] h3 {
-            color: white !important;
+        section[data-testid="stSidebar"] .stMarkdown h3 {
+            color: var(--text);
             font-weight: 700;
-            font-size: 20px;
+            font-size: 18px;
             margin-bottom: 1.5rem;
-        }
-        
-        section[data-testid="stSidebar"] .stSelectbox label,
-        section[data-testid="stSidebar"] .stNumberInput label {
-            color: rgba(255,255,255,0.9) !important;
-            font-weight: 500;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
         }
         
         section[data-testid="stSidebar"] hr {
-            border-color: rgba(255,255,255,0.2) !important;
+            border: none;
+            height: 1px;
+            background: var(--border);
             margin: 1.5rem 0;
         }
         
         /* === TABS === */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 8px;
-            background: white;
-            padding: 8px;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border);
+            gap: 0;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0;
         }
         
         .stTabs [data-baseweb="tab"] {
-            height: 48px;
+            height: 50px;
             background: transparent;
-            border-radius: var(--radius-sm);
-            color: var(--text-secondary);
+            border: none;
+            color: var(--text-light);
             font-weight: 600;
-            font-size: 15px;
-            padding: 0 24px;
-            border: none !important;
-            transition: all 0.2s ease;
+            font-size: 14px;
+            padding: 0 32px;
+            position: relative;
+        }
+        
+        .stTabs [data-baseweb="tab"]::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
         }
         
         .stTabs [data-baseweb="tab"]:hover {
-            background: var(--primary-light);
             color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
         }
         
         .stTabs [aria-selected="true"] {
-            background: var(--primary) !important;
-            color: white !important;
-            box-shadow: 0 2px 8px rgba(0,112,186,0.3);
+            color: var(--primary) !important;
         }
         
-        /* === CARDS & CONTAINERS === */
+        .stTabs [aria-selected="true"]::after {
+            transform: scaleX(1);
+        }
+        
+        /* === CARDS === */
         div[data-testid="stMetric"],
         div.stDataFrame,
         div.stForm,
         div[data-testid="stExpander"] {
-            background: var(--bg-card);
-            padding: 24px;
-            border-radius: var(--radius-lg);
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 12px;
             border: 1px solid var(--border);
-            box-shadow: var(--shadow-md);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 1px 3px var(--shadow);
         }
         
-        div[data-testid="stMetric"]:hover,
-        div.stDataFrame:hover {
+        div[data-testid="stMetric"]:hover {
+            box-shadow: 0 4px 12px var(--shadow);
             transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
         }
         
         /* === METRICS === */
-        div[data-testid="stMetric"] {
-            background: linear-gradient(135deg, white 0%, #F8FAFC 100%);
-            border-left: 4px solid var(--primary);
-        }
-        
         div[data-testid="stMetric"] label {
-            font-size: 13px !important;
+            font-size: 12px !important;
             font-weight: 600 !important;
-            color: var(--text-secondary) !important;
+            color: var(--text-light) !important;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-            font-size: 28px !important;
-            font-weight: 800 !important;
-            color: var(--primary) !important;
+            font-size: 32px !important;
+            font-weight: 700 !important;
+            color: var(--text) !important;
         }
         
         /* === BUTTONS === */
         .stButton > button {
             background: var(--primary) !important;
             color: white !important;
-            border-radius: var(--radius-sm) !important;
-            font-weight: 600 !important;
-            font-size: 15px !important;
             border: none !important;
-            padding: 12px 24px !important;
-            box-shadow: 0 2px 8px rgba(0,112,186,0.25) !important;
-            transition: all 0.2s ease !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            padding: 0.625rem 1.5rem !important;
+            box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3) !important;
         }
         
         .stButton > button:hover {
-            background: var(--primary-dark) !important;
+            background: var(--primary-hover) !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,112,186,0.35) !important;
         }
         
         .stButton > button:active {
             transform: translateY(0);
         }
         
-        /* Button Primary Type */
-        .stButton > button[kind="primary"] {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
-        }
-        
         /* === INPUTS === */
         .stTextInput input,
         .stNumberInput input,
-        .stSelectbox > div > div,
         .stDateInput input,
         .stTextArea textarea {
-            border-radius: var(--radius-sm) !important;
-            border: 2px solid var(--border) !important;
-            padding: 12px 16px !important;
-            font-size: 15px !important;
-            transition: all 0.2s ease !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            padding: 0.625rem 1rem !important;
+            font-size: 14px !important;
+            background: var(--surface) !important;
+            color: var(--text) !important;
         }
         
         .stTextInput input:focus,
         .stNumberInput input:focus,
-        .stSelectbox > div > div:focus-within,
         .stDateInput input:focus,
         .stTextArea textarea:focus {
             border-color: var(--primary) !important;
-            box-shadow: 0 0 0 3px rgba(0,112,186,0.1) !important;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+            outline: none !important;
         }
         
-        /* Labels */
-        .stTextInput label,
-        .stNumberInput label,
-        .stSelectbox label,
-        .stDateInput label,
-        .stTextArea label {
+        /* === SELECT === */
+        .stSelectbox > div > div {
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            background: var(--surface) !important;
+        }
+        
+        .stSelectbox > div > div:hover {
+            border-color: var(--primary) !important;
+        }
+        
+        .stSelectbox [data-baseweb="select"] > div {
+            color: var(--text) !important;
+        }
+        
+        /* Fix pour voir les options dans le menu déroulant */
+        [data-baseweb="popover"] {
+            background: var(--surface) !important;
+        }
+        
+        [role="listbox"] {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 10px 40px var(--shadow) !important;
+        }
+        
+        [role="option"] {
+            color: var(--text) !important;
+            background: var(--surface) !important;
+            padding: 0.75rem 1rem !important;
+        }
+        
+        [role="option"]:hover {
+            background: rgba(79, 70, 229, 0.05) !important;
+            color: var(--primary) !important;
+        }
+        
+        [aria-selected="true"] {
+            background: rgba(79, 70, 229, 0.1) !important;
+            color: var(--primary) !important;
             font-weight: 600 !important;
-            color: var(--text-primary) !important;
-            font-size: 14px !important;
-            margin-bottom: 8px !important;
         }
         
-        /* === RADIO BUTTONS === */
+        /* === LABELS === */
+        label {
+            font-weight: 600 !important;
+            color: var(--text) !important;
+            font-size: 13px !important;
+        }
+        
+        /* === RADIO === */
+        .stRadio > label {
+            font-weight: 600 !important;
+            color: var(--text) !important;
+        }
+        
         .stRadio > div {
-            display: flex;
-            gap: 8px;
+            gap: 0.5rem;
         }
         
-        .stRadio > div > label {
-            background: white;
-            border: 2px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 10px 20px;
+        .stRadio [role="radiogroup"] label {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 600;
-            color: var(--text-secondary);
+            font-weight: 500;
         }
         
-        .stRadio > div > label:hover {
+        .stRadio [role="radiogroup"] label:hover {
             border-color: var(--primary);
-            background: var(--primary-light);
-        }
-        
-        .stRadio > div > label[data-baseweb="radio"] > div:first-child {
-            background-color: var(--primary) !important;
+            background: rgba(79, 70, 229, 0.05);
         }
         
         /* === DATAFRAME === */
-        .stDataFrame {
-            border: none !important;
-        }
-        
         .stDataFrame [data-testid="stDataFrameResizable"] {
-            border-radius: var(--radius-md);
-            overflow: hidden;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
         }
         
         /* === EXPANDER === */
-        div[data-testid="stExpander"] {
-            border: 2px solid var(--border) !important;
-            border-radius: var(--radius-lg) !important;
-            overflow: hidden;
+        .streamlit-expanderHeader {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
         }
         
-        div[data-testid="stExpander"] > div:first-child {
-            background: var(--primary-light) !important;
-            border: none !important;
+        .streamlit-expanderHeader:hover {
+            border-color: var(--primary) !important;
         }
         
-        /* === PROGRESS BAR === */
+        /* === PROGRESS === */
         .stProgress > div > div {
-            background: var(--success) !important;
-            border-radius: 10px !important;
+            background: var(--primary) !important;
+        }
+        
+        /* === SLIDER === */
+        .stSlider [data-baseweb="slider"] [role="slider"] {
+            background: var(--primary) !important;
+        }
+        
+        /* === ALERTS === */
+        .stAlert {
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 1rem 1.25rem !important;
         }
         
         /* === CUSTOM CLASSES === */
-        .tx-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid #F3F4F6;
-            transition: background 0.2s ease;
-        }
-        
-        .tx-card:hover {
-            background: var(--primary-light);
-            cursor: pointer;
-        }
-        
-        .tx-card:last-child {
-            border-bottom: none;
-        }
-        
-        .proj-card {
-            background: white;
+        .account-card {
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            margin-bottom: 12px;
-            box-shadow: var(--shadow-sm);
-            transition: all 0.2s ease;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 1px 3px var(--shadow);
+            animation: slideIn 0.3s ease;
         }
         
-        .proj-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
+        .account-card:hover {
+            box-shadow: 0 4px 12px var(--shadow);
+            transform: translateX(4px);
+        }
+        
+        .transaction-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            animation: fadeIn 0.4s ease;
+        }
+        
+        .transaction-card:hover {
+            box-shadow: 0 4px 12px var(--shadow);
+            border-color: var(--primary);
+        }
+        
+        .budget-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            animation: scaleIn 0.3s ease;
+        }
+        
+        .budget-card:hover {
+            box-shadow: 0 6px 20px var(--shadow);
+            transform: translateY(-4px);
         }
         
         .cat-badge {
             display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
+            padding: 0.375rem 0.875rem;
+            border-radius: 6px;
             font-size: 12px;
-            font-weight: 700;
-            margin: 0 6px 6px 0;
-            transition: all 0.2s ease;
-            cursor: pointer;
+            font-weight: 600;
+            margin: 0.25rem;
+            border: 1px solid;
+            animation: fadeIn 0.3s ease;
         }
         
         .cat-badge:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px var(--shadow);
         }
         
         .cat-badge.depense {
-            background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%);
-            color: #DC3545;
-            border: 1px solid #FCA5A5;
+            background: #FEF2F2;
+            color: #DC2626;
+            border-color: #FCA5A5;
         }
         
         .cat-badge.revenu {
-            background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
-            color: #2DB87C;
-            border: 1px solid #86EFAC;
+            background: #F0FDF4;
+            color: #16A34A;
+            border-color: #86EFAC;
         }
         
         .cat-badge.epargne {
-            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-            color: #0070BA;
-            border: 1px solid #93C5FD;
+            background: #EFF6FF;
+            color: #2563EB;
+            border-color: #93C5FD;
         }
         
         /* === ANIMATIONS === */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
-        .main .block-container > div {
-            animation: fadeIn 0.3s ease-out;
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.8;
+            }
         }
         
         /* === SCROLLBAR === */
         ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
         }
         
         ::-webkit-scrollbar-track {
-            background: #F1F3F5;
+            background: var(--bg);
         }
         
         ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 5px;
+            background: var(--border);
+            border-radius: 4px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-dark);
-        }
-        
-        /* === HEADINGS === */
-        h1, h2, h3, h4, h5, h6 {
-            font-weight: 700 !important;
-            color: var(--text-primary) !important;
-        }
-        
-        /* === INFO/SUCCESS/WARNING BOXES === */
-        .stAlert {
-            border-radius: var(--radius-md) !important;
-            border: none !important;
-            padding: 16px 20px !important;
-        }
-        
-        /* === DOWNLOAD BUTTON === */
-        .stDownloadButton > button {
-            background: var(--success) !important;
-            border: none !important;
-        }
-        
-        .stDownloadButton > button:hover {
-            background: #25A269 !important;
+            background: var(--text-light);
         }
     </style>
     """, unsafe_allow_html=True)
 
 def page_header(title, subtitle=None):
     st.markdown(f"""
-    <div style='margin-bottom: 30px;'>
-        <h1 style='font-size: 32px; font-weight: 800; color: #0070BA; margin-bottom: 8px; letter-spacing: -0.5px;'>{title}</h1>
-        {f"<p style='font-size: 16px; color: #687385; font-weight: 500;'>{subtitle}</p>" if subtitle else ""}
+    <div style='margin-bottom: 2rem;'>
+        <h1 style='font-size: 28px; font-weight: 700; color: #1F2937; margin-bottom: 0.5rem;'>{title}</h1>
+        {f"<p style='font-size: 14px; color: #6B7280;'>{subtitle}</p>" if subtitle else ""}
     </div>
     """, unsafe_allow_html=True)
 
@@ -577,31 +630,30 @@ with st.sidebar:
         
     def show_c(n, v, e):
         icon = "💰" if e else "💳"
-        cl = "#0070BA" if e else ("#2DB87C" if v>=0 else "#DC3545")
-        bg = "rgba(0,112,186,0.1)" if e else ("rgba(45,184,124,0.1)" if v>=0 else "rgba(220,53,69,0.1)")
+        cl = "#4F46E5" if e else ("#10B981" if v>=0 else "#EF4444")
         st.markdown(f"""
-        <div style="background: {bg}; border-left: 4px solid {cl}; padding: 14px; margin-bottom: 10px; border-radius: 8px; backdrop-filter: blur(10px);">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                <span style="font-size: 18px;">{icon}</span>
-                <span style="font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">{n}</span>
+        <div class="account-card" style="border-left: 3px solid {cl};">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 20px;">{icon}</span>
+                <span style="font-size: 13px; color: #6B7280; font-weight: 600;">{n}</span>
             </div>
-            <div style="font-weight: 800; color: white; font-size: 20px;">{v:,.2f} €</div>
+            <div style="font-weight: 700; color: {cl}; font-size: 18px;">{v:,.2f} €</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div style='background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 16px; backdrop-filter: blur(10px);'>
-        <div style='color: rgba(255,255,255,0.8); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;'>💳 Comptes Courants</div>
-        <div style='color: white; font-size: 24px; font-weight: 900;'>{tot_c:,.0f} €</div>
+    <div style='background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #E5E7EB;'>
+        <div style='color: #6B7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;'>💳 Comptes Courants</div>
+        <div style='color: #1F2937; font-size: 24px; font-weight: 700;'>{tot_c:,.0f} €</div>
     </div>
     """, unsafe_allow_html=True)
     for n,v in lst_c: show_c(n,v,False)
     
     st.write(""); 
     st.markdown(f"""
-    <div style='background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 16px; backdrop-filter: blur(10px);'>
-        <div style='color: rgba(255,255,255,0.8); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;'>💰 Épargne</div>
-        <div style='color: white; font-size: 24px; font-weight: 900;'>{tot_e:,.0f} €</div>
+    <div style='background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #E5E7EB;'>
+        <div style='color: #6B7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;'>💰 Épargne</div>
+        <div style='color: #1F2937; font-size: 24px; font-weight: 700;'>{tot_e:,.0f} €</div>
     </div>
     """, unsafe_allow_html=True)
     for n,v in lst_e: show_c(n,v,True)
@@ -636,12 +688,12 @@ with tabs[0]:
     rav = rev - fixe - dep - com
     k1,k2,k3,k4,k5 = st.columns(5)
     k1.metric("Revenus", f"{rev:,.0f} €"); k2.metric("Fixe", f"{fixe:,.0f} €"); k3.metric("Dépenses", f"{(dep+com):,.0f} €"); k4.metric("Épargne", f"{epg:,.0f} €")
-    col = "#2DB87C" if rav>0 else "#DC3545"
-    icon = "✅" if rav>0 else "⚠️"
+    col = "#10B981" if rav>0 else "#EF4444"
+    icon = "✓" if rav>0 else "⚠"
     k5.markdown(f"""
-    <div style="background: linear-gradient(135deg, {col} 0%, {col}dd 100%); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 12px {col}40;">
-        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; opacity: 0.9;">{icon} Reste à Vivre</div>
-        <div style="font-size: 32px; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">{rav:,.0f} €</div>
+    <div style="background: {col}; padding: 1.25rem; border-radius: 12px; color: white; text-align: center; animation: scaleIn 0.3s ease;">
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; opacity: 0.9;">{icon} Reste à Vivre</div>
+        <div style="font-size: 28px; font-weight: 700;">{rav:,.0f} €</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -660,25 +712,27 @@ with tabs[0]:
         if not rec.empty:
             for _, r in rec.iterrows():
                 is_d = r['Type'] in ["Dépense", "Virement Interne", "Épargne", "Investissement"]
-                bg = "#FFF1F2" if is_d else "#ECFDF5"
-                txt = "#DC3545" if is_d else "#2DB87C"
+                bg = "#FEF2F2" if is_d else "#F0FDF4"
+                txt = "#EF4444" if is_d else "#10B981"
                 sig = "-" if is_d else "+"
-                ic = "💸" if is_d else "💰"
-                if r['Type'] == "Épargne": ic = "🐷"
+                ic = "↓" if is_d else "↑"
+                if r['Type'] == "Épargne": ic = "→"
                 
                 st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #F3F4F6; transition: all 0.2s ease; border-radius: 8px; margin-bottom: 8px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                    <div style="display: flex; align-items: center; gap: 16px;">
-                        <div style="width: 48px; height: 48px; border-radius: 12px; background: {bg}; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 2px 8px {bg}80;">{ic}</div>
-                        <div>
-                            <div style="font-weight: 700; color: #2C2E2F; font-size: 15px; margin-bottom: 4px;">{r['Titre']}</div>
-                            <div style="font-size: 13px; color: #687385; font-weight: 500;">
-                                <span style="background: {bg}; padding: 2px 8px; border-radius: 4px; margin-right: 8px;">{r['Categorie']}</span>
-                                {r['Date'].strftime('%d/%m/%Y')}
+                <div class="transaction-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="width: 40px; height: 40px; border-radius: 8px; background: {bg}; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: {txt};">{ic}</div>
+                            <div>
+                                <div style="font-weight: 600; color: #1F2937; font-size: 14px; margin-bottom: 0.25rem;">{r['Titre']}</div>
+                                <div style="font-size: 12px; color: #6B7280;">
+                                    <span style="background: {bg}; padding: 2px 6px; border-radius: 4px; margin-right: 0.5rem;">{r['Categorie']}</span>
+                                    {r['Date'].strftime('%d/%m/%Y')}
+                                </div>
                             </div>
                         </div>
+                        <div style="font-weight: 700; font-size: 16px; color: {txt};">{sig}{r['Montant']:,.2f} €</div>
                     </div>
-                    <div style="font-weight: 800; font-size: 18px; color: {txt};">{sig} {r['Montant']:,.2f} €</div>
                 </div>
                 """, unsafe_allow_html=True)
         else: st.info("Aucune activité.")
@@ -796,14 +850,14 @@ with tabs[1]:
                     
                     if not st.session_state.get(f"ed_a_{idx}", False):
                         st.markdown(f"""
-                        <div style="background: white; border: 2px solid #E1E4E8; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: all 0.2s ease;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                                <div style="width: 44px; height: 44px; background: {sb}; color: {sc}; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 18px; box-shadow: 0 2px 8px {sb}80;">{r['Nom'][0].upper()}</div>
-                                <div style="background: {sb}; color: {sc}; font-size: 11px; padding: 6px 12px; border-radius: 12px; font-weight: 800; letter-spacing: 0.5px;">{stt}</div>
+                        <div class="budget-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <div style="width: 40px; height: 40px; background: {sb}; color: {sc}; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 16px;">{r['Nom'][0].upper()}</div>
+                                <div style="background: {sb}; color: {sc}; font-size: 10px; padding: 4px 10px; border-radius: 6px; font-weight: 700;">{stt}</div>
                             </div>
-                            <div style="font-weight: 800; font-size: 17px; color: #2C2E2F; margin-bottom: 8px;">{r['Nom']}</div>
-                            <div style="font-size: 24px; font-weight: 900; color: {sc}; margin-bottom: 12px;">{float(r['Montant']):.2f} €</div>
-                            <div style="font-size: 12px; color: #687385; background: #F5F7FA; padding: 8px 12px; border-radius: 8px; font-weight: 600;">
+                            <div style="font-weight: 700; font-size: 16px; color: #1F2937; margin-bottom: 0.5rem;">{r['Nom']}</div>
+                            <div style="font-size: 24px; font-weight: 700; color: {sc}; margin-bottom: 1rem;">{float(r['Montant']):.2f} €</div>
+                            <div style="font-size: 12px; color: #6B7280; background: #F9FAFB; padding: 0.5rem; border-radius: 6px;">
                                 📅 Jour {r['Jour']} • {r['Categorie']}
                             </div>
                         </div>
@@ -851,9 +905,9 @@ with tabs[2]:
         if st.session_state.get('new_budget_modal', False):
             with st.container():
                 st.markdown("""
-                <div style="background: linear-gradient(135deg, #0070BA 0%, #142C8E 100%); padding: 24px; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(0,112,186,0.25);">
-                    <h3 style="color: white; margin: 0; font-weight: 800; font-size: 22px;">✨ Créer un nouveau budget</h3>
-                    <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0 0; font-size: 14px;">Définissez vos limites de dépenses mensuelles</p>
+                <div style="background: #4F46E5; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; animation: slideIn 0.3s ease;">
+                    <h3 style="color: white; margin: 0; font-weight: 700; font-size: 18px;">Créer un nouveau budget</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 13px;">Définissez vos limites mensuelles</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -929,9 +983,9 @@ with tabs[2]:
                             # Mode édition ou affichage
                             if st.session_state.get(f"edit_budget_{real_idx}", False):
                                 # MODE ÉDITION
-                                st.markdown(f"""
-                                <div style="background: linear-gradient(135deg, #0070BA10 0%, #142C8E10 100%); border: 2px solid #0070BA; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,112,186,0.15);">
-                                    <div style="color: #0070BA; font-weight: 800; margin-bottom: 16px; font-size: 16px;">✏️ Édition du budget</div>
+                                st.markdown("""
+                                <div style="background: #EEF2FF; border: 2px solid #4F46E5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                                    <div style="color: #4F46E5; font-weight: 700; font-size: 14px;">✏️ Édition du budget</div>
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
@@ -1001,10 +1055,10 @@ with tabs[2]:
         else:
             # État vide
             st.markdown("""
-            <div style="text-align: center; padding: 80px 40px; background: linear-gradient(135deg, #0070BA08 0%, #142C8E08 100%); border-radius: 24px; margin: 40px 0; border: 2px dashed #0070BA40;">
-                <div style="font-size: 72px; margin-bottom: 24px;">📊</div>
-                <h2 style="color: #0070BA; margin-bottom: 12px; font-weight: 800;">Aucun budget défini</h2>
-                <p style="color: #687385; margin-bottom: 0; font-size: 16px; font-weight: 500;">Créez votre premier budget pour suivre vos dépenses mensuelles et atteindre vos objectifs financiers</p>
+            <div style="text-align: center; padding: 4rem 2rem; background: white; border-radius: 12px; margin: 2rem 0; border: 2px dashed #E5E7EB; animation: fadeIn 0.5s ease;">
+                <div style="font-size: 48px; margin-bottom: 1rem; opacity: 0.5;">📊</div>
+                <h3 style="color: #1F2937; margin-bottom: 0.5rem; font-weight: 700;">Aucun budget défini</h3>
+                <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez votre premier budget pour suivre vos dépenses</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -1038,21 +1092,20 @@ with tabs[3]:
                 bg = "#EFF6FF" if prop == "Commun" else "#FFF7ED"
                 
                 with c1:
-                    gradient_color = "#0070BA" if prop == "Commun" else "#142C8E"
                     st.markdown(f"""
-                    <div style="background: white; border: 2px solid #E1E4E8; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: all 0.2s ease;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <span style="font-weight: 800; font-size: 18px; color: #2C2E2F;">{p}</span>
-                            <span style="font-size: 11px; background: linear-gradient(135deg, {gradient_color}20 0%, {gradient_color}10 100%); color: {gradient_color}; padding: 6px 12px; border-radius: 12px; font-weight: 800; letter-spacing: 0.5px;">{prop}</span>
+                    <div class="budget-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <span style="font-weight: 700; font-size: 16px; color: #1F2937;">{p}</span>
+                            <span style="font-size: 11px; background: #F3F4F6; color: #6B7280; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{prop}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 12px;">
-                            <span style="font-weight: 700; color: #0070BA;">{s:,.0f} € épargnés</span>
-                            <span style="color: #687385; font-weight: 600;">Objectif: {t:,.0f} €</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 1rem;">
+                            <span style="font-weight: 600; color: #4F46E5;">{s:,.0f} € épargnés</span>
+                            <span style="color: #6B7280;">Objectif: {t:,.0f} €</span>
                         </div>
-                        <div style="width: 100%; background: #E5E7EB; height: 12px; border-radius: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                            <div style="width: {pct}%; background: linear-gradient(90deg, #0070BA 0%, #142C8E 100%); height: 100%; border-radius: 6px; transition: width 0.3s ease;"></div>
+                        <div style="width: 100%; background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="width: {pct}%; background: #4F46E5; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
                         </div>
-                        <div style="text-align: right; margin-top: 8px; font-size: 13px; color: #0070BA; font-weight: 700;">{pct:.0f}% complété</div>
+                        <div style="text-align: right; margin-top: 0.5rem; font-size: 12px; color: #4F46E5; font-weight: 600;">{pct:.0f}%</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
