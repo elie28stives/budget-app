@@ -1391,16 +1391,18 @@ with tabs[3]:
                         prog_bg = "#F9FAFB"
                     
                     if not st.session_state.get(f"edp_{p}", False):
-                        st.markdown(f"""
+                        restant = t - s
+                        status_msg = "✓ Objectif atteint !" if pct >= 100 else f"Reste {restant:,.0f} € pour atteindre l'objectif"
+                        
+                        card_html = f"""
                         <div class="budget-card">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                                 <div>
                                     <div style="font-weight: 700; font-size: 16px; color: #1F2937; margin-bottom: 0.25rem;">{p}</div>
                                     <span style="font-size: 11px; background: {prog_bg}; color: {prog_color}; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{prop}</span>
                                 </div>
-                                <div style="font-size: 32px;">{("🎯" if pct >= 100 else "💰")}</div>
+                                <div style="font-size: 32px;">{"🎯" if pct >= 100 else "💰"}</div>
                             </div>
-                            
                             <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem;">
                                 <div>
                                     <span style="font-weight: 700; color: {prog_color}; font-size: 24px;">{s:,.0f} €</span>
@@ -1408,16 +1410,15 @@ with tabs[3]:
                                 </div>
                                 <span style="color: {prog_color}; font-size: 14px; font-weight: 700;">{pct:.0f}%</span>
                             </div>
-                            
                             <div style="width: 100%; background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 0.75rem;">
-                                <div style="width: {pct}%; background: {prog_color}; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
+                                <div style="width: {pct:.1f}%; background: {prog_color}; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
                             </div>
-                            
                             <div style="font-size: 12px; color: #6B7280; text-align: center;">
-                                {"✓ Objectif atteint !" if pct >= 100 else f"Reste {t-s:,.0f} € pour atteindre l'objectif"}
+                                {status_msg}
                             </div>
                         </div>
-                        """, unsafe_allow_html=True)
+                        """
+                        st.markdown(card_html, unsafe_allow_html=True)
                         
                         c1, c2 = st.columns(2)
                         if c1.button("✏️ Modifier", key=f"e_p_{p}", use_container_width=True):
