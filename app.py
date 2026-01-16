@@ -564,8 +564,9 @@ with tabs[2]:
                                         st.rerun()
                             else:
                                 # MODE AFFICHAGE
-                                st.markdown(f"""
-                                <div style="background: {bg_color}; border-left: 5px solid {border_color}; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s;">
+                                restant = targ - real
+                                card_html = f"""
+                                <div style="background: {bg_color}; border-left: 5px solid {border_color}; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                         <div>
                                             <div style="font-size: 18px; font-weight: 800; color: #1F2937; margin-bottom: 4px;">{o['Categorie']}</div>
@@ -576,21 +577,20 @@ with tabs[2]:
                                             <div style="font-size: 12px; color: #6B7280;">sur {targ:.0f} €</div>
                                         </div>
                                     </div>
-                                    
                                     <div style="background: #E5E7EB; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 12px;">
-                                        <div style="width: {pct}%; background: {bar_color}; height: 100%; border-radius: 5px; transition: width 0.3s;"></div>
+                                        <div style="width: {pct:.1f}%; background: {bar_color}; height: 100%; border-radius: 5px;"></div>
                                     </div>
-                                    
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <div style="font-size: 12px; color: #6B7280;">
                                             <span style="font-weight: 700; color: {text_color};">{pct:.0f}%</span> consommé
                                         </div>
                                         <div style="font-size: 12px; color: {text_color}; font-weight: 700;">
-                                            {targ - real:.0f} € restant
+                                            {restant:.0f} € restant
                                         </div>
                                     </div>
                                 </div>
-                                """, unsafe_allow_html=True)
+                                """
+                                st.markdown(card_html, unsafe_allow_html=True)
                                 
                                 # Boutons d'action
                                 b1, b2 = st.columns(2)
