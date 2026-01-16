@@ -449,42 +449,173 @@ with tabs[2]:
                 st.plotly_chart(fg, use_container_width=True)
                 
     with a2:
-        st.markdown("### 🎯 Mes Budgets")
-        with st.expander("Créer un budget"):
-            with st.form("nob"):
-                c1,c2,c3 = st.columns(3); sc=c1.selectbox("Qui", ["Perso", "Commun"]); ca=c2.selectbox("Cat", cats_memoire.get("Dépense", [])); mt=c3.number_input("Max")
-                if st.form_submit_button("Ajouter"): 
-                    objectifs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt}); save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list)); st.rerun()
+        # HEADER avec bouton d'ajout
+        h_col1, h_col2 = st.columns([3, 1])
+        with h_col1:
+            st.markdown("### 🎯 Mes Budgets")
+        with h_col2:
+            if st.button("➕ Nouveau Budget", use_container_width=True, type="primary"):
+                st.session_state['new_budget_modal'] = not st.session_state.get('new_budget_modal', False)
         
+        # Modal de création
+        if st.session_state.get('new_budget_modal', False):
+            with st.container():
+                st.markdown("""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h4 style="color: white; margin: 0;">Créer un nouveau budget</h4>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                with st.form("nob", clear_on_submit=True):
+                    c1, c2, c3 = st.columns(3)
+                    sc = c1.selectbox("Scope", ["Perso", "Commun"], help="Personnel ou partagé ?")
+                    ca = c2.selectbox("Catégorie", cats_memoire.get("Dépense", []), help="Catégorie de dépense")
+                    mt = c3.number_input("Montant Max (€)", min_value=0.0, step=10.0, help="Budget mensuel maximum")
+                    
+                    col_btn1, col_btn2 = st.columns([1, 1])
+                    with col_btn1:
+                        if st.form_submit_button("✅ Créer", use_container_width=True, type="primary"): 
+                            objectifs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt})
+                            save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
+                            st.session_state['new_budget_modal'] = False
+                            st.rerun()
+                    with col_btn2:
+                        if st.form_submit_button("❌ Annuler", use_container_width=True):
+                            st.session_state['new_budget_modal'] = False
+                            st.rerun()
+        
+        st.write("")
+        
+        # AFFICHAGE DES BUDGETS
         if objectifs_list:
             # Séparation Perso / Commun
             b_perso = [o for o in objectifs_list if o['Scope'] == "Perso"]
             b_commun = [o for o in objectifs_list if o['Scope'] == "Commun"]
             
-            def render_budgets(liste, titre):
+            def render_budgets(liste, titre, emoji):
                 if liste:
-                    st.markdown(f"#### {titre}")
+                    st.markdown(f"<h4 style='color: #2C3E50; margin-top: 20px; margin-bottom: 15px;'>{emoji} {titre}</h4>", unsafe_allow_html=True)
+                    
+                    # Grille responsive
                     cols = st.columns(2)
                     for i, o in enumerate(liste):
                         col = cols[i % 2]
-                        # Index original pour suppression
                         real_idx = objectifs_list.index(o)
                         
+                        # Calcul des dépenses
                         msk = (df_mois["Type"]=="Dépense") & (df_mois["Categorie"]==o["Categorie"])
-                        if o["Scope"]=="Perso": msk = msk & (df_mois["Imputation"]=="Perso") & (df_mois["Qui_Connecte"]==user_actuel)
-                        else: msk = msk & (df_mois["Imputation"].str.contains("Commun"))
+                        if o["Scope"]=="Perso": 
+                            msk = msk & (df_mois["Imputation"]=="Perso") & (df_mois["Qui_Connecte"]==user_actuel)
+                        else: 
+                            msk = msk & (df_mois["Imputation"].str.contains("Commun"))
                         
-                        real = df_mois[msk]["Montant"].sum(); targ = float(o["Montant"]); rat = real/targ if targ>0 else 0
-                        bc = "#EF4444" if rat>=1 else ("#F59E0B" if rat>=0.8 else "#10B981")
+                        real = df_mois[msk]["Montant"].sum()
+                        targ = float(o["Montant"])
+                        rat = real/targ if targ>0 else 0
+                        pct = min(rat * 100, 100)
+                        
+                        # Couleurs dynamiques
+                        if rat >= 1:
+                            bg_color = "#FEE2E2"
+                            border_color = "#EF4444"
+                            text_color = "#991B1B"
+                            bar_color = "#EF4444"
+                            status = "🔴 DÉPASSÉ"
+                        elif rat >= 0.8:
+                            bg_color = "#FEF3C7"
+                            border_color = "#F59E0B"
+                            text_color = "#92400E"
+                            bar_color = "#F59E0B"
+                            status = "🟡 ATTENTION"
+                        else:
+                            bg_color = "#D1FAE5"
+                            border_color = "#10B981"
+                            text_color = "#065F46"
+                            bar_color = "#10B981"
+                            status = "🟢 OK"
                         
                         with col:
-                            st.markdown(f"""<div class="proj-card"><div style="display:flex; justify-content:space-between;"><b>{o['Categorie']}</b></div><div style="font-weight:bold; color:{bc};">{real:.0f} / {targ:.0f} €</div><div style="background:#eee;height:6px;border-radius:3px;margin-top:5px;"><div style="width:{min(rat*100,100)}%;background:{bc};height:100%;border-radius:3px;"></div></div></div>""", unsafe_allow_html=True)
-                            if st.button("X", key=f"del_b_{real_idx}"): 
-                                objectifs_list.pop(real_idx); save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list)); st.rerun()
+                            # Mode édition ou affichage
+                            if st.session_state.get(f"edit_budget_{real_idx}", False):
+                                # MODE ÉDITION
+                                st.markdown(f"""
+                                <div style="background: white; border: 2px solid #667eea; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);">
+                                    <div style="color: #667eea; font-weight: bold; margin-bottom: 10px;">✏️ Édition du budget</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                with st.form(f"edit_form_{real_idx}"):
+                                    new_cat = st.selectbox("Catégorie", cats_memoire.get("Dépense", []), 
+                                                          index=cats_memoire.get("Dépense", []).index(o["Categorie"]) if o["Categorie"] in cats_memoire.get("Dépense", []) else 0,
+                                                          key=f"cat_{real_idx}")
+                                    new_montant = st.number_input("Montant Max (€)", value=targ, min_value=0.0, step=10.0, key=f"mt_{real_idx}")
+                                    new_scope = st.selectbox("Scope", ["Perso", "Commun"], 
+                                                            index=0 if o["Scope"]=="Perso" else 1,
+                                                            key=f"sc_{real_idx}")
+                                    
+                                    c1, c2 = st.columns(2)
+                                    if c1.form_submit_button("💾 Sauvegarder", use_container_width=True, type="primary"):
+                                        objectifs_list[real_idx] = {"Scope": new_scope, "Categorie": new_cat, "Montant": new_montant}
+                                        save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
+                                        st.session_state[f"edit_budget_{real_idx}"] = False
+                                        st.rerun()
+                                    if c2.form_submit_button("❌ Annuler", use_container_width=True):
+                                        st.session_state[f"edit_budget_{real_idx}"] = False
+                                        st.rerun()
+                            else:
+                                # MODE AFFICHAGE
+                                st.markdown(f"""
+                                <div style="background: {bg_color}; border-left: 5px solid {border_color}; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <div>
+                                            <div style="font-size: 18px; font-weight: 800; color: #1F2937; margin-bottom: 4px;">{o['Categorie']}</div>
+                                            <div style="font-size: 11px; color: #6B7280; font-weight: 600;">{status}</div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-size: 24px; font-weight: 900; color: {text_color};">{real:.0f} €</div>
+                                            <div style="font-size: 12px; color: #6B7280;">sur {targ:.0f} €</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background: #E5E7EB; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 12px;">
+                                        <div style="width: {pct}%; background: {bar_color}; height: 100%; border-radius: 5px; transition: width 0.3s;"></div>
+                                    </div>
+                                    
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="font-size: 12px; color: #6B7280;">
+                                            <span style="font-weight: 700; color: {text_color};">{pct:.0f}%</span> consommé
+                                        </div>
+                                        <div style="font-size: 12px; color: {text_color}; font-weight: 700;">
+                                            {targ - real:.0f} € restant
+                                        </div>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Boutons d'action
+                                b1, b2 = st.columns(2)
+                                if b1.button("✏️ Modifier", key=f"edit_btn_{real_idx}", use_container_width=True):
+                                    st.session_state[f"edit_budget_{real_idx}"] = True
+                                    st.rerun()
+                                if b2.button("🗑️ Supprimer", key=f"del_b_{real_idx}", use_container_width=True):
+                                    objectifs_list.pop(real_idx)
+                                    save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
+                                    st.rerun()
 
-            render_budgets(b_perso, "👤 Mes Budgets")
-            st.divider()
-            render_budgets(b_commun, "🤝 Budgets Communs")
+            # Affichage des budgets
+            render_budgets(b_perso, "Mes Budgets", "👤")
+            if b_perso and b_commun:
+                st.markdown("<br>", unsafe_allow_html=True)
+            render_budgets(b_commun, "Budgets Communs", "🤝")
+        else:
+            # État vide
+            st.markdown("""
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%); border-radius: 20px; margin: 20px 0;">
+                <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
+                <h3 style="color: #2C3E50; margin-bottom: 10px;">Aucun budget défini</h3>
+                <p style="color: #6B7280; margin-bottom: 20px;">Créez votre premier budget pour suivre vos dépenses mensuelles</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # TAB 4: PATRIMOINE
 with tabs[3]:
