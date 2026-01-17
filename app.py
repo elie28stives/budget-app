@@ -1492,134 +1492,140 @@ with tabs[2]:
     
     with col_h2:
         if st.button("📄 Exporter en PDF", use_container_width=True, type="primary"):
-            # Générer le PDF
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib import colors
-            from reportlab.lib.units import cm
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-            
-            buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
-            
-            styles = getSampleStyleSheet()
-            title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#4F46E5'), spaceAfter=30, alignment=TA_CENTER)
-            heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=16, textColor=colors.HexColor('#1F2937'), spaceAfter=12, spaceBefore=12)
-            
-            elements = []
-            
-            # Titre
-            elements.append(Paragraph(f"Rapport Budgétaire - {m_nom} {a_sel}", title_style))
-            elements.append(Paragraph(f"Compte de {user_actuel}", styles['Normal']))
-            elements.append(Spacer(1, 20))
-            
-            # Résumé financier
-            elements.append(Paragraph("Résumé Financier", heading_style))
-            
-            rev = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Revenu")]["Montant"].sum()
-            dep = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense") & (df_mois["Imputation"]=="Perso")]["Montant"].sum()
-            epg = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Épargne")]["Montant"].sum()
-            com = df_mois[df_mois["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
-            solde = rev - dep - com
-            
-            data_summary = [
-                ['Indicateur', 'Montant'],
-                ['Revenus', f"{rev:,.2f} €"],
-                ['Dépenses personnelles', f"{dep:,.2f} €"],
-                ['Dépenses communes', f"{com:,.2f} €"],
-                ['Épargne', f"{epg:,.2f} €"],
-                ['Solde', f"{solde:,.2f} €"]
-            ]
-            
-            table = Table(data_summary, colWidths=[8*cm, 6*cm])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4F46E5')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            elements.append(table)
-            elements.append(Spacer(1, 20))
-            
-            # Dépenses par catégorie
-            if not df_mois.empty:
-                elements.append(Paragraph("Dépenses par Catégorie", heading_style))
+            try:
+                # Import seulement si bouton cliqué
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib import colors
+                from reportlab.lib.units import cm
+                from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.enums import TA_CENTER, TA_RIGHT
                 
-                df_dep = df_mois[(df_mois["Type"]=="Dépense") & (df_mois["Qui_Connecte"]==user_actuel)].groupby("Categorie")["Montant"].sum().sort_values(ascending=False)
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
                 
-                if not df_dep.empty:
-                    data_dep = [['Catégorie', 'Montant', '% du total']]
-                    total_dep = df_dep.sum()
-                    
-                    for cat, montant in df_dep.items():
-                        pct = (montant / total_dep * 100) if total_dep > 0 else 0
-                        data_dep.append([cat, f"{montant:,.2f} €", f"{pct:.1f}%"])
-                    
-                    table_dep = Table(data_dep, colWidths=[8*cm, 4*cm, 3*cm])
-                    table_dep.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EF4444')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 11),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
-                    ]))
-                    elements.append(table_dep)
-                    elements.append(Spacer(1, 20))
-            
-            # Transactions principales
-            elements.append(PageBreak())
-            elements.append(Paragraph("Transactions du mois", heading_style))
-            
-            transactions = df_mois[(df_mois["Qui_Connecte"]==user_actuel)].sort_values('Date', ascending=False).head(20)
-            
-            if not transactions.empty:
-                data_trans = [['Date', 'Titre', 'Catégorie', 'Montant']]
+                styles = getSampleStyleSheet()
+                title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#4F46E5'), spaceAfter=30, alignment=TA_CENTER)
+                heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=16, textColor=colors.HexColor('#1F2937'), spaceAfter=12, spaceBefore=12)
                 
-                for _, t in transactions.iterrows():
-                    date_str = pd.to_datetime(t['Date']).strftime('%d/%m/%Y')
-                    signe = '-' if t['Type'] == 'Dépense' else '+'
-                    data_trans.append([
-                        date_str,
-                        t['Titre'][:30],  # Limiter la longueur
-                        t['Categorie'][:20],
-                        f"{signe}{t['Montant']:,.2f} €"
-                    ])
+                elements = []
                 
-                table_trans = Table(data_trans, colWidths=[2.5*cm, 7*cm, 4*cm, 3*cm])
-                table_trans.setStyle(TableStyle([
+                # Titre
+                elements.append(Paragraph(f"Rapport Budgétaire - {m_nom} {a_sel}", title_style))
+                elements.append(Paragraph(f"Compte de {user_actuel}", styles['Normal']))
+                elements.append(Spacer(1, 20))
+                
+                # Résumé financier
+                elements.append(Paragraph("Résumé Financier", heading_style))
+                
+                rev = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Revenu")]["Montant"].sum()
+                dep = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense") & (df_mois["Imputation"]=="Perso")]["Montant"].sum()
+                epg = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Épargne")]["Montant"].sum()
+                com = df_mois[df_mois["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
+                solde = rev - dep - com
+                
+                data_summary = [
+                    ['Indicateur', 'Montant'],
+                    ['Revenus', f"{rev:,.2f} €"],
+                    ['Dépenses personnelles', f"{dep:,.2f} €"],
+                    ['Dépenses communes', f"{com:,.2f} €"],
+                    ['Épargne', f"{epg:,.2f} €"],
+                    ['Solde', f"{solde:,.2f} €"]
+                ]
+                
+                table = Table(data_summary, colWidths=[8*cm, 6*cm])
+                table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4F46E5')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+                    ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 9),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
                 ]))
-                elements.append(table_trans)
-            
-            # Générer le PDF
-            doc.build(elements)
-            buffer.seek(0)
-            
-            st.download_button(
-                label="⬇️ Télécharger le PDF",
-                data=buffer,
-                file_name=f"rapport_budget_{m_nom}_{a_sel}_{user_actuel}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+                elements.append(table)
+                elements.append(Spacer(1, 20))
+                
+                # Dépenses par catégorie
+                if not df_mois.empty:
+                    elements.append(Paragraph("Dépenses par Catégorie", heading_style))
+                    
+                    df_dep = df_mois[(df_mois["Type"]=="Dépense") & (df_mois["Qui_Connecte"]==user_actuel)].groupby("Categorie")["Montant"].sum().sort_values(ascending=False)
+                    
+                    if not df_dep.empty:
+                        data_dep = [['Catégorie', 'Montant', '% du total']]
+                        total_dep = df_dep.sum()
+                        
+                        for cat, montant in df_dep.items():
+                            pct = (montant / total_dep * 100) if total_dep > 0 else 0
+                            data_dep.append([cat, f"{montant:,.2f} €", f"{pct:.1f}%"])
+                        
+                        table_dep = Table(data_dep, colWidths=[8*cm, 4*cm, 3*cm])
+                        table_dep.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EF4444')),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                            ('FONTSIZE', (0, 0), (-1, 0), 11),
+                            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                        ]))
+                        elements.append(table_dep)
+                        elements.append(Spacer(1, 20))
+                
+                # Transactions principales
+                elements.append(PageBreak())
+                elements.append(Paragraph("Transactions du mois", heading_style))
+                
+                transactions = df_mois[(df_mois["Qui_Connecte"]==user_actuel)].sort_values('Date', ascending=False).head(20)
+                
+                if not transactions.empty:
+                    data_trans = [['Date', 'Titre', 'Catégorie', 'Montant']]
+                    
+                    for _, t in transactions.iterrows():
+                        date_str = pd.to_datetime(t['Date']).strftime('%d/%m/%Y')
+                        signe = '-' if t['Type'] == 'Dépense' else '+'
+                        data_trans.append([
+                            date_str,
+                            t['Titre'][:30],  # Limiter la longueur
+                            t['Categorie'][:20],
+                            f"{signe}{t['Montant']:,.2f} €"
+                        ])
+                    
+                    table_trans = Table(data_trans, colWidths=[2.5*cm, 7*cm, 4*cm, 3*cm])
+                    table_trans.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4F46E5')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 9),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                    ]))
+                    elements.append(table_trans)
+                
+                # Générer le PDF
+                doc.build(elements)
+                buffer.seek(0)
+                
+                st.download_button(
+                    label="⬇️ Télécharger le PDF",
+                    data=buffer,
+                    file_name=f"rapport_budget_{m_nom}_{a_sel}_{user_actuel}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                
+            except ImportError:
+                st.error("❌ La librairie 'reportlab' n'est pas installée. Veuillez l'ajouter à requirements.txt pour activer l'export PDF.")
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la génération du PDF : {str(e)}")
     
     # Tabs principales
     main_tabs = st.tabs(["Vue Globale", "Évolution & Tendances", "Analyses Détaillées", "Budgets"])
