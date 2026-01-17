@@ -805,18 +805,18 @@ with tabs[1]:
             # Ligne 1 : Date, Type, Montant
             c1, c2, c3 = st.columns(3)
             with c1:
-                d_op = st.date_input("📅 Date", datetime.today())
+                d_op = st.date_input("Date", datetime.today())
             with c2:
-                t_op = st.selectbox("🔖 Type", TYPES)
+                t_op = st.selectbox("Type", TYPES)
             with c3:
-                m_op = st.number_input("💰 Montant (€)", min_value=0.0, step=0.01, format="%.2f")
+                m_op = st.number_input("Montant (€)", min_value=0.0, step=0.01, format="%.2f")
             
             st.write("")
             
             # Ligne 2 : Titre et Catégorie
             c4, c5 = st.columns(2)
             with c4:
-                tit = st.text_input("📌 Titre", placeholder="Ex: Courses Carrefour, Salaire...")
+                tit = st.text_input("Titre", placeholder="Ex: Courses Carrefour, Salaire...")
             
             # Auto-détection catégorie
             cat_f = "Autre"
@@ -831,10 +831,10 @@ with tabs[1]:
             with c5:
                 cats = cats_memoire.get(t_op, [])
                 idx_c = cats.index(cat_f) if cat_f in cats else 0
-                cat_s = st.selectbox("🏷️ Catégorie", cats + ["➕ Autre (nouvelle)"], index=idx_c)
+                cat_s = st.selectbox("Catégorie", cats + ["Autre (nouvelle)"], index=idx_c)
             
             # Si nouvelle catégorie
-            if cat_s == "➕ Autre (nouvelle)":
+            if cat_s == "Autre (nouvelle)":
                 fin_c = st.text_input("Nom de la nouvelle catégorie", placeholder="Ex: Restaurant, Courses...")
             else:
                 fin_c = cat_s
@@ -847,16 +847,16 @@ with tabs[1]:
             cc1, cc2 = st.columns(2)
             with cc1:
                 idx_cp = cpt_visibles.index(cpt_a) if (cpt_a and cpt_a in cpt_visibles) else 0
-                c_src = st.selectbox("💳 Compte Source", cpt_visibles, index=idx_cp)
+                c_src = st.selectbox("Compte Source", cpt_visibles, index=idx_cp)
             
             with cc2:
-                imp = st.selectbox("👥 Imputation", IMPUTATIONS)
+                imp = st.selectbox("Imputation", IMPUTATIONS)
             
             # Gestion imputation personnalisée
             fin_imp = imp
             if imp == "Commun (Autre %)":
                 st.write("")
-                pt = st.slider("📊 Répartition - Part de Pierre", 0, 100, 50, help="Le reste sera pour Elie")
+                pt = st.slider("Répartition - Part de Pierre (%)", 0, 100, 50, help="Le reste sera pour Elie")
                 st.caption(f"Pierre: {pt}% • Elie: {100-pt}%")
                 fin_imp = f"Commun ({pt}/{100-pt})"
             elif t_op == "Virement Interne":
@@ -871,18 +871,18 @@ with tabs[1]:
                 with ce1:
                     comptes_epargne = [c for c in cpt_visibles if comptes_types_map.get(c) == "Épargne"]
                     if comptes_epargne:
-                        c_tgt = st.selectbox("🏦 Vers Compte Épargne", comptes_epargne)
+                        c_tgt = st.selectbox("Vers Compte Épargne", comptes_epargne)
                     else:
-                        st.warning("⚠️ Aucun compte épargne configuré")
+                        st.warning("Aucun compte épargne configuré")
                         c_tgt = ""
                 with ce2:
-                    ps = st.selectbox("🎯 Projet (optionnel)", ["Aucun"] + list(projets_config.keys()))
+                    ps = st.selectbox("Projet (optionnel)", ["Aucun"] + list(projets_config.keys()))
                     if ps != "Aucun":
                         p_epg = ps
             
             elif t_op == "Virement Interne":
                 st.write("")
-                c_tgt = st.selectbox("📤 Vers Compte", [c for c in cpt_visibles if c != c_src], help="Le compte de destination")
+                c_tgt = st.selectbox("Vers Compte", [c for c in cpt_visibles if c != c_src], help="Le compte de destination")
             
             st.write("")
             st.write("")
@@ -890,21 +890,21 @@ with tabs[1]:
             # === BOUTON DE VALIDATION ===
             col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
             with col_btn2:
-                if st.button("✅ Valider Transaction", type="primary", use_container_width=True):
+                if st.button("Valider", type="primary", use_container_width=True):
                     # Validation
                     if not tit:
-                        st.error("⚠️ Veuillez entrer un titre")
+                        st.error("Veuillez entrer un titre")
                     elif not fin_c:
-                        st.error("⚠️ Veuillez sélectionner ou créer une catégorie")
+                        st.error("Veuillez sélectionner ou créer une catégorie")
                     elif m_op <= 0:
-                        st.error("⚠️ Le montant doit être supérieur à 0")
+                        st.error("Le montant doit être supérieur à 0")
                     elif t_op == "Épargne" and not c_tgt:
-                        st.error("⚠️ Veuillez sélectionner un compte épargne")
+                        st.error("Veuillez sélectionner un compte épargne")
                     elif t_op == "Virement Interne" and not c_tgt:
-                        st.error("⚠️ Veuillez sélectionner un compte de destination")
+                        st.error("Veuillez sélectionner un compte de destination")
                     else:
                         # Sauvegarde nouvelle catégorie si nécessaire
-                        if cat_s == "➕ Autre (nouvelle)" and fin_c:
+                        if cat_s == "Autre (nouvelle)" and fin_c:
                             cats_memoire.setdefault(t_op, []).append(fin_c)
                             save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         
@@ -936,8 +936,8 @@ with tabs[1]:
                         
                         df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True)
                         save_data(TAB_DATA, df)
-                        st.success("✅ Transaction enregistrée avec succès !")
-                        time.sleep(0.8)
+                        st.success("Transaction enregistrée !")
+                        time.sleep(0.5)
                         st.rerun()
 
     with op2:
@@ -956,7 +956,7 @@ with tabs[1]:
         
         col_btn_new = st.columns([3, 1])
         with col_btn_new[1]:
-            if st.button("➕ Nouveau", use_container_width=True, type="primary"):
+            if st.button("Nouveau", use_container_width=True, type="primary"):
                 st.session_state['new_abo'] = not st.session_state.get('new_abo', False)
 
         # FORMULAIRE DE CRÉATION
@@ -969,25 +969,25 @@ with tabs[1]:
             
             with st.form("na"):
                 col1, col2, col3 = st.columns(3)
-                n = col1.text_input("📌 Nom", placeholder="Ex: Netflix, EDF...")
-                m = col2.number_input("💰 Montant (€)", min_value=0.0, step=0.01, format="%.2f")
-                freq = col3.selectbox("🔄 Fréquence", FREQUENCES_ABO)
+                n = col1.text_input("Nom", placeholder="Ex: Netflix, EDF...")
+                m = col2.number_input("Montant (€)", min_value=0.0, step=0.01, format="%.2f")
+                freq = col3.selectbox("Fréquence", FREQUENCES_ABO)
                 
                 col4, col5 = st.columns(2)
-                j = col4.number_input("📅 Jour du mois", min_value=1, max_value=31, value=1, help="Jour où l'abonnement est prélevé")
-                c = col5.selectbox("🏷️ Catégorie", cats_memoire.get("Dépense", []))
+                j = col4.number_input("Jour du mois", min_value=1, max_value=31, value=1, help="Jour où l'abonnement est prélevé")
+                c = col5.selectbox("Catégorie", cats_memoire.get("Dépense", []))
                 
                 col6, col7 = st.columns(2)
-                cp = col6.selectbox("💳 Compte", cpt_visibles)
-                im = col7.selectbox("👥 Imputation", IMPUTATIONS)
+                cp = col6.selectbox("Compte", cpt_visibles)
+                im = col7.selectbox("Imputation", IMPUTATIONS)
                 
                 st.write("")
                 col8, col9 = st.columns(2)
-                date_debut = col8.date_input("🟢 Date de début", datetime.today(), help="À partir de quand cet abonnement commence")
-                date_fin = col9.date_input("🔴 Date de fin (optionnel)", None, help="Laissez vide si l'abonnement n'a pas de fin")
+                date_debut = col8.date_input("Date de début", datetime.today(), help="À partir de quand cet abonnement commence")
+                date_fin = col9.date_input("Date de fin (optionnel)", None, help="Laissez vide si l'abonnement n'a pas de fin")
                 
                 col_btn1, col_btn2 = st.columns(2)
-                if col_btn1.form_submit_button("✅ Créer l'abonnement", use_container_width=True):
+                if col_btn1.form_submit_button("Créer", use_container_width=True):
                     if n and m > 0:
                         new_abo = {
                             "Nom": n,
@@ -1004,13 +1004,13 @@ with tabs[1]:
                         df_abonnements = pd.concat([df_abonnements, pd.DataFrame([new_abo])], ignore_index=True)
                         save_data(TAB_ABONNEMENTS, df_abonnements)
                         st.session_state['new_abo'] = False
-                        st.success("✅ Abonnement créé !")
+                        st.success("Abonnement créé !")
                         time.sleep(0.5)
                         st.rerun()
                     else:
-                        st.error("⚠️ Veuillez remplir tous les champs obligatoires")
+                        st.error("Veuillez remplir tous les champs obligatoires")
                 
-                if col_btn2.form_submit_button("❌ Annuler", use_container_width=True):
+                if col_btn2.form_submit_button("Annuler", use_container_width=True):
                     st.session_state['new_abo'] = False
                     st.rerun()
         
@@ -1069,7 +1069,7 @@ with tabs[1]:
                         to_gen.append(r)
             
             if to_gen:
-                if st.button(f"🚀 Générer {len(to_gen)} transaction(s) pour {m_nom} {a_sel}", type="primary", use_container_width=True):
+                if st.button(f"Générer {len(to_gen)} transaction(s) pour {m_nom} {a_sel}", type="primary", use_container_width=True):
                     nt = []
                     for r in to_gen:
                         try:
@@ -1094,13 +1094,13 @@ with tabs[1]:
                         })
                     df = pd.concat([df, pd.DataFrame(nt)], ignore_index=True)
                     save_data(TAB_DATA, df)
-                    st.success(f"✅ {len(nt)} transaction(s) générée(s) !")
+                    st.success(f"{len(nt)} transaction(s) générée(s) !")
                     time.sleep(0.5)
                     st.rerun()
             
             st.write("")
             
-            # Cartes des abonnements
+            # Cartes des abonnements - optimisé avec @st.cache_data pour le statut
             cols = st.columns(3)
             for i, (idx, r) in enumerate(ma.iterrows()):
                 col = cols[i % 3]
@@ -1145,18 +1145,18 @@ with tabs[1]:
                             <div style="font-weight: 700; font-size: 16px; color: #1F2937; margin-bottom: 0.5rem;">{r['Nom']}</div>
                             <div style="font-size: 24px; font-weight: 700; color: {sc}; margin-bottom: 1rem;">{float(r['Montant']):.2f} €</div>
                             <div style="font-size: 11px; color: #6B7280; background: #F9FAFB; padding: 0.5rem; border-radius: 6px; line-height: 1.5;">
-                                📅 Jour {r['Jour']} • {r['Categorie']}<br/>
-                                🔄 {freq_label}
+                                Jour {r['Jour']} • {r['Categorie']}<br/>
+                                {freq_label}
                                 {f"<br/>{info_dates}" if info_dates else ""}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
                         c1, c2 = st.columns(2)
-                        if c1.button("✏️ Modifier", key=f"e_{idx}", use_container_width=True):
+                        if c1.button("Modifier", key=f"e_{idx}", use_container_width=True):
                             st.session_state[f"ed_a_{idx}"] = True
                             st.rerun()
-                        if c2.button("🗑️ Supprimer", key=f"d_{idx}", use_container_width=True):
+                        if c2.button("Supprimer", key=f"d_{idx}", use_container_width=True):
                             df_abonnements = df_abonnements.drop(idx)
                             save_data(TAB_ABONNEMENTS, df_abonnements)
                             st.rerun()
@@ -1164,7 +1164,7 @@ with tabs[1]:
                         # MODE ÉDITION
                         st.markdown("""
                         <div style="background: #EEF2FF; border: 2px solid #4F46E5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
-                            <div style="color: #4F46E5; font-weight: 700; font-size: 14px;">✏️ Modification</div>
+                            <div style="color: #4F46E5; font-weight: 700; font-size: 14px;">Modification</div>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1181,7 +1181,7 @@ with tabs[1]:
                             nd = st.date_input("Date début", value=current_debut)
                             ndf = st.date_input("Date fin", value=current_fin)
                             
-                            if st.form_submit_button("💾 Sauvegarder", use_container_width=True):
+                            if st.form_submit_button("Sauvegarder", use_container_width=True):
                                 df_abonnements.at[idx, 'Nom'] = nn
                                 df_abonnements.at[idx, 'Montant'] = nm
                                 df_abonnements.at[idx, 'Jour'] = nj
