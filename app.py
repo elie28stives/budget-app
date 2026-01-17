@@ -1159,7 +1159,9 @@ with tabs[1]:
                         st.warning("Aucun compte épargne configuré")
                         c_tgt = ""
                 with ce2:
-                    ps = st.selectbox("Projet (optionnel)", ["Aucun"] + list(projets_config.keys()))
+                    # Filtrer les projets accessibles (Commun ou du user actuel)
+                    projets_accessibles = [p for p, d in projets_config.items() if d.get("Proprietaire", "Commun") in ["Commun", user_actuel]]
+                    ps = st.selectbox("Projet (optionnel)", ["Aucun"] + projets_accessibles)
                     if ps != "Aucun":
                         p_epg = ps
             
@@ -2376,8 +2378,14 @@ with tabs[3]:
             
             for p, d in projets_config.items():
                 prop = d.get("Proprietaire", "Commun")
-                if f_own == "Commun" and prop != "Commun": continue
-                if f_own == "Perso" and prop == "Commun": continue
+                
+                # Filtre par propriétaire
+                if f_own == "Commun" and prop != "Commun": 
+                    continue
+                if f_own == "Perso" and prop != user_actuel: 
+                    continue
+                if f_own == "Tout" and prop not in ["Commun", user_actuel]:
+                    continue
                 
                 col = cols_proj[proj_index % 2]
                 
