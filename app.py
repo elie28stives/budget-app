@@ -1216,187 +1216,160 @@ with tabs[1]:
             </div>
             """, unsafe_allow_html=True)
 
-# TAB 3: ANALYSES
+# TAB 3: ANALYSES AVANCÉES
 with tabs[2]:
-    a1, a2 = st.tabs(["Vue Globale", "Budgets"])
-    with a1:
-        page_header("Vue Globale", f"Analyse de {m_nom} {a_sel}")
-        
+    page_header("Analyses Approfondies", "Explorez vos données en détail")
+    
+    # Tabs principales
+    main_tabs = st.tabs(["Vue Globale", "Évolution & Tendances", "Analyses Détaillées", "Budgets"])
+    
+    # === TAB: VUE GLOBALE ===
+    with main_tabs[0]:
         if not df_mois.empty:
-            # === RÉSUMÉ EN CHIFFRES ===
-            st.markdown("### 📊 Résumé du mois")
-            col1, col2, col3, col4 = st.columns(4)
+            # Métriques résumé
+            st.markdown("### Résumé du mois")
             
-            total_revenus = df_mois[df_mois["Type"]=="Revenu"]["Montant"].sum()
-            total_depenses = df_mois[df_mois["Type"]=="Dépense"]["Montant"].sum()
-            total_epargne = df_mois[df_mois["Type"]=="Épargne"]["Montant"].sum()
-            solde = total_revenus - total_depenses
+            rev_tot = df_mois[df_mois["Type"]=="Revenu"]["Montant"].sum()
+            dep_tot = df_mois[df_mois["Type"]=="Dépense"]["Montant"].sum()
+            epg_tot = df_mois[df_mois["Type"]=="Épargne"]["Montant"].sum()
+            solde = rev_tot - dep_tot
             
-            with col1:
-                st.markdown(f"""
-                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease;">
-                    <div style="color: #10B981; font-size: 32px; margin-bottom: 0.5rem;">↑</div>
-                    <div style="color: #6B7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Revenus</div>
-                    <div style="color: #10B981; font-size: 24px; font-weight: 700;">+{total_revenus:,.0f} €</div>
-                </div>
-                """, unsafe_allow_html=True)
+            c1,c2,c3,c4 = st.columns(4)
             
-            with col2:
-                st.markdown(f"""
-                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease 0.1s; animation-fill-mode: both;">
-                    <div style="color: #EF4444; font-size: 32px; margin-bottom: 0.5rem;">↓</div>
-                    <div style="color: #6B7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Dépenses</div>
-                    <div style="color: #EF4444; font-size: 24px; font-weight: 700;">-{total_depenses:,.0f} €</div>
-                </div>
-                """, unsafe_allow_html=True)
+            c1.markdown(f"""
+            <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 1.5rem; border-radius: 12px; color: white; animation: fadeIn 0.3s;">
+                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; opacity: 0.9;">Revenus</div>
+                <div style="font-size: 32px; font-weight: 700;">{rev_tot:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            with col3:
-                st.markdown(f"""
-                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease 0.2s; animation-fill-mode: both;">
-                    <div style="color: #4F46E5; font-size: 32px; margin-bottom: 0.5rem;">→</div>
-                    <div style="color: #6B7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Épargne</div>
-                    <div style="color: #4F46E5; font-size: 24px; font-weight: 700;">{total_epargne:,.0f} €</div>
-                </div>
-                """, unsafe_allow_html=True)
+            c2.markdown(f"""
+            <div style="background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); padding: 1.5rem; border-radius: 12px; color: white; animation: fadeIn 0.3s 0.1s; animation-fill-mode: both;">
+                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; opacity: 0.9;">Dépenses</div>
+                <div style="font-size: 32px; font-weight: 700;">{dep_tot:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            with col4:
-                solde_color = "#10B981" if solde >= 0 else "#EF4444"
-                solde_sign = "+" if solde >= 0 else ""
-                st.markdown(f"""
-                <div style="background: {solde_color}; border-radius: 12px; padding: 1.25rem; text-align: center; animation: fadeIn 0.3s ease 0.3s; animation-fill-mode: both;">
-                    <div style="color: white; font-size: 32px; margin-bottom: 0.5rem;">{"✓" if solde >= 0 else "✗"}</div>
-                    <div style="color: rgba(255,255,255,0.9); font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem;">Solde</div>
-                    <div style="color: white; font-size: 24px; font-weight: 700;">{solde_sign}{solde:,.0f} €</div>
-                </div>
-                """, unsafe_allow_html=True)
+            c3.markdown(f"""
+            <div style="background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); padding: 1.5rem; border-radius: 12px; color: white; animation: fadeIn 0.3s 0.2s; animation-fill-mode: both;">
+                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; opacity: 0.9;">Épargne</div>
+                <div style="font-size: 32px; font-weight: 700;">{epg_tot:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            solde_color = "#10B981" if solde >= 0 else "#EF4444"
+            c4.markdown(f"""
+            <div style="background: {solde_color}; padding: 1.5rem; border-radius: 12px; color: white; animation: scaleIn 0.3s 0.3s; animation-fill-mode: both;">
+                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; opacity: 0.9;">{'✓' if solde >= 0 else '⚠'} Solde</div>
+                <div style="font-size: 32px; font-weight: 700;">{solde:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
             
             st.write("")
             
-            # === GRAPHIQUES ===
-            c1, c2 = st.columns([1, 1])
+            # Graphiques
+            col_g1, col_g2 = st.columns(2)
             
-            with c1:
-                st.markdown("### 🥧 Répartition des dépenses")
-                df_depenses = df_mois[df_mois["Type"]=="Dépense"]
-                if not df_depenses.empty:
-                    # Graphique donut moderne
-                    fig = px.pie(
-                        df_depenses, 
-                        values="Montant", 
-                        names="Categorie",
+            with col_g1:
+                # Donut des dépenses
+                df_dep = df_mois[df_mois["Type"]=="Dépense"].groupby("Categorie")["Montant"].sum()
+                if not df_dep.empty:
+                    fig_donut = go.Figure(data=[go.Pie(
+                        labels=df_dep.index,
+                        values=df_dep.values,
                         hole=0.5,
-                        color_discrete_sequence=px.colors.qualitative.Set3
-                    )
-                    fig.update_traces(
-                        textposition='inside',
-                        textinfo='percent+label',
-                        hovertemplate='<b>%{label}</b><br>%{value:,.0f} €<br>%{percent}<extra></extra>'
-                    )
-                    fig.update_layout(
-                        showlegend=False,
-                        margin=dict(t=0, b=0, l=0, r=0),
+                        marker=dict(colors=px.colors.qualitative.Set3)
+                    )])
+                    fig_donut.update_layout(
+                        title="Répartition des dépenses",
                         height=300,
+                        margin=dict(t=40, b=20, l=20, r=20),
                         paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)'
+                        showlegend=True
                     )
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Aucune dépense ce mois-ci")
+                    st.plotly_chart(fig_donut, use_container_width=True)
             
-            with c2:
-                st.markdown("### 📈 Top 5 des dépenses")
-                if not df_depenses.empty:
-                    top_cat = df_depenses.groupby("Categorie")["Montant"].sum().sort_values(ascending=False).head(5)
-                    
-                    for idx, (cat, montant) in enumerate(top_cat.items()):
-                        pct = (montant / total_depenses * 100) if total_depenses > 0 else 0
-                        
-                        # Couleurs alternées
-                        colors = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"]
-                        color = colors[idx % len(colors)]
-                        
-                        st.markdown(f"""
-                        <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; animation: slideIn 0.3s ease {idx * 0.1}s; animation-fill-mode: both;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                                <span style="font-weight: 600; color: #1F2937; font-size: 14px;">#{idx+1} {cat}</span>
-                                <span style="font-weight: 700; color: {color}; font-size: 16px;">{montant:,.0f} €</span>
-                            </div>
-                            <div style="width: 100%; background: #F3F4F6; height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div style="width: {pct:.1f}%; background: {color}; height: 100%; border-radius: 3px; transition: width 0.5s ease;"></div>
-                            </div>
-                            <div style="text-align: right; margin-top: 0.25rem; font-size: 11px; color: #6B7280; font-weight: 600;">{pct:.1f}%</div>
+            with col_g2:
+                # Top 5 dépenses
+                st.markdown("### Top 5 des dépenses")
+                top5 = df_dep.nlargest(5)
+                colors = ['#EF4444', '#F97316', '#10B981', '#3B82F6', '#8B5CF6']
+                
+                for i, (cat, montant) in enumerate(top5.items()):
+                    pct = (montant / dep_tot * 100) if dep_tot > 0 else 0
+                    st.markdown(f"""
+                    <div class="budget-card" style="animation: slideIn 0.3s ease {i * 0.1}s; animation-fill-mode: both;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <div style="font-weight: 700; color: #1F2937; font-size: 14px;">{cat}</div>
+                            <div style="font-weight: 700; color: {colors[i]}; font-size: 16px;">{montant:,.0f} €</div>
                         </div>
-                        """, unsafe_allow_html=True)
+                        <div style="background: #F3F4F6; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: {colors[i]}; height: 100%; width: {pct}%; transition: width 0.5s ease;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 0.25rem;">{pct:.1f}% du total</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.write("")
+            
+            # Comparaison Revenus vs Dépenses
+            st.markdown("### Comparaison Revenus vs Dépenses")
+            
+            col_comp1, col_comp2 = st.columns(2)
+            
+            with col_comp1:
+                st.markdown("#### Revenus par catégorie")
+                df_rev = df_mois[df_mois["Type"]=="Revenu"].groupby("Categorie")["Montant"].sum().sort_values(ascending=False)
+                
+                if not df_rev.empty:
+                    fig_rev = go.Figure(data=[
+                        go.Bar(
+                            x=df_rev.index,
+                            y=df_rev.values,
+                            marker_color='#10B981',
+                            text=[f"{v:,.0f} €" for v in df_rev.values],
+                            textposition='outside'
+                        )
+                    ])
+                    fig_rev.update_layout(
+                        height=300,
+                        margin=dict(t=20, b=20, l=20, r=20),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        xaxis_title="",
+                        yaxis_title="Montant (€)",
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_rev, use_container_width=True)
                 else:
-                    st.info("Aucune dépense à afficher")
+                    st.info("Aucun revenu")
             
-            st.write("")
-            st.markdown("---")
-            st.write("")
-            
-            # === ÉVOLUTION PAR CATÉGORIE ===
-            st.markdown("### 📊 Comparaison Revenus vs Dépenses")
-            
-            # Préparation des données
-            revenus_cat = df_mois[df_mois["Type"]=="Revenu"].groupby("Categorie")["Montant"].sum().reset_index()
-            depenses_cat = df_mois[df_mois["Type"]=="Dépense"].groupby("Categorie")["Montant"].sum().reset_index()
-            
-            if not revenus_cat.empty or not depenses_cat.empty:
-                col_graph1, col_graph2 = st.columns(2)
+            with col_comp2:
+                st.markdown("#### Dépenses par catégorie")
                 
-                with col_graph1:
-                    st.markdown("#### 💰 Revenus par catégorie")
-                    if not revenus_cat.empty:
-                        fig_rev = go.Figure(data=[
-                            go.Bar(
-                                x=revenus_cat["Categorie"],
-                                y=revenus_cat["Montant"],
-                                marker_color='#10B981',
-                                text=revenus_cat["Montant"].apply(lambda x: f'{x:,.0f} €'),
-                                textposition='outside',
-                                hovertemplate='<b>%{x}</b><br>%{y:,.0f} €<extra></extra>'
-                            )
-                        ])
-                        fig_rev.update_layout(
-                            height=350,
-                            margin=dict(t=20, b=20, l=20, r=20),
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            showlegend=False,
-                            xaxis=dict(showgrid=False, title=""),
-                            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', title="Montant (€)")
+                if not df_dep.empty:
+                    df_dep_sorted = df_dep.sort_values(ascending=False)
+                    fig_dep = go.Figure(data=[
+                        go.Bar(
+                            x=df_dep_sorted.index,
+                            y=df_dep_sorted.values,
+                            marker_color='#EF4444',
+                            text=[f"{v:,.0f} €" for v in df_dep_sorted.values],
+                            textposition='outside'
                         )
-                        st.plotly_chart(fig_rev, use_container_width=True)
-                    else:
-                        st.info("Aucun revenu")
-                
-                with col_graph2:
-                    st.markdown("#### 💸 Dépenses par catégorie")
-                    if not depenses_cat.empty:
-                        fig_dep = go.Figure(data=[
-                            go.Bar(
-                                x=depenses_cat["Categorie"],
-                                y=depenses_cat["Montant"],
-                                marker_color='#EF4444',
-                                text=depenses_cat["Montant"].apply(lambda x: f'{x:,.0f} €'),
-                                textposition='outside',
-                                hovertemplate='<b>%{x}</b><br>%{y:,.0f} €<extra></extra>'
-                            )
-                        ])
-                        fig_dep.update_layout(
-                            height=350,
-                            margin=dict(t=20, b=20, l=20, r=20),
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            showlegend=False,
-                            xaxis=dict(showgrid=False, title=""),
-                            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', title="Montant (€)")
-                        )
-                        st.plotly_chart(fig_dep, use_container_width=True)
-                    else:
-                        st.info("Aucune dépense")
-            else:
-                st.info("Aucune transaction ce mois-ci")
+                    ])
+                    fig_dep.update_layout(
+                        height=300,
+                        margin=dict(t=20, b=20, l=20, r=20),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        xaxis_title="",
+                        yaxis_title="Montant (€)",
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_dep, use_container_width=True)
+                else:
+                    st.info("Aucune dépense")
         else:
             st.markdown("""
             <div style="text-align: center; padding: 4rem 2rem; background: white; border-radius: 12px; border: 2px dashed #E5E7EB;">
@@ -1405,177 +1378,289 @@ with tabs[2]:
                 <p style="color: #9CA3AF; font-size: 14px;">Commencez à enregistrer vos transactions</p>
             </div>
             """, unsafe_allow_html=True)
-                
-    with a2:
-        # HEADER avec bouton d'ajout
-        h_col1, h_col2 = st.columns([3, 1])
-        with h_col1:
-            st.markdown("### 🎯 Mes Budgets")
-        with h_col2:
-            if st.button("➕ Nouveau Budget", use_container_width=True, type="primary"):
-                st.session_state['new_budget_modal'] = not st.session_state.get('new_budget_modal', False)
+    
+    # === TAB: ÉVOLUTION & TENDANCES ===
+    with main_tabs[1]:
+        st.markdown("### Évolution sur 12 mois")
         
-        # Modal de création
-        if st.session_state.get('new_budget_modal', False):
-            with st.container():
-                st.markdown("""
-                <div style="background: #4F46E5; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; animation: slideIn 0.3s ease;">
-                    <h3 style="color: white; margin: 0; font-weight: 700; font-size: 18px;">Créer un nouveau budget</h3>
-                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 13px;">Définissez vos limites mensuelles</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                with st.form("nob", clear_on_submit=True):
-                    c1, c2, c3 = st.columns(3)
-                    sc = c1.selectbox("Scope", ["Perso", "Commun"], help="Personnel ou partagé ?")
-                    ca = c2.selectbox("Catégorie", cats_memoire.get("Dépense", []), help="Catégorie de dépense")
-                    mt = c3.number_input("Montant Max (€)", min_value=0.0, step=10.0, help="Budget mensuel maximum")
-                    
-                    col_btn1, col_btn2 = st.columns([1, 1])
-                    with col_btn1:
-                        if st.form_submit_button("✅ Créer", use_container_width=True, type="primary"): 
-                            objectifs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt})
-                            save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
-                            st.session_state['new_budget_modal'] = False
-                            st.rerun()
-                    with col_btn2:
-                        if st.form_submit_button("❌ Annuler", use_container_width=True):
-                            st.session_state['new_budget_modal'] = False
-                            st.rerun()
+        # Préparation des données
+        date_fin = datetime(a_sel, m_sel, 1)
+        dates_12m = [(date_fin - relativedelta(months=i)).replace(day=1) for i in range(11, -1, -1)]
+        
+        evolution_data = []
+        for d in dates_12m:
+            mois, annee = d.month, d.year
+            df_m = df[(df["Mois"] == mois) & (df["Annee"] == annee) & (df["Qui_Connecte"] == user_actuel)]
+            
+            rev_m = df_m[df_m["Type"]=="Revenu"]["Montant"].sum()
+            dep_m = df_m[(df_m["Type"]=="Dépense") & (df_m["Imputation"]=="Perso")]["Montant"].sum()
+            com_m = df_m[df_m["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
+            epg_m = df_m[df_m["Type"]=="Épargne"]["Montant"].sum()
+            
+            evolution_data.append({
+                "Mois": d.strftime("%b %y"),
+                "Revenus": rev_m,
+                "Dépenses": dep_m + com_m,
+                "Épargne": epg_m,
+                "Solde": rev_m - dep_m - com_m
+            })
+        
+        df_evolution = pd.DataFrame(evolution_data)
+        
+        # Graphiques
+        col_graph1, col_graph2 = st.columns(2)
+        
+        with col_graph1:
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(
+                x=df_evolution["Mois"], 
+                y=df_evolution["Revenus"],
+                name="Revenus",
+                line=dict(color='#10B981', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(16, 185, 129, 0.1)'
+            ))
+            fig1.add_trace(go.Scatter(
+                x=df_evolution["Mois"], 
+                y=df_evolution["Dépenses"],
+                name="Dépenses",
+                line=dict(color='#EF4444', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(239, 68, 68, 0.1)'
+            ))
+            fig1.update_layout(
+                title="Revenus vs Dépenses",
+                height=350,
+                margin=dict(t=40, b=20, l=20, r=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                hovermode='x unified',
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+        
+        with col_graph2:
+            df_evolution["Épargne Cumulée"] = df_evolution["Épargne"].cumsum()
+            
+            fig2 = go.Figure()
+            fig2.add_trace(go.Bar(
+                x=df_evolution["Mois"],
+                y=df_evolution["Épargne"],
+                name="Épargne mensuelle",
+                marker_color='#4F46E5'
+            ))
+            fig2.add_trace(go.Scatter(
+                x=df_evolution["Mois"],
+                y=df_evolution["Épargne Cumulée"],
+                name="Épargne cumulée",
+                line=dict(color='#F59E0B', width=3),
+                yaxis='y2'
+            ))
+            fig2.update_layout(
+                title="Épargne mensuelle et cumulée",
+                height=350,
+                margin=dict(t=40, b=20, l=20, r=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                hovermode='x unified',
+                yaxis2=dict(overlaying='y', side='right'),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig2, use_container_width=True)
         
         st.write("")
         
-        # AFFICHAGE DES BUDGETS
-        if objectifs_list:
-            # Séparation Perso / Commun
-            b_perso = [o for o in objectifs_list if o['Scope'] == "Perso"]
-            b_commun = [o for o in objectifs_list if o['Scope'] == "Commun"]
-            
-            def render_budgets(liste, titre, emoji):
-                if liste:
-                    st.markdown(f"<h4 style='color: #2C3E50; margin-top: 20px; margin-bottom: 15px;'>{emoji} {titre}</h4>", unsafe_allow_html=True)
-                    
-                    # Grille responsive
-                    cols = st.columns(2)
-                    for i, o in enumerate(liste):
-                        col = cols[i % 2]
-                        real_idx = objectifs_list.index(o)
-                        
-                        # Calcul des dépenses
-                        msk = (df_mois["Type"]=="Dépense") & (df_mois["Categorie"]==o["Categorie"])
-                        if o["Scope"]=="Perso": 
-                            msk = msk & (df_mois["Imputation"]=="Perso") & (df_mois["Qui_Connecte"]==user_actuel)
-                        else: 
-                            msk = msk & (df_mois["Imputation"].str.contains("Commun"))
-                        
-                        real = df_mois[msk]["Montant"].sum()
-                        targ = float(o["Montant"])
-                        rat = real/targ if targ>0 else 0
-                        pct = min(rat * 100, 100)
-                        
-                        # Couleurs dynamiques
-                        if rat >= 1:
-                            bg_color = "#FEE2E2"
-                            border_color = "#EF4444"
-                            text_color = "#991B1B"
-                            bar_color = "#EF4444"
-                            status = "🔴 DÉPASSÉ"
-                        elif rat >= 0.8:
-                            bg_color = "#FEF3C7"
-                            border_color = "#F59E0B"
-                            text_color = "#92400E"
-                            bar_color = "#F59E0B"
-                            status = "🟡 ATTENTION"
-                        else:
-                            bg_color = "#D1FAE5"
-                            border_color = "#10B981"
-                            text_color = "#065F46"
-                            bar_color = "#10B981"
-                            status = "🟢 OK"
-                        
-                        with col:
-                            # Mode édition ou affichage
-                            if st.session_state.get(f"edit_budget_{real_idx}", False):
-                                # MODE ÉDITION
-                                st.markdown("""
-                                <div style="background: #EEF2FF; border: 2px solid #4F46E5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
-                                    <div style="color: #4F46E5; font-weight: 700; font-size: 14px;">✏️ Édition du budget</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                with st.form(f"edit_form_{real_idx}"):
-                                    new_cat = st.selectbox("Catégorie", cats_memoire.get("Dépense", []), 
-                                                          index=cats_memoire.get("Dépense", []).index(o["Categorie"]) if o["Categorie"] in cats_memoire.get("Dépense", []) else 0,
-                                                          key=f"cat_{real_idx}")
-                                    new_montant = st.number_input("Montant Max (€)", value=targ, min_value=0.0, step=10.0, key=f"mt_{real_idx}")
-                                    new_scope = st.selectbox("Scope", ["Perso", "Commun"], 
-                                                            index=0 if o["Scope"]=="Perso" else 1,
-                                                            key=f"sc_{real_idx}")
-                                    
-                                    c1, c2 = st.columns(2)
-                                    if c1.form_submit_button("💾 Sauvegarder", use_container_width=True, type="primary"):
-                                        objectifs_list[real_idx] = {"Scope": new_scope, "Categorie": new_cat, "Montant": new_montant}
-                                        save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
-                                        st.session_state[f"edit_budget_{real_idx}"] = False
-                                        st.rerun()
-                                    if c2.form_submit_button("❌ Annuler", use_container_width=True):
-                                        st.session_state[f"edit_budget_{real_idx}"] = False
-                                        st.rerun()
-                            else:
-                                # MODE AFFICHAGE
-                                restant = targ - real
-                                card_html = f"""
-                                <div style="background: {bg_color}; border-left: 5px solid {border_color}; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                        <div>
-                                            <div style="font-size: 18px; font-weight: 800; color: #1F2937; margin-bottom: 4px;">{o['Categorie']}</div>
-                                            <div style="font-size: 11px; color: #6B7280; font-weight: 600;">{status}</div>
-                                        </div>
-                                        <div style="text-align: right;">
-                                            <div style="font-size: 24px; font-weight: 900; color: {text_color};">{real:.0f} €</div>
-                                            <div style="font-size: 12px; color: #6B7280;">sur {targ:.0f} €</div>
-                                        </div>
-                                    </div>
-                                    <div style="background: #E5E7EB; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 12px;">
-                                        <div style="width: {pct:.1f}%; background: {bar_color}; height: 100%; border-radius: 5px;"></div>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div style="font-size: 12px; color: #6B7280;">
-                                            <span style="font-weight: 700; color: {text_color};">{pct:.0f}%</span> consommé
-                                        </div>
-                                        <div style="font-size: 12px; color: {text_color}; font-weight: 700;">
-                                            {restant:.0f} € restant
-                                        </div>
-                                    </div>
-                                </div>
-                                """
-                                st.markdown(card_html, unsafe_allow_html=True)
-                                
-                                # Boutons d'action
-                                b1, b2 = st.columns(2)
-                                if b1.button("✏️ Modifier", key=f"edit_btn_{real_idx}", use_container_width=True):
-                                    st.session_state[f"edit_budget_{real_idx}"] = True
-                                    st.rerun()
-                                if b2.button("🗑️ Supprimer", key=f"del_b_{real_idx}", use_container_width=True):
-                                    objectifs_list.pop(real_idx)
-                                    save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
-                                    st.rerun()
-
-            # Affichage des budgets
-            render_budgets(b_perso, "Mes Budgets", "👤")
-            if b_perso and b_commun:
-                st.markdown("<br>", unsafe_allow_html=True)
-            render_budgets(b_commun, "Budgets Communs", "🤝")
-        else:
-            # État vide
-            st.markdown("""
-            <div style="text-align: center; padding: 4rem 2rem; background: white; border-radius: 12px; margin: 2rem 0; border: 2px dashed #E5E7EB; animation: fadeIn 0.5s ease;">
-                <div style="font-size: 48px; margin-bottom: 1rem; opacity: 0.5;">📊</div>
-                <h3 style="color: #1F2937; margin-bottom: 0.5rem; font-weight: 700;">Aucun budget défini</h3>
-                <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez votre premier budget pour suivre vos dépenses</p>
+        # Comparaisons & Prédictions
+        st.markdown("### Comparaisons & Prédictions")
+        
+        rev = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Revenu")]["Montant"].sum()
+        dep = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense") & (df_mois["Imputation"]=="Perso")]["Montant"].sum()
+        epg = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Épargne")]["Montant"].sum()
+        com = df_mois[df_mois["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
+        
+        col_comp1, col_comp2, col_comp3 = st.columns(3)
+        
+        avg_3m_dep = df_evolution.tail(3)["Dépenses"].mean()
+        avg_6m_dep = df_evolution.tail(6)["Dépenses"].mean()
+        
+        delta_3m = ((dep + com) - avg_3m_dep) / avg_3m_dep * 100 if avg_3m_dep > 0 else 0
+        delta_6m = ((dep + com) - avg_6m_dep) / avg_6m_dep * 100 if avg_6m_dep > 0 else 0
+        
+        with col_comp1:
+            st.markdown(f"""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem;">
+                <h4 style="font-size: 14px; color: #6B7280; margin-bottom: 1rem;">vs Moyenne 3 mois</h4>
+                <div style="font-size: 24px; font-weight: 700; color: #1F2937; margin-bottom: 0.5rem;">{avg_3m_dep:,.0f} €</div>
+                <div style="font-size: 13px; color: {'#EF4444' if delta_3m > 0 else '#10B981'}; font-weight: 600;">
+                    {'+' if delta_3m > 0 else ''}{delta_3m:.1f}% ce mois
+                </div>
             </div>
             """, unsafe_allow_html=True)
-
+        
+        with col_comp2:
+            st.markdown(f"""
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem;">
+                <h4 style="font-size: 14px; color: #6B7280; margin-bottom: 1rem;">vs Moyenne 6 mois</h4>
+                <div style="font-size: 24px; font-weight: 700; color: #1F2937; margin-bottom: 0.5rem;">{avg_6m_dep:,.0f} €</div>
+                <div style="font-size: 13px; color: {'#EF4444' if delta_6m > 0 else '#10B981'}; font-weight: 600;">
+                    {'+' if delta_6m > 0 else ''}{delta_6m:.1f}% ce mois
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        tendance_epargne = df_evolution.tail(3)["Épargne"].mean()
+        prediction_3m = epg + (tendance_epargne * 3)
+        
+        with col_comp3:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border-radius: 12px; padding: 1.5rem; color: white;">
+                <h4 style="font-size: 14px; opacity: 0.9; margin-bottom: 1rem;">Prédiction dans 3 mois</h4>
+                <div style="font-size: 24px; font-weight: 700; margin-bottom: 0.5rem;">{prediction_3m:,.0f} €</div>
+                <div style="font-size: 13px; opacity: 0.9;">Si tendance actuelle</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # === TAB: ANALYSES DÉTAILLÉES ===
+    with main_tabs[2]:
+        sub_tabs = st.tabs(["Carte de Chaleur", "Top Dépenses", "Tendances Catégorie"])
+        
+        with sub_tabs[0]:
+            st.markdown("### Quand dépensez-vous le plus ?")
+            
+            df_user_mois = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense")].copy()
+            
+            if not df_user_mois.empty:
+                df_user_mois["Jour"] = pd.to_datetime(df_user_mois["Date"]).dt.day
+                heatmap_data = df_user_mois.groupby("Jour")["Montant"].sum().reindex(range(1, 32), fill_value=0)
+                
+                semaines = [heatmap_data.iloc[i:i+7] for i in range(0, 28, 7)]
+                semaines.append(heatmap_data.iloc[28:])
+                
+                fig_heat = go.Figure(data=go.Heatmap(
+                    z=[[val for val in sem.values] + [0] * (7 - len(sem)) for sem in semaines],
+                    x=['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+                    y=['Semaine 1', 'Semaine 2', 'Semaine 3', 'Semaine 4', 'Semaine 5'],
+                    colorscale='Reds',
+                    text=[[f"{val:.0f}€" if val > 0 else "" for val in sem.values] + [""] * (7 - len(sem)) for sem in semaines],
+                    texttemplate='%{text}',
+                    textfont={"size": 10},
+                    hovertemplate='%{y}<br>%{x}<br>%{z:.0f} €<extra></extra>'
+                ))
+                
+                fig_heat.update_layout(
+                    height=400,
+                    margin=dict(t=20, b=20, l=20, r=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                
+                st.plotly_chart(fig_heat, use_container_width=True)
+                
+                jour_max = heatmap_data.idxmax()
+                montant_max = heatmap_data.max()
+                st.info(f"Vous dépensez le plus le **jour {jour_max}** du mois ({montant_max:,.0f} €)")
+            else:
+                st.info("Pas assez de données")
+        
+        with sub_tabs[1]:
+            st.markdown("### Top 10 des plus grosses dépenses")
+            
+            col_period = st.radio("Période", ["Ce mois", "Cette année", "Tout"], horizontal=True, label_visibility="collapsed")
+            
+            if col_period == "Ce mois":
+                df_top = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense")]
+            elif col_period == "Cette année":
+                df_top = df[(df["Annee"]==a_sel) & (df["Qui_Connecte"]==user_actuel) & (df["Type"]=="Dépense")]
+            else:
+                df_top = df[(df["Qui_Connecte"]==user_actuel) & (df["Type"]=="Dépense")]
+            
+            if not df_top.empty:
+                top10 = df_top.nlargest(10, "Montant")
+                
+                for idx, (_, r) in enumerate(top10.iterrows()):
+                    st.markdown(f"""
+                    <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; animation: slideIn 0.3s ease {idx * 0.05}s; animation-fill-mode: both;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                                    <span style="background: #EF4444; color: white; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">#{idx+1}</span>
+                                    <span style="font-weight: 700; color: #1F2937; font-size: 15px;">{r['Titre']}</span>
+                                </div>
+                                <div style="font-size: 12px; color: #6B7280;">
+                                    <span style="background: #FEF2F2; color: #EF4444; padding: 2px 8px; border-radius: 4px; margin-right: 0.5rem;">{r['Categorie']}</span>
+                                    {pd.to_datetime(r['Date']).strftime('%d/%m/%Y')}
+                                </div>
+                            </div>
+                            <div style="font-weight: 700; font-size: 20px; color: #EF4444; white-space: nowrap;">{r['Montant']:,.0f} €</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("Aucune dépense")
+        
+        with sub_tabs[2]:
+            st.markdown("### Tendances par catégorie")
+            
+            date_fin = datetime(a_sel, m_sel, 1)
+            dates_6m = [(date_fin - relativedelta(months=i)).replace(day=1) for i in range(5, -1, -1)]
+            
+            categories_dep = df[(df["Qui_Connecte"]==user_actuel) & (df["Type"]=="Dépense")]["Categorie"].unique()
+            
+            if len(categories_dep) > 0:
+                cat_select = st.selectbox("Choisir une catégorie", sorted(categories_dep))
+                
+                tendance_data = []
+                for d in dates_6m:
+                    mois, annee = d.month, d.year
+                    montant = df[(df["Mois"]==mois) & (df["Annee"]==annee) & (df["Qui_Connecte"]==user_actuel) & (df["Type"]=="Dépense") & (df["Categorie"]==cat_select)]["Montant"].sum()
+                    tendance_data.append({"Mois": d.strftime("%b %y"), "Montant": montant})
+                
+                df_tendance = pd.DataFrame(tendance_data)
+                
+                fig_trend = go.Figure()
+                fig_trend.add_trace(go.Scatter(
+                    x=df_tendance["Mois"],
+                    y=df_tendance["Montant"],
+                    mode='lines+markers',
+                    line=dict(color='#4F46E5', width=3),
+                    marker=dict(size=10),
+                    fill='tozeroy',
+                    fillcolor='rgba(79, 70, 229, 0.1)'
+                ))
+                
+                fig_trend.update_layout(
+                    title=f"Évolution : {cat_select}",
+                    height=350,
+                    margin=dict(t=40, b=20, l=20, r=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    yaxis_title="Montant (€)"
+                )
+                
+                st.plotly_chart(fig_trend, use_container_width=True)
+                
+                if len(df_tendance) >= 2:
+                    dernier_mois = df_tendance.iloc[-1]["Montant"]
+                    avant_dernier = df_tendance.iloc[-2]["Montant"]
+                    variation = ((dernier_mois - avant_dernier) / avant_dernier * 100) if avant_dernier > 0 else 0
+                    
+                    if abs(variation) > 15:
+                        couleur = "#EF4444" if variation > 0 else "#10B981"
+                        st.markdown(f"""
+                        <div style="background: {'#FEF2F2' if variation > 0 else '#F0FDF4'}; border-left: 4px solid {couleur}; padding: 1rem; border-radius: 8px;">
+                            <div style="color: {couleur}; font-weight: 700; font-size: 14px;">
+                                Variation significative : {'+' if variation > 0 else ''}{variation:.1f}%
+                            </div>
+                            <div style="color: #6B7280; font-size: 13px; margin-top: 0.5rem;">
+                                {cat_select} a {'augmenté' if variation > 0 else 'diminué'} de {abs(variation):.0f}% par rapport au mois dernier
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.info("Aucune catégorie disponible")
+    
+    # === TAB: BUDGETS ===
+    with main_tabs[3]:
 # TAB 4: PATRIMOINE
 with tabs[3]:
     page_header("Patrimoine", "Gérez vos comptes et projets d'épargne")
