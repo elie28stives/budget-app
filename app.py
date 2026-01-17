@@ -34,6 +34,151 @@ COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titr
 COLS_PAT = ["Date", "Mois", "Annee", "Compte", "Montant", "Proprietaire"]
 
 # ==============================================================================
+# FONCTIONS INTELLIGENTES
+# ==============================================================================
+def detecter_doublons(df, jours_tolerance=3):
+    """Détecte les transactions potentiellement dupliquées"""
+    doublons = []
+    
+    if df.empty:
+        return doublons
+    
+    df_sorted = df.sort_values('Date')
+    
+    for i, row in df_sorted.iterrows():
+        similaires = df_sorted[
+            (df_sorted.index != i) &
+            (df_sorted['Montant'] == row['Montant']) &
+            (df_sorted['Categorie'] == row['Categorie']) &
+            (abs((pd.to_datetime(df_sorted['Date']) - pd.to_datetime(row['Date'])).dt.days) <= jours_tolerance)
+        ]
+        
+        if not similaires.empty:
+            doublons.append({
+                'transaction': row,
+                'similaires': similaires.iloc[0] if len(similaires) > 0 else None
+            })
+    
+    return doublons
+
+def detecter_depenses_inhabituelles(df_mois, df_historique, user, seuil=2.0):
+    """Détecte les dépenses anormalement élevées par rapport à l'historique"""
+    alertes = []
+    
+    if df_historique.empty:
+        return alertes
+    
+    # Calculer moyenne par catégorie sur les 3 derniers mois
+    date_limite = datetime.now() - relativedelta(months=3)
+    df_recent = df_historique[
+        (pd.to_datetime(df_historique['Date']) >= date_limite) &
+        (df_historique['Qui_Connecte'] == user) &
+        (df_historique['Type'] == 'Dépense')
+    ]
+    
+    moyennes = df_recent.groupby('Categorie')['Montant'].mean()
+    
+    # Comparer avec ce mois
+    for cat in df_mois['Categorie'].unique():
+        montant_mois = df_mois[df_mois['Categorie'] == cat]['Montant'].sum()
+        
+        if cat in moyennes:
+            moyenne = moyennes[cat]
+            if montant_mois > moyenne * seuil:
+                ratio = montant_mois / moyenne
+                alertes.append({
+                    'categorie': cat,
+                    'montant': montant_mois,
+                    'moyenne': moyenne,
+                    'ratio': ratio
+                })
+    
+    return alertes
+
+def suggerer_categories(titre, historique_df, mots_cles_map):
+    """Suggère des catégories basées sur l'historique et les mots-clés"""
+    titre_lower = titre.lower()
+    
+    # 1. Vérifier mots-clés configurés
+    for mc, info in mots_cles_map.items():
+        if mc in titre_lower:
+            return info['Categorie'], "mot-clé configuré"
+    
+    # 2. Analyser l'historique
+    if not historique_df.empty:
+        titres_similaires = historique_df[
+            historique_df['Titre'].str.lower().str.contains(titre_lower[:5], na=False, regex=False)
+        ]
+        
+        if not titres_similaires.empty:
+            cat_freq = titres_similaires['Categorie'].value_counts()
+            if len(cat_freq) > 0:
+                return cat_freq.index[0], f"basé sur {len(titres_similaires)} transaction(s) similaire(s)"
+    
+    return None, None
+
+def verifier_abonnements_manquants(df_mois, df_abonnements, mois, annee, user):
+    """Vérifie si des abonnements n'ont pas été générés"""
+    manquants = []
+    
+    if df_abonnements.empty:
+        return manquants
+    
+    abos_user = df_abonnements[df_abonnements['Proprietaire'] == user]
+    
+    for _, abo in abos_user.iterrows():
+        # Vérifier si l'abonnement devrait être généré ce mois
+        freq = abo.get('Frequence', 'Mensuel')
+        date_debut = abo.get('Date_Debut', '')
+        date_fin = abo.get('Date_Fin', '')
+        
+        # Vérifications de date
+        if date_debut:
+            debut = pd.to_datetime(date_debut).date()
+            if datetime(annee, mois, 1).date() < debut:
+                continue
+        
+        if date_fin:
+            fin = pd.to_datetime(date_fin).date()
+            if datetime(annee, mois, 1).date() > fin:
+                continue
+        
+        # Vérifier si déjà payé
+        paye = not df_mois[
+            (df_mois['Titre'].str.lower() == abo['Nom'].lower()) &
+            (df_mois['Montant'] == float(abo['Montant']))
+        ].empty
+        
+        if not paye:
+            manquants.append(abo)
+    
+    return manquants
+
+def calculer_prevision_fin_mois(df_mois, df_historique, user, jour_actuel):
+    """Prédit les dépenses totales en fin de mois"""
+    # Dépenses actuelles
+    dep_actuelles = df_mois[
+        (df_mois['Qui_Connecte'] == user) &
+        (df_mois['Type'] == 'Dépense')
+    ]['Montant'].sum()
+    
+    # Moyenne quotidienne sur les 3 derniers mois
+    date_limite = datetime.now() - relativedelta(months=3)
+    df_recent = df_historique[
+        (pd.to_datetime(df_historique['Date']) >= date_limite) &
+        (df_historique['Qui_Connecte'] == user) &
+        (df_historique['Type'] == 'Dépense')
+    ]
+    
+    if not df_recent.empty:
+        moy_journaliere = df_recent['Montant'].sum() / 90  # ~3 mois
+        jours_restants = 30 - jour_actuel
+        prevision = dep_actuelles + (moy_journaliere * jours_restants)
+        return prevision
+    
+    return None
+
+# ==============================================================================
 # 2. CSS & UI
 # ==============================================================================
 def apply_custom_style():
@@ -758,6 +903,120 @@ with tabs[0]:
     </div>
     """, unsafe_allow_html=True)
     
+    st.write("")
+    
+    # === PANNEAU DE NOTIFICATIONS INTELLIGENTES ===
+    notifications = []
+    
+    # 1. Détecter les doublons
+    doublons = detecter_doublons(df_mois)
+    if doublons:
+        notifications.append({
+            'type': 'warning',
+            'icon': '⚠️',
+            'titre': 'Doublons potentiels détectés',
+            'message': f"{len(doublons)} transaction(s) semblent dupliquées (même montant, catégorie et date proche)"
+        })
+    
+    # 2. Détecter dépenses inhabituelles
+    dep_inhabituelles = detecter_depenses_inhabituelles(
+        df_mois[(df_mois['Qui_Connecte']==user_actuel) & (df_mois['Type']=='Dépense')],
+        df[(df['Qui_Connecte']==user_actuel) & (df['Type']=='Dépense')],
+        user_actuel
+    )
+    for alerte in dep_inhabituelles:
+        notifications.append({
+            'type': 'warning',
+            'icon': '📊',
+            'titre': f"Dépenses élevées : {alerte['categorie']}",
+            'message': f"{alerte['montant']:,.0f} € ce mois (x{alerte['ratio']:.1f} la moyenne)"
+        })
+    
+    # 3. Vérifier abonnements manquants
+    abos_manquants = verifier_abonnements_manquants(df_mois, df_abonnements, m_sel, a_sel, user_actuel)
+    if abos_manquants:
+        notifications.append({
+            'type': 'info',
+            'icon': '📅',
+            'titre': 'Abonnements à générer',
+            'message': f"{len(abos_manquants)} abonnement(s) n'ont pas encore été générés ce mois"
+        })
+    
+    # 4. Alertes budgets
+    if objectifs_list:
+        for obj in objectifs_list:
+            if obj.get('Scope') == 'Perso' or obj.get('Scope') == 'Commun':
+                cat = obj.get('Categorie', '')
+                budget_max = float(obj.get('Montant', 0))
+                
+                if obj.get('Scope') == 'Perso':
+                    dep_cat = df_mois[(df_mois['Categorie']==cat) & (df_mois['Qui_Connecte']==user_actuel) & (df_mois['Imputation']=='Perso')]['Montant'].sum()
+                else:
+                    dep_cat = df_mois[(df_mois['Categorie']==cat) & (df_mois['Imputation'].str.contains('Commun', na=False))]['Montant'].sum()
+                
+                pct = (dep_cat / budget_max * 100) if budget_max > 0 else 0
+                
+                if pct >= 100:
+                    notifications.append({
+                        'type': 'danger',
+                        'icon': '🚨',
+                        'titre': f"Budget dépassé : {cat}",
+                        'message': f"{dep_cat:,.0f} € / {budget_max:,.0f} € ({pct:.0f}%)"
+                    })
+                elif pct >= 80:
+                    notifications.append({
+                        'type': 'warning',
+                        'icon': '⚡',
+                        'titre': f"Budget à 80% : {cat}",
+                        'message': f"{dep_cat:,.0f} € / {budget_max:,.0f} € ({pct:.0f}%)"
+                    })
+    
+    # 5. Prévision fin de mois
+    jour_actuel = datetime.now().day
+    if jour_actuel < 28:  # Seulement avant la fin du mois
+        prevision = calculer_prevision_fin_mois(
+            df_mois[(df_mois['Qui_Connecte']==user_actuel) & (df_mois['Type']=='Dépense')],
+            df[(df['Qui_Connecte']==user_actuel) & (df['Type']=='Dépense')],
+            user_actuel,
+            jour_actuel
+        )
+        if prevision:
+            dep_actuelles = df_mois[(df_mois['Qui_Connecte']==user_actuel) & (df_mois['Type']=='Dépense')]['Montant'].sum()
+            if prevision > dep_actuelles * 1.2:  # Prévision > 20% des dépenses actuelles
+                notifications.append({
+                    'type': 'info',
+                    'icon': '🔮',
+                    'titre': 'Prévision fin de mois',
+                    'message': f"Dépenses estimées : {prevision:,.0f} € (actuellement {dep_actuelles:,.0f} €)"
+                })
+    
+    # Afficher les notifications
+    if notifications:
+        st.markdown("### 🔔 Notifications")
+        
+        for notif in notifications[:5]:  # Limiter à 5 notifications
+            couleurs = {
+                'danger': {'bg': '#FEF2F2', 'border': '#EF4444', 'text': '#991B1B'},
+                'warning': {'bg': '#FFFBEB', 'border': '#F59E0B', 'text': '#92400E'},
+                'info': {'bg': '#EFF6FF', 'border': '#3B82F6', 'text': '#1E40AF'}
+            }
+            
+            c = couleurs.get(notif['type'], couleurs['info'])
+            
+            st.markdown(f"""
+            <div style="background: {c['bg']}; border-left: 4px solid {c['border']}; padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem; animation: slideIn 0.3s ease;">
+                <div style="display: flex; align-items: start; gap: 0.75rem;">
+                    <div style="font-size: 20px;">{notif['icon']}</div>
+                    <div style="flex: 1;">
+                        <div style="color: {c['text']}; font-weight: 700; font-size: 14px; margin-bottom: 0.25rem;">{notif['titre']}</div>
+                        <div style="color: #6B7280; font-size: 13px;">{notif['message']}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.write("")
+    
     st.markdown("---")
     c1, c2 = st.columns([3, 2])
     with c1:
@@ -834,20 +1093,26 @@ with tabs[1]:
             with c4:
                 tit = st.text_input("Titre", placeholder="Ex: Courses Carrefour, Salaire...")
             
-            # Auto-détection catégorie
+            # Suggestion intelligente de catégorie
             cat_f = "Autre"
             cpt_a = None
-            if tit and mots_cles_map:
-                for mc, d in mots_cles_map.items():
-                    if mc in tit.lower() and d["Type"] == t_op:
-                        cat_f = d["Categorie"]
-                        cpt_a = d["Compte"]
-                        break
+            suggestion_source = None
+            
+            if tit:
+                # Utiliser la fonction de suggestion intelligente
+                cat_suggeree, source = suggerer_categories(tit, df[df['Type']==t_op], mots_cles_map)
+                if cat_suggeree and cat_suggeree in cats_memoire.get(t_op, []):
+                    cat_f = cat_suggeree
+                    suggestion_source = source
             
             with c5:
                 cats = cats_memoire.get(t_op, [])
                 idx_c = cats.index(cat_f) if cat_f in cats else 0
                 cat_s = st.selectbox("Catégorie", cats + ["Autre (nouvelle)"], index=idx_c)
+                
+                # Afficher l'info de suggestion
+                if suggestion_source and cat_f != "Autre":
+                    st.caption(f"💡 Suggéré : {suggestion_source}")
             
             # Si nouvelle catégorie
             if cat_s == "Autre (nouvelle)":
@@ -1662,10 +1927,40 @@ with tabs[2]:
     # === TAB: BUDGETS ===
     with main_tabs[3]:
         # HEADER avec bouton d'ajout
-        h_col1, h_col2 = st.columns([3, 1])
+        h_col1, h_col2, h_col3 = st.columns([2, 1, 1])
         with h_col1:
             st.markdown("### Mes Budgets")
         with h_col2:
+            if st.button("Suggérer budgets", use_container_width=True, help="Basé sur vos dépenses moyennes"):
+                # Calculer moyennes sur 3 derniers mois
+                date_limite = datetime.now() - relativedelta(months=3)
+                df_recent = df[
+                    (pd.to_datetime(df['Date']) >= date_limite) &
+                    (df['Qui_Connecte'] == user_actuel) &
+                    (df['Type'] == 'Dépense')
+                ]
+                
+                if not df_recent.empty:
+                    moyennes = df_recent.groupby('Categorie')['Montant'].mean() * 1.1  # +10% de marge
+                    
+                    for cat, montant in moyennes.items():
+                        # Vérifier si budget existe déjà
+                        existe = any(o.get('Categorie') == cat and o.get('Scope') == 'Perso' for o in objectifs_list)
+                        if not existe and montant > 50:  # Seulement si > 50€
+                            objectifs_list.append({
+                                'Scope': 'Perso',
+                                'Categorie': cat,
+                                'Montant': round(montant, -1)  # Arrondir à la dizaine
+                            })
+                    
+                    save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
+                    st.success(f"Budgets suggérés créés !")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.warning("Pas assez de données pour suggérer des budgets")
+        
+        with h_col3:
             if st.button("Nouveau Budget", use_container_width=True, type="primary"):
                 st.session_state['new_budget_modal'] = not st.session_state.get('new_budget_modal', False)
         
