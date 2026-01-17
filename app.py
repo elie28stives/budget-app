@@ -1711,9 +1711,15 @@ with tabs[2]:
                 
                 st.markdown(f"### {icone} {titre}")
                 
-                for real_idx, obj in enumerate([o for o in objectifs_list if o.get("Scope") == liste[0].get("Scope")]):
+                scope_prefix = "perso" if liste[0].get("Scope") == "Perso" else "commun"
+                
+                for idx, obj in enumerate(liste):
                     cat = obj.get("Categorie", "")
                     budget_max = float(obj.get("Montant", 0))
+                    
+                    # Trouver l'index réel dans objectifs_list
+                    real_idx = objectifs_list.index(obj)
+                    unique_key = f"{scope_prefix}_{idx}"
                     
                     # Calcul dépenses
                     if obj.get("Scope") == "Perso":
@@ -1732,7 +1738,7 @@ with tabs[2]:
                     else:
                         couleur, bg = "#10B981", "#F0FDF4"
                     
-                    if not st.session_state.get(f"edit_budget_{real_idx}", False):
+                    if not st.session_state.get(f"edit_budget_{unique_key}", False):
                         card_html = f"""
                         <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; animation: slideIn 0.3s ease;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -1757,10 +1763,10 @@ with tabs[2]:
                         
                         # Boutons d'action
                         b1, b2 = st.columns(2)
-                        if b1.button("Modifier", key=f"edit_btn_{real_idx}", use_container_width=True):
-                            st.session_state[f"edit_budget_{real_idx}"] = True
+                        if b1.button("Modifier", key=f"edit_btn_{unique_key}", use_container_width=True):
+                            st.session_state[f"edit_budget_{unique_key}"] = True
                             st.rerun()
-                        if b2.button("Supprimer", key=f"del_b_{real_idx}", use_container_width=True):
+                        if b2.button("Supprimer", key=f"del_b_{unique_key}", use_container_width=True):
                             objectifs_list.pop(real_idx)
                             save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
                             st.rerun()
@@ -1772,16 +1778,16 @@ with tabs[2]:
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        with st.form(f"edit_form_{real_idx}"):
+                        with st.form(f"edit_form_{unique_key}"):
                             new_montant = st.number_input("Nouveau montant", value=budget_max, step=10.0)
                             c1, c2 = st.columns(2)
                             if c1.form_submit_button("Sauvegarder", use_container_width=True, type="primary"):
                                 objectifs_list[real_idx]["Montant"] = new_montant
                                 save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
-                                st.session_state[f"edit_budget_{real_idx}"] = False
+                                st.session_state[f"edit_budget_{unique_key}"] = False
                                 st.rerun()
                             if c2.form_submit_button("Annuler", use_container_width=True):
-                                st.session_state[f"edit_budget_{real_idx}"] = False
+                                st.session_state[f"edit_budget_{unique_key}"] = False
                                 st.rerun()
             
             # Affichage des budgets
