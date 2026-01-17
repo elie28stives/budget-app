@@ -573,13 +573,57 @@ def calc_soldes(df_t, df_p, comptes):
 def process_data():
     raw = load_all_configs()
     
-    # Catégories
+    # Catégories avec valeurs par défaut complètes
     cats = {k: [] for k in TYPES}
     if not raw[0].empty:
         for _, r in raw[0].iterrows():
             if r["Type"] in cats and r["Categorie"] not in cats[r["Type"]]: 
                 cats[r["Type"]].append(r["Categorie"])
-    if not cats["Dépense"]: cats["Dépense"] = ["Alimentation", "Loyer"]
+    
+    # Catégories par défaut si la base est vide
+    if not cats["Dépense"]:
+        cats["Dépense"] = [
+            # Alimentation & Courses
+            "Alimentation", "Courses", "Restaurant", "Fast Food", "Boulangerie", "Marché",
+            # Logement
+            "Loyer", "Charges", "Électricité", "Eau", "Gaz", "Internet", "Téléphone", "Assurance Habitation",
+            # Transport
+            "Essence", "Transport en Commun", "Parking", "Péage", "Assurance Auto", "Entretien Véhicule",
+            # Santé & Bien-être
+            "Pharmacie", "Médecin", "Dentiste", "Mutuelle", "Sport", "Coiffeur", "Cosmétiques",
+            # Loisirs & Culture
+            "Cinéma", "Streaming", "Livres", "Jeux", "Sorties", "Voyages", "Hobbies",
+            # Shopping
+            "Vêtements", "Chaussures", "Électronique", "Maison & Déco", "Cadeaux",
+            # Services & Abonnements
+            "Abonnements", "Banque", "Impôts", "Crèche", "École", "Formation",
+            # Animaux
+            "Vétérinaire", "Nourriture Animaux", "Accessoires Animaux",
+            # Divers
+            "Autre"
+        ]
+    
+    if not cats["Revenu"]:
+        cats["Revenu"] = [
+            "Salaire", "Prime", "Bonus", "Freelance", "Vente", "Remboursement", 
+            "Allocations", "Aide", "Intérêts", "Dividendes", "Loyer Perçu", "Autre"
+        ]
+    
+    if not cats["Épargne"]:
+        cats["Épargne"] = [
+            "Épargne Mensuelle", "Épargne Projet", "Épargne Urgence", 
+            "Livret A", "PEL", "Assurance Vie", "Plan Épargne", "Autre"
+        ]
+    
+    if not cats["Virement Interne"]:
+        cats["Virement Interne"] = [
+            "Transfert Comptes", "Rééquilibrage", "Autre"
+        ]
+    
+    if not cats["Investissement"]:
+        cats["Investissement"] = [
+            "Bourse", "Crypto", "Immobilier", "Startup", "Autre"
+        ]
     
     # Comptes
     comptes, c_types = {}, {}
