@@ -1485,7 +1485,141 @@ with tabs[1]:
 
 # TAB 3: ANALYSES AVANCÉES
 with tabs[2]:
-    page_header("Analyses Approfondies", "Explorez vos données en détail")
+    # Header avec bouton export
+    col_h1, col_h2 = st.columns([3, 1])
+    with col_h1:
+        page_header("Analyses Approfondies", "Explorez vos données en détail")
+    
+    with col_h2:
+        if st.button("📄 Exporter en PDF", use_container_width=True, type="primary"):
+            # Générer le PDF
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib import colors
+            from reportlab.lib.units import cm
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+            
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+            
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#4F46E5'), spaceAfter=30, alignment=TA_CENTER)
+            heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=16, textColor=colors.HexColor('#1F2937'), spaceAfter=12, spaceBefore=12)
+            
+            elements = []
+            
+            # Titre
+            elements.append(Paragraph(f"Rapport Budgétaire - {m_nom} {a_sel}", title_style))
+            elements.append(Paragraph(f"Compte de {user_actuel}", styles['Normal']))
+            elements.append(Spacer(1, 20))
+            
+            # Résumé financier
+            elements.append(Paragraph("Résumé Financier", heading_style))
+            
+            rev = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Revenu")]["Montant"].sum()
+            dep = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense") & (df_mois["Imputation"]=="Perso")]["Montant"].sum()
+            epg = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Épargne")]["Montant"].sum()
+            com = df_mois[df_mois["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
+            solde = rev - dep - com
+            
+            data_summary = [
+                ['Indicateur', 'Montant'],
+                ['Revenus', f"{rev:,.2f} €"],
+                ['Dépenses personnelles', f"{dep:,.2f} €"],
+                ['Dépenses communes', f"{com:,.2f} €"],
+                ['Épargne', f"{epg:,.2f} €"],
+                ['Solde', f"{solde:,.2f} €"]
+            ]
+            
+            table = Table(data_summary, colWidths=[8*cm, 6*cm])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4F46E5')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 20))
+            
+            # Dépenses par catégorie
+            if not df_mois.empty:
+                elements.append(Paragraph("Dépenses par Catégorie", heading_style))
+                
+                df_dep = df_mois[(df_mois["Type"]=="Dépense") & (df_mois["Qui_Connecte"]==user_actuel)].groupby("Categorie")["Montant"].sum().sort_values(ascending=False)
+                
+                if not df_dep.empty:
+                    data_dep = [['Catégorie', 'Montant', '% du total']]
+                    total_dep = df_dep.sum()
+                    
+                    for cat, montant in df_dep.items():
+                        pct = (montant / total_dep * 100) if total_dep > 0 else 0
+                        data_dep.append([cat, f"{montant:,.2f} €", f"{pct:.1f}%"])
+                    
+                    table_dep = Table(data_dep, colWidths=[8*cm, 4*cm, 3*cm])
+                    table_dep.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EF4444')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 11),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                    ]))
+                    elements.append(table_dep)
+                    elements.append(Spacer(1, 20))
+            
+            # Transactions principales
+            elements.append(PageBreak())
+            elements.append(Paragraph("Transactions du mois", heading_style))
+            
+            transactions = df_mois[(df_mois["Qui_Connecte"]==user_actuel)].sort_values('Date', ascending=False).head(20)
+            
+            if not transactions.empty:
+                data_trans = [['Date', 'Titre', 'Catégorie', 'Montant']]
+                
+                for _, t in transactions.iterrows():
+                    date_str = pd.to_datetime(t['Date']).strftime('%d/%m/%Y')
+                    signe = '-' if t['Type'] == 'Dépense' else '+'
+                    data_trans.append([
+                        date_str,
+                        t['Titre'][:30],  # Limiter la longueur
+                        t['Categorie'][:20],
+                        f"{signe}{t['Montant']:,.2f} €"
+                    ])
+                
+                table_trans = Table(data_trans, colWidths=[2.5*cm, 7*cm, 4*cm, 3*cm])
+                table_trans.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4F46E5')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 9),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                ]))
+                elements.append(table_trans)
+            
+            # Générer le PDF
+            doc.build(elements)
+            buffer.seek(0)
+            
+            st.download_button(
+                label="⬇️ Télécharger le PDF",
+                data=buffer,
+                file_name=f"rapport_budget_{m_nom}_{a_sel}_{user_actuel}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
     
     # Tabs principales
     main_tabs = st.tabs(["Vue Globale", "Évolution & Tendances", "Analyses Détaillées", "Budgets"])
@@ -2367,7 +2501,7 @@ with tabs[3]:
 with tabs[4]:
     page_header("Remboursements & Crédits", "Gérez vos prêts, avances et remboursements")
     
-    main_tabs = st.tabs(["💰 Qui doit quoi ?", "💳 Crédits en cours", "⚡ Transactions rapides"])
+    main_tabs = st.tabs(["💰 Qui doit quoi ?", "💳 Crédits en cours"])
     
     # === TAB: QUI DOIT QUOI ? ===
     with main_tabs[0]:
@@ -2513,17 +2647,58 @@ with tabs[4]:
                 nom_credit = col1.text_input("Nom du crédit", placeholder="Ex: Crédit immobilier, Voiture...")
                 organisme = col2.text_input("Organisme", placeholder="Ex: Banque Populaire")
                 
-                col3, col4, col5 = st.columns(3)
-                montant_init = col3.number_input("Montant initial (€)", min_value=0.0, step=100.0)
-                taux = col4.number_input("Taux (%)", min_value=0.0, max_value=20.0, step=0.1, format="%.2f")
-                mensualite = col5.number_input("Mensualité (€)", min_value=0.0, step=10.0)
+                col3, col4 = st.columns(2)
+                montant_init = col3.number_input("Montant emprunté (€)", min_value=0.0, step=100.0)
+                taux = col4.number_input("Taux annuel (%)", min_value=0.0, max_value=20.0, step=0.1, format="%.2f")
                 
-                col6, col7 = st.columns(2)
-                date_debut = col6.date_input("Date de début", datetime.today())
-                date_fin = col7.date_input("Date de fin")
+                st.markdown("**Remboursement :**")
+                mode_remb = st.radio("Mode de calcul", ["Saisir la mensualité", "Saisir la durée"], horizontal=True)
+                
+                if mode_remb == "Saisir la mensualité":
+                    col5, col6 = st.columns(2)
+                    mensualite = col5.number_input("Mensualité (€)", min_value=0.0, step=10.0)
+                    
+                    # Calcul durée approximative
+                    if mensualite > 0 and montant_init > 0 and taux > 0:
+                        taux_mensuel = taux / 100 / 12
+                        if mensualite > montant_init * taux_mensuel:
+                            nb_mois = int(-1 * (1 / taux_mensuel) * (1 - (montant_init * taux_mensuel / mensualite)))
+                            duree_annees = nb_mois / 12
+                            col6.info(f"Durée estimée : {nb_mois} mois ({duree_annees:.1f} ans)")
+                        else:
+                            col6.warning("Mensualité trop faible")
+                    
+                    date_debut = st.date_input("Date de début", datetime.today())
+                    date_fin = None
+                    
+                else:  # Saisir la durée
+                    col7, col8 = st.columns(2)
+                    duree_mois = col7.number_input("Durée (mois)", min_value=1, max_value=600, value=120, step=12)
+                    
+                    # Calcul mensualité
+                    if montant_init > 0 and taux > 0:
+                        taux_mensuel = taux / 100 / 12
+                        mensualite = montant_init * (taux_mensuel * (1 + taux_mensuel)**duree_mois) / ((1 + taux_mensuel)**duree_mois - 1)
+                        col8.info(f"Mensualité : {mensualite:.2f} €")
+                    else:
+                        mensualite = 0
+                        col8.warning("Renseignez montant et taux")
+                    
+                    date_debut = st.date_input("Date de début", datetime.today())
+                    date_fin = date_debut + relativedelta(months=int(duree_mois))
+                    st.caption(f"Date de fin prévue : {date_fin.strftime('%d/%m/%Y')}")
                 
                 col_btn1, col_btn2 = st.columns(2)
                 if col_btn1.form_submit_button("Créer", use_container_width=True):
+                    if not date_fin and mensualite > 0:
+                        # Calculer date_fin basée sur la mensualité
+                        taux_mensuel = taux / 100 / 12
+                        if mensualite > montant_init * taux_mensuel:
+                            nb_mois = int(-1 * (1 / taux_mensuel) * (1 - (montant_init * taux_mensuel / mensualite)))
+                            date_fin = date_debut + relativedelta(months=nb_mois)
+                        else:
+                            date_fin = date_debut + relativedelta(years=30)  # Par défaut 30 ans
+                    
                     nouveau_credit = pd.DataFrame([{
                         "Nom": nom_credit,
                         "Montant_Initial": montant_init,
@@ -2610,55 +2785,6 @@ with tabs[4]:
             </div>
             """, unsafe_allow_html=True)
     
-    # === TAB: TRANSACTIONS RAPIDES ===
-    with main_tabs[2]:
-        st.markdown("### ⚡ Raccourcis pour transactions fréquentes")
-        st.caption("Créez des boutons pour enregistrer rapidement vos dépenses courantes")
-        
-        # Charger les raccourcis (on utilise les mots-clés comme base)
-        raccourcis_courants = [
-            {"nom": "🛒 Courses", "cat": "Courses", "montant": 50},
-            {"nom": "⛽ Essence", "cat": "Essence", "montant": 60},
-            {"nom": "🍕 Restaurant", "cat": "Restaurant", "montant": 30},
-            {"nom": "☕ Café", "cat": "Fast Food", "montant": 5},
-            {"nom": "🚇 Transport", "cat": "Transport en Commun", "montant": 10},
-            {"nom": "💊 Pharmacie", "cat": "Pharmacie", "montant": 15}
-        ]
-        
-        st.markdown("#### Raccourcis pré-configurés")
-        
-        cols = st.columns(3)
-        for i, racc in enumerate(raccourcis_courants):
-            col = cols[i % 3]
-            
-            with col:
-                if st.button(racc['nom'], use_container_width=True, key=f"quick_{i}"):
-                    # Créer la transaction
-                    nr = {
-                        "Date": datetime.today().date(),
-                        "Mois": datetime.today().month,
-                        "Annee": datetime.today().year,
-                        "Qui_Connecte": user_actuel,
-                        "Type": "Dépense",
-                        "Categorie": racc['cat'],
-                        "Titre": racc['nom'].split()[1] if len(racc['nom'].split()) > 1 else racc['nom'],
-                        "Description": "Transaction rapide",
-                        "Montant": racc['montant'],
-                        "Paye_Par": user_actuel,
-                        "Imputation": "Perso",
-                        "Compte_Cible": "",
-                        "Projet_Epargne": "",
-                        "Compte_Source": list(comptes_map.get(user_actuel, {}))[0] if comptes_map.get(user_actuel) else ""
-                    }
-                    
-                    df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True)
-                    save_data(TAB_DATA, df)
-                    st.success(f"✅ {racc['nom']} - {racc['montant']} € ajouté !")
-                    time.sleep(0.5)
-                    st.rerun()
-        
-        st.write("")
-        st.info("💡 Astuce : Les montants sont des valeurs par défaut. Vous pouvez les modifier après création dans l'onglet Journal.")
 
 # TAB 6: REGLAGES
 with tabs[5]:
