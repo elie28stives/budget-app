@@ -1644,6 +1644,50 @@ with tabs[4]:
         st.markdown("### Gérer les catégories")
         st.caption("Organisez vos transactions par catégories personnalisées")
         
+        # Bouton pour charger les catégories par défaut
+        if st.button("🔄 Charger les catégories par défaut", help="Ajoute toutes les catégories recommandées"):
+            # Catégories par défaut
+            default_cats = {
+                "Dépense": [
+                    "Alimentation", "Courses", "Restaurant", "Fast Food", "Boulangerie", "Marché",
+                    "Loyer", "Charges", "Électricité", "Eau", "Gaz", "Internet", "Téléphone", "Assurance Habitation",
+                    "Essence", "Transport en Commun", "Parking", "Péage", "Assurance Auto", "Entretien Véhicule",
+                    "Pharmacie", "Médecin", "Dentiste", "Mutuelle", "Sport", "Coiffeur", "Cosmétiques",
+                    "Cinéma", "Streaming", "Livres", "Jeux", "Sorties", "Voyages", "Hobbies",
+                    "Vêtements", "Chaussures", "Électronique", "Maison & Déco", "Cadeaux",
+                    "Abonnements", "Banque", "Impôts", "Crèche", "École", "Formation",
+                    "Vétérinaire", "Nourriture Animaux", "Accessoires Animaux",
+                    "Autre"
+                ],
+                "Revenu": [
+                    "Salaire", "Prime", "Bonus", "Freelance", "Vente", "Remboursement", 
+                    "Allocations", "Aide", "Intérêts", "Dividendes", "Loyer Perçu", "Autre"
+                ],
+                "Épargne": [
+                    "Épargne Mensuelle", "Épargne Projet", "Épargne Urgence", 
+                    "Livret A", "PEL", "Assurance Vie", "Plan Épargne", "Autre"
+                ],
+                "Virement Interne": [
+                    "Transfert Comptes", "Rééquilibrage", "Autre"
+                ],
+                "Investissement": [
+                    "Bourse", "Crypto", "Immobilier", "Startup", "Autre"
+                ]
+            }
+            
+            # Fusionner avec les catégories existantes
+            for type_cat, liste in default_cats.items():
+                for cat in liste:
+                    if cat not in cats_memoire.get(type_cat, []):
+                        cats_memoire.setdefault(type_cat, []).append(cat)
+            
+            save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
+            st.success("✅ Catégories par défaut chargées !")
+            time.sleep(1)
+            st.rerun()
+        
+        st.write("")
+        
         # Ajout de catégorie
         with st.container():
             st.markdown("""
