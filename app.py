@@ -1429,8 +1429,7 @@ with tabs[1]:
                             <div style="font-size: 24px; font-weight: 700; color: {sc}; margin-bottom: 1rem;">{float(r['Montant']):.2f} €</div>
                             <div style="font-size: 11px; color: #6B7280; background: #F9FAFB; padding: 0.5rem; border-radius: 6px; line-height: 1.5;">
                                 Jour {r['Jour']} • {r['Categorie']}<br/>
-                                {freq_label}
-                                {f"<br/>{info_dates}" if info_dates else ""}
+                                {freq_label}{'<br/>' + info_dates if info_dates else ''}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -3066,3 +3065,4 @@ with tabs[5]:
                 <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez des règles pour automatiser la catégorisation de vos transactions</p>
             </div>
             """, unsafe_allow_html=True)
+
