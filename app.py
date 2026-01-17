@@ -22,6 +22,8 @@ TAB_COMPTES = "Comptes"
 TAB_ABONNEMENTS = "Abonnements"
 TAB_PROJETS = "Projets_Config"
 TAB_MOTS_CLES = "Mots_Cles"
+TAB_REMBOURSEMENTS = "Remboursements"
+TAB_CREDITS = "Credits"
 
 USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
@@ -859,7 +861,7 @@ with st.sidebar:
     if st.button("Actualiser", use_container_width=True): st.cache_data.clear(); st.rerun()
 
 # --- TABS ---
-tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Réglages"])
+tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Remboursements", "Réglages"])
 
 # TAB 1: ACCUEIL - DASHBOARD SIMPLIFIÉ
 with tabs[0]:
@@ -2361,8 +2363,305 @@ with tabs[3]:
                 time.sleep(1)
                 st.rerun()
 
-# TAB 5: REGLAGES
+# TAB 5: REMBOURSEMENTS & CRÉDITS
 with tabs[4]:
+    page_header("Remboursements & Crédits", "Gérez vos prêts, avances et remboursements")
+    
+    main_tabs = st.tabs(["💰 Qui doit quoi ?", "💳 Crédits en cours", "⚡ Transactions rapides"])
+    
+    # === TAB: QUI DOIT QUOI ? ===
+    with main_tabs[0]:
+        st.markdown("### Équilibre entre Pierre et Elie")
+        
+        # Charger les données de remboursements
+        df_rembours = load_data(TAB_REMBOURSEMENTS, ["Date", "De", "A", "Montant", "Motif", "Statut"])
+        
+        # Calculer le solde
+        total_pierre_vers_elie = 0
+        total_elie_vers_pierre = 0
+        
+        # Analyser les avances/cadeaux
+        avances = df[df["Imputation"] == "Avance/Cadeau"]
+        for _, a in avances.iterrows():
+            if a["Paye_Par"] == "Pierre":
+                total_pierre_vers_elie += a["Montant"]
+            else:
+                total_elie_vers_pierre += a["Montant"]
+        
+        # Analyser les remboursements effectués
+        if not df_rembours.empty:
+            remb_effectues = df_rembours[df_rembours["Statut"] == "Payé"]
+            for _, r in remb_effectues.iterrows():
+                if r["De"] == "Pierre":
+                    total_pierre_vers_elie -= r["Montant"]
+                else:
+                    total_elie_vers_pierre -= r["Montant"]
+        
+        # Calculer solde net
+        solde_net = total_pierre_vers_elie - total_elie_vers_pierre
+        
+        # Affichage du solde
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col1:
+            st.markdown(f"""
+            <div style="background: #EFF6FF; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                <div style="color: #3B82F6; font-size: 14px; font-weight: 600; margin-bottom: 0.5rem;">Pierre a avancé</div>
+                <div style="font-size: 28px; font-weight: 700; color: #1E40AF;">{total_pierre_vers_elie:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            debiteur = "Pierre" if solde_net < 0 else "Elie"
+            montant_dette = abs(solde_net)
+            couleur = "#10B981" if solde_net == 0 else "#4F46E5"
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border-radius: 12px; padding: 2rem; text-align: center; color: white;">
+                <div style="font-size: 16px; opacity: 0.9; margin-bottom: 1rem;">
+                    {f"{debiteur} doit rembourser" if solde_net != 0 else "Tout est équilibré !"}
+                </div>
+                <div style="font-size: 48px; font-weight: 700;">{montant_dette:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div style="background: #F0FDF4; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                <div style="color: #10B981; font-size: 14px; font-weight: 600; margin-bottom: 0.5rem;">Elie a avancé</div>
+                <div style="font-size: 28px; font-weight: 700; color: #059669;">{total_elie_vers_pierre:,.0f} €</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.write("")
+        
+        # Historique des avances
+        st.markdown("### 📜 Historique des avances")
+        
+        if not avances.empty:
+            for _, av in avances.tail(10).iterrows():
+                couleur = "#3B82F6" if av["Paye_Par"] == "Pierre" else "#10B981"
+                bg = "#EFF6FF" if av["Paye_Par"] == "Pierre" else "#F0FDF4"
+                
+                st.markdown(f"""
+                <div style="background: {bg}; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; color: #1F2937; margin-bottom: 0.25rem;">{av['Titre']}</div>
+                            <div style="font-size: 12px; color: #6B7280;">
+                                <span style="background: {couleur}; color: white; padding: 2px 8px; border-radius: 4px; margin-right: 0.5rem;">{av['Paye_Par']}</span>
+                                {pd.to_datetime(av['Date']).strftime('%d/%m/%Y')}
+                            </div>
+                        </div>
+                        <div style="font-weight: 700; font-size: 20px; color: {couleur};">{av['Montant']:,.0f} €</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Aucune avance enregistrée")
+        
+        st.write("")
+        
+        # Bouton pour marquer un remboursement
+        if solde_net != 0:
+            st.markdown("### 💸 Enregistrer un remboursement")
+            
+            with st.form("remboursement_form"):
+                col_r1, col_r2, col_r3 = st.columns(3)
+                
+                montant_remb = col_r1.number_input("Montant (€)", min_value=0.0, max_value=float(montant_dette), value=float(montant_dette), step=0.01)
+                date_remb = col_r2.date_input("Date", datetime.today())
+                motif_remb = col_r3.text_input("Motif (optionnel)", placeholder="Ex: Remboursement courses")
+                
+                if st.form_submit_button("✅ Enregistrer le remboursement", use_container_width=True):
+                    nouveau_remb = pd.DataFrame([{
+                        "Date": date_remb,
+                        "De": debiteur,
+                        "A": "Elie" if debiteur == "Pierre" else "Pierre",
+                        "Montant": montant_remb,
+                        "Motif": motif_remb if motif_remb else "Remboursement",
+                        "Statut": "Payé"
+                    }])
+                    
+                    df_rembours = pd.concat([df_rembours, nouveau_remb], ignore_index=True)
+                    save_data(TAB_REMBOURSEMENTS, df_rembours)
+                    
+                    st.success(f"✅ Remboursement de {montant_remb:,.0f} € enregistré !")
+                    time.sleep(1)
+                    st.rerun()
+    
+    # === TAB: CRÉDITS EN COURS ===
+    with main_tabs[1]:
+        st.markdown("### Suivi de vos crédits")
+        
+        # Charger les crédits
+        df_credits = load_data(TAB_CREDITS, ["Nom", "Montant_Initial", "Montant_Restant", "Taux", "Mensualite", "Date_Debut", "Date_Fin", "Organisme"])
+        
+        # Bouton ajouter crédit
+        if st.button("➕ Ajouter un crédit", use_container_width=True):
+            st.session_state['new_credit'] = not st.session_state.get('new_credit', False)
+        
+        if st.session_state.get('new_credit', False):
+            st.markdown("""
+            <div style="background: #4F46E5; padding: 1.5rem; border-radius: 12px; margin: 1rem 0;">
+                <h4 style="color: white; margin: 0; font-weight: 700;">Nouveau crédit</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.form("new_credit_form"):
+                col1, col2 = st.columns(2)
+                nom_credit = col1.text_input("Nom du crédit", placeholder="Ex: Crédit immobilier, Voiture...")
+                organisme = col2.text_input("Organisme", placeholder="Ex: Banque Populaire")
+                
+                col3, col4, col5 = st.columns(3)
+                montant_init = col3.number_input("Montant initial (€)", min_value=0.0, step=100.0)
+                taux = col4.number_input("Taux (%)", min_value=0.0, max_value=20.0, step=0.1, format="%.2f")
+                mensualite = col5.number_input("Mensualité (€)", min_value=0.0, step=10.0)
+                
+                col6, col7 = st.columns(2)
+                date_debut = col6.date_input("Date de début", datetime.today())
+                date_fin = col7.date_input("Date de fin")
+                
+                col_btn1, col_btn2 = st.columns(2)
+                if col_btn1.form_submit_button("Créer", use_container_width=True):
+                    nouveau_credit = pd.DataFrame([{
+                        "Nom": nom_credit,
+                        "Montant_Initial": montant_init,
+                        "Montant_Restant": montant_init,
+                        "Taux": taux,
+                        "Mensualite": mensualite,
+                        "Date_Debut": str(date_debut),
+                        "Date_Fin": str(date_fin),
+                        "Organisme": organisme
+                    }])
+                    
+                    df_credits = pd.concat([df_credits, nouveau_credit], ignore_index=True)
+                    save_data(TAB_CREDITS, df_credits)
+                    st.session_state['new_credit'] = False
+                    st.success("Crédit ajouté !")
+                    time.sleep(0.5)
+                    st.rerun()
+                
+                if col_btn2.form_submit_button("Annuler", use_container_width=True):
+                    st.session_state['new_credit'] = False
+                    st.rerun()
+        
+        st.write("")
+        
+        # Affichage des crédits
+        if not df_credits.empty:
+            for idx, credit in df_credits.iterrows():
+                montant_init = float(credit['Montant_Initial'])
+                montant_restant = float(credit['Montant_Restant'])
+                progression = ((montant_init - montant_restant) / montant_init * 100) if montant_init > 0 else 0
+                
+                # Calcul intérêts
+                taux = float(credit['Taux'])
+                interets_totaux = (float(credit['Mensualite']) * 12 * ((pd.to_datetime(credit['Date_Fin']) - pd.to_datetime(credit['Date_Debut'])).days / 365)) - montant_init
+                
+                st.markdown(f"""
+                <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                        <div>
+                            <h4 style="margin: 0 0 0.5rem 0; color: #1F2937;">{credit['Nom']}</h4>
+                            <div style="font-size: 13px; color: #6B7280;">{credit['Organisme']} • Taux: {taux:.2f}%</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 24px; font-weight: 700; color: #EF4444;">{montant_restant:,.0f} €</div>
+                            <div style="font-size: 12px; color: #6B7280;">sur {montant_init:,.0f} €</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #F3F4F6; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 1rem;">
+                        <div style="background: #10B981; height: 100%; width: {progression}%; transition: width 0.5s ease;"></div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <div><strong>Mensualité:</strong> {float(credit['Mensualite']):,.0f} €</div>
+                        <div><strong>Progression:</strong> {progression:.1f}%</div>
+                        <div><strong>Intérêts estimés:</strong> {interets_totaux:,.0f} €</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Boutons actions
+                col_act1, col_act2 = st.columns(2)
+                with col_act1:
+                    with st.form(f"remb_credit_{idx}"):
+                        montant_remb_credit = st.number_input("Montant remboursé (€)", min_value=0.0, value=float(credit['Mensualite']), step=10.0, key=f"remb_{idx}")
+                        if st.form_submit_button("Enregistrer un remboursement"):
+                            df_credits.at[idx, 'Montant_Restant'] = max(0, montant_restant - montant_remb_credit)
+                            save_data(TAB_CREDITS, df_credits)
+                            st.success("Remboursement enregistré !")
+                            time.sleep(0.5)
+                            st.rerun()
+                
+                with col_act2:
+                    if st.button("Supprimer", key=f"del_credit_{idx}"):
+                        df_credits = df_credits.drop(idx)
+                        save_data(TAB_CREDITS, df_credits)
+                        st.rerun()
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem; background: white; border-radius: 12px; border: 2px dashed #E5E7EB;">
+                <div style="font-size: 48px; margin-bottom: 1rem;">💳</div>
+                <h4 style="color: #6B7280;">Aucun crédit en cours</h4>
+                <p style="color: #9CA3AF; font-size: 14px;">Ajoutez vos crédits pour suivre vos remboursements</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # === TAB: TRANSACTIONS RAPIDES ===
+    with main_tabs[2]:
+        st.markdown("### ⚡ Raccourcis pour transactions fréquentes")
+        st.caption("Créez des boutons pour enregistrer rapidement vos dépenses courantes")
+        
+        # Charger les raccourcis (on utilise les mots-clés comme base)
+        raccourcis_courants = [
+            {"nom": "🛒 Courses", "cat": "Courses", "montant": 50},
+            {"nom": "⛽ Essence", "cat": "Essence", "montant": 60},
+            {"nom": "🍕 Restaurant", "cat": "Restaurant", "montant": 30},
+            {"nom": "☕ Café", "cat": "Fast Food", "montant": 5},
+            {"nom": "🚇 Transport", "cat": "Transport en Commun", "montant": 10},
+            {"nom": "💊 Pharmacie", "cat": "Pharmacie", "montant": 15}
+        ]
+        
+        st.markdown("#### Raccourcis pré-configurés")
+        
+        cols = st.columns(3)
+        for i, racc in enumerate(raccourcis_courants):
+            col = cols[i % 3]
+            
+            with col:
+                if st.button(racc['nom'], use_container_width=True, key=f"quick_{i}"):
+                    # Créer la transaction
+                    nr = {
+                        "Date": datetime.today().date(),
+                        "Mois": datetime.today().month,
+                        "Annee": datetime.today().year,
+                        "Qui_Connecte": user_actuel,
+                        "Type": "Dépense",
+                        "Categorie": racc['cat'],
+                        "Titre": racc['nom'].split()[1] if len(racc['nom'].split()) > 1 else racc['nom'],
+                        "Description": "Transaction rapide",
+                        "Montant": racc['montant'],
+                        "Paye_Par": user_actuel,
+                        "Imputation": "Perso",
+                        "Compte_Cible": "",
+                        "Projet_Epargne": "",
+                        "Compte_Source": list(comptes_map.get(user_actuel, {}))[0] if comptes_map.get(user_actuel) else ""
+                    }
+                    
+                    df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True)
+                    save_data(TAB_DATA, df)
+                    st.success(f"✅ {racc['nom']} - {racc['montant']} € ajouté !")
+                    time.sleep(0.5)
+                    st.rerun()
+        
+        st.write("")
+        st.info("💡 Astuce : Les montants sont des valeurs par défaut. Vous pouvez les modifier après création dans l'onglet Journal.")
+
+# TAB 6: REGLAGES
+with tabs[5]:
     page_header("Configuration", "Personnalisez vos catégories, comptes et automatisations")
     
     c_t1, c_t2, c_t3 = st.tabs(["🏷️ Catégories", "💳 Comptes", "⚡ Automatisation"])
