@@ -27,6 +27,7 @@ USERS = ["Pierre", "Elie"]
 TYPES = ["Dépense", "Revenu", "Virement Interne", "Épargne", "Investissement"]
 IMPUTATIONS = ["Perso", "Commun (50/50)", "Commun (Autre %)", "Avance/Cadeau"]
 TYPES_COMPTE = ["Courant", "Épargne"]
+FREQUENCES_ABO = ["Mensuel", "Trimestriel", "Semestriel", "Annuel"]
 MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
 COLS_DATA = ["Date", "Mois", "Annee", "Qui_Connecte", "Type", "Categorie", "Titre", "Description", "Montant", "Paye_Par", "Imputation", "Compte_Cible", "Projet_Epargne", "Compte_Source"]
@@ -950,46 +951,191 @@ with tabs[1]:
             if st.button("Supprimer"): save_data(TAB_DATA, ed[ed["X"]==False].drop(columns=["X"])); st.rerun()
 
     with op3:
-        # ABONNEMENTS (NOUVEAU DESIGN)
-        c_head, c_btn = st.columns([3, 1])
-        with c_head: st.subheader("Mes Abonnements")
-        with c_btn: 
-            if st.button("➕ Nouveau", use_container_width=True): st.session_state['new_abo'] = not st.session_state.get('new_abo', False)
-
-        if st.session_state.get('new_abo', False):
-            with st.container():
-                with st.form("na"):
-                    a1,a2,a3 = st.columns(3); n=a1.text_input("Nom"); m=a2.number_input("Montant"); j=a3.number_input("Jour", 1, 31)
-                    a4,a5 = st.columns(2); c=a4.selectbox("Cat", cats_memoire.get("Dépense", [])); cp=a5.selectbox("Cpt", cpt_visibles)
-                    im = st.selectbox("Imp", IMPUTATIONS)
-                    if st.form_submit_button("Ajouter"):
-                        df_abonnements = pd.concat([df_abonnements, pd.DataFrame([{"Nom": n, "Montant": m, "Jour": j, "Categorie": c, "Compte_Source": cp, "Proprietaire": user_actuel, "Imputation": im, "Frequence": "Mensuel"}])], ignore_index=True); save_data(TAB_ABONNEMENTS, df_abonnements); st.session_state['new_abo']=False; st.rerun()
+        # ABONNEMENTS
+        page_header("Mes Abonnements", "Gérez vos dépenses récurrentes automatiquement")
         
+        col_btn_new = st.columns([3, 1])
+        with col_btn_new[1]:
+            if st.button("➕ Nouveau", use_container_width=True, type="primary"):
+                st.session_state['new_abo'] = not st.session_state.get('new_abo', False)
+
+        # FORMULAIRE DE CRÉATION
+        if st.session_state.get('new_abo', False):
+            st.markdown("""
+            <div style="background: #4F46E5; padding: 1.5rem; border-radius: 12px; margin: 1rem 0; animation: slideIn 0.3s ease;">
+                <h4 style="color: white; margin: 0; font-weight: 700; font-size: 16px;">Créer un nouvel abonnement</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.form("na"):
+                col1, col2, col3 = st.columns(3)
+                n = col1.text_input("📌 Nom", placeholder="Ex: Netflix, EDF...")
+                m = col2.number_input("💰 Montant (€)", min_value=0.0, step=0.01, format="%.2f")
+                freq = col3.selectbox("🔄 Fréquence", FREQUENCES_ABO)
+                
+                col4, col5 = st.columns(2)
+                j = col4.number_input("📅 Jour du mois", min_value=1, max_value=31, value=1, help="Jour où l'abonnement est prélevé")
+                c = col5.selectbox("🏷️ Catégorie", cats_memoire.get("Dépense", []))
+                
+                col6, col7 = st.columns(2)
+                cp = col6.selectbox("💳 Compte", cpt_visibles)
+                im = col7.selectbox("👥 Imputation", IMPUTATIONS)
+                
+                st.write("")
+                col8, col9 = st.columns(2)
+                date_debut = col8.date_input("🟢 Date de début", datetime.today(), help="À partir de quand cet abonnement commence")
+                date_fin = col9.date_input("🔴 Date de fin (optionnel)", None, help="Laissez vide si l'abonnement n'a pas de fin")
+                
+                col_btn1, col_btn2 = st.columns(2)
+                if col_btn1.form_submit_button("✅ Créer l'abonnement", use_container_width=True):
+                    if n and m > 0:
+                        new_abo = {
+                            "Nom": n,
+                            "Montant": m,
+                            "Jour": j,
+                            "Categorie": c,
+                            "Compte_Source": cp,
+                            "Proprietaire": user_actuel,
+                            "Imputation": im,
+                            "Frequence": freq,
+                            "Date_Debut": str(date_debut) if date_debut else "",
+                            "Date_Fin": str(date_fin) if date_fin else ""
+                        }
+                        df_abonnements = pd.concat([df_abonnements, pd.DataFrame([new_abo])], ignore_index=True)
+                        save_data(TAB_ABONNEMENTS, df_abonnements)
+                        st.session_state['new_abo'] = False
+                        st.success("✅ Abonnement créé !")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("⚠️ Veuillez remplir tous les champs obligatoires")
+                
+                if col_btn2.form_submit_button("❌ Annuler", use_container_width=True):
+                    st.session_state['new_abo'] = False
+                    st.rerun()
+        
+        st.write("")
+        
+        # AFFICHAGE DES ABONNEMENTS
         if not df_abonnements.empty:
             ma = df_abonnements[df_abonnements["Proprietaire"]==user_actuel]
-            # Generation
+            
+            # Fonction pour vérifier si un abonnement doit être généré ce mois
+            def should_generate(abo, mois, annee):
+                freq = abo.get("Frequence", "Mensuel")
+                date_debut = abo.get("Date_Debut", "")
+                date_fin = abo.get("Date_Fin", "")
+                
+                # Vérifier date de début
+                if date_debut:
+                    debut = pd.to_datetime(date_debut).date()
+                    if datetime(annee, mois, 1).date() < debut:
+                        return False
+                
+                # Vérifier date de fin
+                if date_fin:
+                    fin = pd.to_datetime(date_fin).date()
+                    if datetime(annee, mois, 1).date() > fin:
+                        return False
+                
+                # Vérifier fréquence
+                if freq == "Mensuel":
+                    return True
+                elif freq == "Trimestriel":
+                    if date_debut:
+                        debut = pd.to_datetime(date_debut).date()
+                        mois_diff = (annee - debut.year) * 12 + (mois - debut.month)
+                        return mois_diff % 3 == 0
+                    return mois % 3 == 0
+                elif freq == "Semestriel":
+                    if date_debut:
+                        debut = pd.to_datetime(date_debut).date()
+                        mois_diff = (annee - debut.year) * 12 + (mois - debut.month)
+                        return mois_diff % 6 == 0
+                    return mois % 6 == 0
+                elif freq == "Annuel":
+                    if date_debut:
+                        debut = pd.to_datetime(date_debut).date()
+                        return mois == debut.month
+                    return mois == 1
+                return True
+            
+            # Génération automatique
             to_gen = []
             for ix, r in ma.iterrows():
-                paid = not df_mois[(df_mois["Titre"].str.lower()==r["Nom"].lower())&(df_mois["Montant"]==float(r["Montant"]))].empty
-                if not paid: to_gen.append(r)
+                if should_generate(r, m_sel, a_sel):
+                    paid = not df_mois[(df_mois["Titre"].str.lower()==r["Nom"].lower())&(df_mois["Montant"]==float(r["Montant"]))].empty
+                    if not paid:
+                        to_gen.append(r)
+            
             if to_gen:
-                if st.button(f"🚀 Générer {len(to_gen)} transactions", type="primary"):
+                if st.button(f"🚀 Générer {len(to_gen)} transaction(s) pour {m_nom} {a_sel}", type="primary", use_container_width=True):
                     nt = []
                     for r in to_gen:
-                        try: d = datetime(a_sel, m_sel, int(r["Jour"])).date()
-                        except: d = datetime(a_sel, m_sel, 28).date()
-                        nt.append({"Date": d, "Mois": m_sel, "Annee": a_sel, "Qui_Connecte": r["Proprietaire"], "Type": "Dépense", "Categorie": r["Categorie"], "Titre": r["Nom"], "Description": "Auto", "Montant": float(r["Montant"]), "Paye_Par": r["Proprietaire"], "Imputation": r["Imputation"], "Compte_Cible": "", "Projet_Epargne": "", "Compte_Source": r["Compte_Source"]})
-                    df = pd.concat([df, pd.DataFrame(nt)], ignore_index=True); save_data(TAB_DATA, df); st.rerun()
-
-            # Cartes
+                        try:
+                            d = datetime(a_sel, m_sel, int(r["Jour"])).date()
+                        except:
+                            d = datetime(a_sel, m_sel, 28).date()
+                        nt.append({
+                            "Date": d,
+                            "Mois": m_sel,
+                            "Annee": a_sel,
+                            "Qui_Connecte": r["Proprietaire"],
+                            "Type": "Dépense",
+                            "Categorie": r["Categorie"],
+                            "Titre": r["Nom"],
+                            "Description": f"Auto - {r['Frequence']}",
+                            "Montant": float(r["Montant"]),
+                            "Paye_Par": r["Proprietaire"],
+                            "Imputation": r["Imputation"],
+                            "Compte_Cible": "",
+                            "Projet_Epargne": "",
+                            "Compte_Source": r["Compte_Source"]
+                        })
+                    df = pd.concat([df, pd.DataFrame(nt)], ignore_index=True)
+                    save_data(TAB_DATA, df)
+                    st.success(f"✅ {len(nt)} transaction(s) générée(s) !")
+                    time.sleep(0.5)
+                    st.rerun()
+            
+            st.write("")
+            
+            # Cartes des abonnements
             cols = st.columns(3)
             for i, (idx, r) in enumerate(ma.iterrows()):
                 col = cols[i % 3]
-                with col:
+                
+                # Vérifier si payé ce mois
+                if should_generate(r, m_sel, a_sel):
                     paid = not df_mois[(df_mois["Titre"].str.lower()==r["Nom"].lower())&(df_mois["Montant"]==float(r["Montant"]))].empty
-                    sc = "#10B981" if paid else "#F59E0B"; sb = "#ECFDF5" if paid else "#FFFBEB"; stt = "PAYÉ" if paid else "ATTENTE"
-                    
+                else:
+                    paid = None  # Pas prévu ce mois
+                
+                if paid is None:
+                    sc = "#6B7280"
+                    sb = "#F3F4F6"
+                    stt = "NON PRÉVU"
+                elif paid:
+                    sc = "#10B981"
+                    sb = "#ECFDF5"
+                    stt = "PAYÉ"
+                else:
+                    sc = "#F59E0B"
+                    sb = "#FFFBEB"
+                    stt = "EN ATTENTE"
+                
+                with col:
                     if not st.session_state.get(f"ed_a_{idx}", False):
+                        freq_label = r.get("Frequence", "Mensuel")
+                        date_debut = r.get("Date_Debut", "")
+                        date_fin = r.get("Date_Fin", "")
+                        
+                        info_dates = ""
+                        if date_debut:
+                            info_dates = f"Début: {pd.to_datetime(date_debut).strftime('%d/%m/%Y')}"
+                        if date_fin:
+                            info_dates += f" • Fin: {pd.to_datetime(date_fin).strftime('%d/%m/%Y')}"
+                        
                         st.markdown(f"""
                         <div class="budget-card">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -998,19 +1144,61 @@ with tabs[1]:
                             </div>
                             <div style="font-weight: 700; font-size: 16px; color: #1F2937; margin-bottom: 0.5rem;">{r['Nom']}</div>
                             <div style="font-size: 24px; font-weight: 700; color: {sc}; margin-bottom: 1rem;">{float(r['Montant']):.2f} €</div>
-                            <div style="font-size: 12px; color: #6B7280; background: #F9FAFB; padding: 0.5rem; border-radius: 6px;">
-                                📅 Jour {r['Jour']} • {r['Categorie']}
+                            <div style="font-size: 11px; color: #6B7280; background: #F9FAFB; padding: 0.5rem; border-radius: 6px; line-height: 1.5;">
+                                📅 Jour {r['Jour']} • {r['Categorie']}<br/>
+                                🔄 {freq_label}
+                                {f"<br/>{info_dates}" if info_dates else ""}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
+                        
                         c1, c2 = st.columns(2)
-                        if c1.button("✏️ Modifier", key=f"e_{idx}", use_container_width=True): st.session_state[f"ed_a_{idx}"]=True; st.rerun()
-                        if c2.button("🗑️ Supprimer", key=f"d_{idx}", use_container_width=True): df_abonnements=df_abonnements.drop(idx); save_data(TAB_ABONNEMENTS, df_abonnements); st.rerun()
+                        if c1.button("✏️ Modifier", key=f"e_{idx}", use_container_width=True):
+                            st.session_state[f"ed_a_{idx}"] = True
+                            st.rerun()
+                        if c2.button("🗑️ Supprimer", key=f"d_{idx}", use_container_width=True):
+                            df_abonnements = df_abonnements.drop(idx)
+                            save_data(TAB_ABONNEMENTS, df_abonnements)
+                            st.rerun()
                     else:
+                        # MODE ÉDITION
+                        st.markdown("""
+                        <div style="background: #EEF2FF; border: 2px solid #4F46E5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="color: #4F46E5; font-weight: 700; font-size: 14px;">✏️ Modification</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
                         with st.form(f"fe_{idx}"):
-                            nn=st.text_input("Nom", value=r['Nom']); nm=st.number_input("Montant", value=float(r['Montant'])); nj=st.number_input("Jour", value=int(r['Jour']))
-                            if st.form_submit_button("💾"):
-                                df_abonnements.at[idx,'Nom']=nn; df_abonnements.at[idx,'Montant']=nm; df_abonnements.at[idx,'Jour']=nj; save_data(TAB_ABONNEMENTS, df_abonnements); st.session_state[f"ed_a_{idx}"]=False; st.rerun()
+                            nn = st.text_input("Nom", value=r['Nom'])
+                            nm = st.number_input("Montant", value=float(r['Montant']), step=0.01)
+                            nj = st.number_input("Jour", value=int(r['Jour']), min_value=1, max_value=31)
+                            nf = st.selectbox("Fréquence", FREQUENCES_ABO, index=FREQUENCES_ABO.index(r.get('Frequence', 'Mensuel')))
+                            
+                            # Dates
+                            current_debut = pd.to_datetime(r.get('Date_Debut')) if r.get('Date_Debut') else None
+                            current_fin = pd.to_datetime(r.get('Date_Fin')) if r.get('Date_Fin') else None
+                            
+                            nd = st.date_input("Date début", value=current_debut)
+                            ndf = st.date_input("Date fin", value=current_fin)
+                            
+                            if st.form_submit_button("💾 Sauvegarder", use_container_width=True):
+                                df_abonnements.at[idx, 'Nom'] = nn
+                                df_abonnements.at[idx, 'Montant'] = nm
+                                df_abonnements.at[idx, 'Jour'] = nj
+                                df_abonnements.at[idx, 'Frequence'] = nf
+                                df_abonnements.at[idx, 'Date_Debut'] = str(nd) if nd else ""
+                                df_abonnements.at[idx, 'Date_Fin'] = str(ndf) if ndf else ""
+                                save_data(TAB_ABONNEMENTS, df_abonnements)
+                                st.session_state[f"ed_a_{idx}"] = False
+                                st.rerun()
+        else:
+            st.markdown("""
+            <div style="text-align: center; padding: 3rem 2rem; background: white; border-radius: 12px; border: 2px dashed #E5E7EB;">
+                <div style="font-size: 48px; margin-bottom: 1rem; opacity: 0.5;">📅</div>
+                <h4 style="color: #1F2937; margin-bottom: 0.5rem; font-weight: 700;">Aucun abonnement</h4>
+                <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez votre premier abonnement pour automatiser vos dépenses récurrentes</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # TAB 3: ANALYSES
 with tabs[2]:
