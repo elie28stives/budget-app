@@ -1645,9 +1645,9 @@ with tabs[4]:
         st.caption("Organisez vos transactions par catégories personnalisées")
         
         # Bouton pour charger les catégories par défaut
-        if st.button("🔄 Charger les catégories par défaut", help="Ajoute toutes les catégories recommandées"):
+        if st.button("🔄 Réinitialiser avec les catégories par défaut", help="Remplace toutes vos catégories par le catalogue complet"):
             # Catégories par défaut
-            default_cats = {
+            cats_memoire = {
                 "Dépense": [
                     "Alimentation", "Courses", "Restaurant", "Fast Food", "Boulangerie", "Marché",
                     "Loyer", "Charges", "Électricité", "Eau", "Gaz", "Internet", "Téléphone", "Assurance Habitation",
@@ -1675,14 +1675,8 @@ with tabs[4]:
                 ]
             }
             
-            # Fusionner avec les catégories existantes
-            for type_cat, liste in default_cats.items():
-                for cat in liste:
-                    if cat not in cats_memoire.get(type_cat, []):
-                        cats_memoire.setdefault(type_cat, []).append(cat)
-            
             save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
-            st.success("✅ Catégories par défaut chargées !")
+            st.success("✅ Catégories réinitialisées avec succès !")
             time.sleep(1)
             st.rerun()
         
