@@ -625,6 +625,22 @@ def page_header(title, subtitle=None):
     </div>
     """, unsafe_allow_html=True)
 
+def fmt(montant, decimales=0):
+    """Formate un montant en français : 7 234,43"""
+    if montant is None or pd.isna(montant):
+        return "0"
+    try:
+        m = float(montant)
+        if decimales == 0:
+            formatted = f"{m:,.0f}"
+        else:
+            formatted = f"{m:,.{decimales}f}"
+        # Remplacer , par espace (milliers) et . par , (décimales)
+        formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', ' ')
+        return formatted
+    except:
+        return "0"
+
 # ==============================================================================
 # 3. BACKEND (GSPREAD AVEC RETRY)
 # ==============================================================================
@@ -907,15 +923,15 @@ with tabs[0]:
     
     # Cartes métriques
     k1,k2,k3,k4,k5 = st.columns(5)
-    k1.metric("Revenus", f"{rev:,.0f} €")
-    k2.metric("Fixe", f"{fixe:,.0f} €")
-    k3.metric("Dépenses", f"{(dep+com):,.0f} €")
+    k1.metric("Revenus", f"{fmt(rev)} €")
+    k2.metric("Fixe", f"{fmt(fixe)} €")
+    k3.metric("Dépenses", f"{fmt(dep+com)} €")
     
     # Épargne avec ratio
     k4.markdown(f"""
     <div style="background: white; border: 1px solid #E5E7EB; padding: 1.25rem; border-radius: 12px;">
         <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Épargne</div>
-        <div style="font-size: 28px; font-weight: 700; color: #4F46E5; margin-bottom: 0.25rem;">{epg:,.0f} €</div>
+        <div style="font-size: 28px; font-weight: 700; color: #4F46E5; margin-bottom: 0.25rem;">{fmt(epg)} €</div>
         <div style="font-size: 11px; color: #10B981; font-weight: 600;">{ratio_epargne:.1f}% du revenu</div>
     </div>
     """, unsafe_allow_html=True)
@@ -925,7 +941,7 @@ with tabs[0]:
     k5.markdown(f"""
     <div style="background: {col}; padding: 1.25rem; border-radius: 12px; color: white; text-align: center; animation: scaleIn 0.3s ease;">
         <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; opacity: 0.9;">{icon} Reste à Vivre</div>
-        <div style="font-size: 28px; font-weight: 700;">{rav:,.0f} €</div>
+        <div style="font-size: 28px; font-weight: 700;">{fmt(rav)} €</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -955,7 +971,7 @@ with tabs[0]:
             'type': 'warning',
             'icon': '📊',
             'titre': f"Dépenses élevées : {alerte['categorie']}",
-            'message': f"{alerte['montant']:,.0f} € ce mois (x{alerte['ratio']:.1f} la moyenne)"
+            'message': f"{fmt(alerte['montant'])} € ce mois (x{alerte['ratio']:.1f} la moyenne)"
         })
     
     # 3. Vérifier abonnements manquants
@@ -987,14 +1003,14 @@ with tabs[0]:
                         'type': 'danger',
                         'icon': '🚨',
                         'titre': f"Budget dépassé : {cat}",
-                        'message': f"{dep_cat:,.0f} € / {budget_max:,.0f} € ({pct:.0f}%)"
+                        'message': f"{fmt(dep_cat)} € / {fmt(budget_max)} € ({pct:.0f}%)"
                     })
                 elif pct >= 80:
                     notifications.append({
                         'type': 'warning',
                         'icon': '⚡',
                         'titre': f"Budget à 80% : {cat}",
-                        'message': f"{dep_cat:,.0f} € / {budget_max:,.0f} € ({pct:.0f}%)"
+                        'message': f"{fmt(dep_cat)} € / {fmt(budget_max)} € ({pct:.0f}%)"
                     })
     
     # 5. Prévision fin de mois
@@ -1013,7 +1029,7 @@ with tabs[0]:
                     'type': 'info',
                     'icon': '🔮',
                     'titre': 'Prévision fin de mois',
-                    'message': f"Dépenses estimées : {prevision:,.0f} € (actuellement {dep_actuelles:,.0f} €)"
+                    'message': f"Dépenses estimées : {fmt(prevision)} € (actuellement {fmt(dep_actuelles)} €)"
                 })
     
     # Afficher les notifications
@@ -1077,7 +1093,7 @@ with tabs[0]:
                                 </div>
                             </div>
                         </div>
-                        <div style="font-weight: 700; font-size: 16px; color: {txt};">{sig}{r['Montant']:,.2f} €</div>
+                        <div style="font-weight: 700; font-size: 16px; color: {txt};">{sig}{fmt(r['Montant'], 2)} €</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -2298,7 +2314,7 @@ with tabs[3]:
                     <div style="color: #1F2937; font-size: 11px; font-weight: 500; margin-top: 0.25rem;">{ac} • {compte_type}</div>
                 </div>
             </div>
-            <div style="color: {solde_color}; font-size: 48px; font-weight: 700;">{f'{sl:,.2f}'.replace(',', ' ').replace('.', ',')} €</div>
+            <div style="color: {solde_color}; font-size: 48px; font-weight: 700;">{fmt(sl, 2)} €</div>
         </div>
         """, unsafe_allow_html=True)
         
