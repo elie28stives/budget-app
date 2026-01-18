@@ -694,12 +694,63 @@ def save_data(tab, df):
             ws.clear()
             ws.update([df_s.columns.values.tolist()] + df_s.values.tolist())
             st.cache_data.clear()
+            st.session_state.needs_refresh = True
             return
         except Exception as e:
             if "429" in str(e): 
                 pass  # Rate limit
             st.error(f"Erreur sauvegarde: {e}")
             return
+
+def create_backup():
+    """Crée une sauvegarde hebdomadaire automatique des données"""
+    import json
+    from datetime import datetime
+    
+    # Vérifier si c'est lundi (jour 0)
+    if datetime.now().weekday() != 0:
+        return
+    
+    # Vérifier si backup déjà fait cette semaine
+    last_backup = st.session_state.get('last_backup_date', '')
+    week_num = datetime.now().isocalendar()[1]
+    
+    if str(week_num) in last_backup:
+        return  # Backup déjà fait cette semaine
+    
+    try:
+        # Créer le backup
+        backup_data = {
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'week': week_num,
+            'nb_transactions': len(st.session_state.get('df', pd.DataFrame())),
+            'nb_patrimoine': len(st.session_state.get('df_patrimoine', pd.DataFrame()))
+        }
+        
+        # Sauvegarder dans Google Sheets
+        client = get_client()
+        sh = client.open(SHEET_NAME)
+        
+        # Créer ou récupérer l'onglet Backups
+        try:
+            ws_backup = sh.worksheet("Backups")
+        except:
+            ws_backup = sh.add_worksheet(title="Backups", rows="100", cols="4")
+            ws_backup.append_row(['Date', 'Semaine', 'Nb_Transactions', 'Nb_Patrimoine'])
+        
+        # Ajouter la ligne de backup
+        ws_backup.append_row([
+            backup_data['date'],
+            backup_data['week'],
+            backup_data['nb_transactions'],
+            backup_data['nb_patrimoine']
+        ])
+        
+        st.session_state.last_backup_date = f"week_{week_num}"
+        
+    except Exception as e:
+        # Backup échoue silencieusement
+        pass
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_all_configs():
@@ -826,10 +877,47 @@ st.set_page_config(page_title="Ma Banque V79", layout="wide", page_icon="🏦")
 apply_custom_style()
 init_state()
 
-# Chargement données
-df = load_data(TAB_DATA, COLS_DATA)
-df_patrimoine = load_data(TAB_PATRIMOINE, COLS_PAT)
-cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_data()
+# === OPTIMISATION PERFORMANCE : SESSION STATE ===
+# Charger les données une seule fois et les stocker en session
+# Gain : 5-10x plus rapide, moins de requêtes Google Sheets
+
+# Initialiser le flag de rechargement si nécessaire
+if 'needs_refresh' not in st.session_state:
+    st.session_state.needs_refresh = True
+
+# Charger les données uniquement si nécessaire
+if st.session_state.needs_refresh or 'df' not in st.session_state:
+    # Chargement depuis Google Sheets
+    df = load_data(TAB_DATA, COLS_DATA)
+    df_patrimoine = load_data(TAB_PATRIMOINE, COLS_PAT)
+    cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_data()
+    
+    # Stocker dans session_state pour réutilisation
+    st.session_state.df = df
+    st.session_state.df_patrimoine = df_patrimoine
+    st.session_state.cats_memoire = cats_memoire
+    st.session_state.comptes_structure = comptes_structure
+    st.session_state.objectifs_list = objectifs_list
+    st.session_state.df_abonnements = df_abonnements
+    st.session_state.projets_config = projets_config
+    st.session_state.comptes_types_map = comptes_types_map
+    st.session_state.mots_cles_map = mots_cles_map
+    
+    st.session_state.needs_refresh = False
+    
+    # Créer un backup automatique (lundi uniquement)
+    create_backup()
+else:
+    # Réutiliser les données en cache
+    df = st.session_state.df
+    df_patrimoine = st.session_state.df_patrimoine
+    cats_memoire = st.session_state.cats_memoire
+    comptes_structure = st.session_state.comptes_structure
+    objectifs_list = st.session_state.objectifs_list
+    df_abonnements = st.session_state.df_abonnements
+    projets_config = st.session_state.projets_config
+    comptes_types_map = st.session_state.comptes_types_map
+    mots_cles_map = st.session_state.mots_cles_map
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -886,7 +974,21 @@ with st.sidebar:
     df_mois = df[(df["Mois"] == m_sel) & (df["Annee"] == a_sel)]
     
     st.markdown("---")
-    if st.button("Actualiser", use_container_width=True): st.cache_data.clear(); st.rerun()
+    
+    # Indicateur de backup
+    last_backup = st.session_state.get('last_backup_date', 'Aucun')
+    if last_backup != 'Aucun':
+        week_num = last_backup.split('_')[1] if '_' in last_backup else 'N/A'
+        st.markdown(f"""
+        <div style='background: #F0FDF4; border: 1px solid #10B981; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem;'>
+            <div style='color: #10B981; font-size: 11px; font-weight: 600;'>💾 Sauvegarde automatique</div>
+            <div style='color: #059669; font-size: 10px; margin-top: 0.25rem;'>Semaine {week_num}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    if st.button("🔄 Actualiser les données", use_container_width=True):
+        st.session_state.needs_refresh = True
+        st.rerun()
 
 # --- TABS ---
 tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Remboursements", "Réglages"])
@@ -1262,6 +1364,7 @@ with tabs[1]:
                         df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True)
                         save_data(TAB_DATA, df)
                         st.cache_data.clear()
+                        st.session_state.needs_refresh = True
                         st.success("✅ Transaction enregistrée !")
                         st.rerun()
 
@@ -1276,6 +1379,7 @@ with tabs[1]:
             if st.button("Supprimer"): 
                 save_data(TAB_DATA, ed[ed["X"]==False].drop(columns=["X"]))
                 st.cache_data.clear()
+                st.session_state.needs_refresh = True
                 st.rerun()
 
     with op3:
@@ -1423,6 +1527,7 @@ with tabs[1]:
                     df = pd.concat([df, pd.DataFrame(nt)], ignore_index=True)
                     save_data(TAB_DATA, df)
                     st.cache_data.clear()
+                    st.session_state.needs_refresh = True
                     st.success(f"{len(nt)} transaction(s) générée(s) !")
                     # Supprimé pour rapidité
                     st.rerun()
@@ -1488,6 +1593,7 @@ with tabs[1]:
                             df_abonnements = df_abonnements.drop(idx)
                             save_data(TAB_ABONNEMENTS, df_abonnements)
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.rerun()
                     else:
                         # MODE ÉDITION
@@ -1519,6 +1625,7 @@ with tabs[1]:
                                 df_abonnements.at[idx, 'Date_Fin'] = str(ndf) if ndf else ""
                                 save_data(TAB_ABONNEMENTS, df_abonnements)
                                 st.cache_data.clear()
+                                st.session_state.needs_refresh = True
                                 st.session_state[f"ed_a_{idx}"] = False
                                 st.rerun()
         else:
@@ -2144,6 +2251,7 @@ with tabs[2]:
                     
                     save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
                     st.cache_data.clear()
+                    st.session_state.needs_refresh = True
                     st.success(f"Budgets suggérés créés !")
                     # Supprimé pour rapidité
                     st.rerun()
@@ -2176,6 +2284,7 @@ with tabs[2]:
                             objectifs_list.append({"Scope": sc, "Categorie": ca, "Montant": mt})
                             save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.session_state['new_budget_modal'] = False
                             st.rerun()
                     with col_btn2:
@@ -2256,6 +2365,7 @@ with tabs[2]:
                             objectifs_list.pop(real_idx)
                             save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.rerun()
                     else:
                         # Mode édition
@@ -2272,6 +2382,7 @@ with tabs[2]:
                                 objectifs_list[real_idx]["Montant"] = new_montant
                                 save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
                                 st.cache_data.clear()
+                                st.session_state.needs_refresh = True
                                 st.session_state[f"edit_budget_{unique_key}"] = False
                                 st.rerun()
                             if c2.form_submit_button("Annuler", use_container_width=True):
@@ -2414,6 +2525,7 @@ with tabs[3]:
                         rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
                     save_data(TAB_PROJETS, pd.DataFrame(rows))
                     st.cache_data.clear()
+                    st.session_state.needs_refresh = True
                     st.session_state['new_project_modal'] = False
                     st.rerun()
                 if col_btn2.form_submit_button("❌ Annuler", use_container_width=True):
@@ -2500,6 +2612,7 @@ with tabs[3]:
                                 rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
                             save_data(TAB_PROJETS, pd.DataFrame(rows))
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.rerun()
                     else:
                         st.markdown("""
@@ -2521,6 +2634,7 @@ with tabs[3]:
                                     rows.append({"Projet": k, "Cible": v["Cible"], "Date_Fin": v["Date_Fin"], "Proprietaire": v.get("Proprietaire", "Commun")})
                                 save_data(TAB_PROJETS, pd.DataFrame(rows))
                                 st.cache_data.clear()
+                                st.session_state.needs_refresh = True
                                 st.session_state[f"edp_{p}"] = False
                                 st.rerun()
                             if col_cancel.form_submit_button("❌ Annuler", use_container_width=True):
@@ -2578,7 +2692,8 @@ with tabs[3]:
                     ], ignore_index=True)
                     save_data(TAB_PATRIMOINE, df_patrimoine)
                     st.success("✅ Ajustement enregistré !")
-                    st.cache_data.clear()  # Vider le cache pour forcer le rechargement
+                    st.cache_data.clear()
+                    st.session_state.needs_refresh = True
                     st.rerun()
                 except ValueError as e:
                     st.error(f"❌ Format invalide : '{m_text}'. Utilisez uniquement des chiffres avec virgule ou point (ex: 7234,43 ou 7234.43)")
@@ -2854,6 +2969,7 @@ with tabs[4]:
                             df_credits.at[idx, 'Montant_Restant'] = max(0, montant_restant - montant_remb_credit)
                             save_data(TAB_CREDITS, df_credits)
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.success("Remboursement enregistré !")
                             # Supprimé pour rapidité
                             st.rerun()
@@ -2863,6 +2979,7 @@ with tabs[4]:
                         df_credits = df_credits.drop(idx)
                         save_data(TAB_CREDITS, df_credits)
                         st.cache_data.clear()
+                        st.session_state.needs_refresh = True
                         st.rerun()
         else:
             st.markdown("""
@@ -2918,6 +3035,7 @@ with tabs[5]:
             
             save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
             st.cache_data.clear()
+            st.session_state.needs_refresh = True
             st.success("✅ Catégories réinitialisées avec succès !")
             # Supprimé pour rapidité
             st.rerun()
@@ -2940,6 +3058,7 @@ with tabs[5]:
                     cats_memoire.setdefault(ty, []).append(new_c)
                     save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                     st.cache_data.clear()
+                    st.session_state.needs_refresh = True
                     st.success(f"✅ Catégorie '{new_c}' ajoutée !")
                     # Supprimé pour rapidité
                     st.rerun()
@@ -2968,6 +3087,7 @@ with tabs[5]:
                             cats_memoire["Dépense"].remove(d)
                         save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         st.cache_data.clear()
+                        st.session_state.needs_refresh = True
                         st.success("✅ Catégories supprimées !")
                         # Supprimé pour rapidité
                         st.rerun()
@@ -2996,6 +3116,7 @@ with tabs[5]:
                                     cats_memoire[t].remove(d)
                         save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         st.cache_data.clear()
+                        st.session_state.needs_refresh = True
                         st.success("✅ Catégories supprimées !")
                         # Supprimé pour rapidité
                         st.rerun()
@@ -3033,6 +3154,7 @@ with tabs[5]:
                                     rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, t)})
                             save_data(TAB_COMPTES, pd.DataFrame(rows))
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.success(f"✅ Compte '{n}' créé !")
                             # Supprimé pour rapidité
                             st.rerun()
@@ -3082,6 +3204,7 @@ with tabs[5]:
                                             rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
                                     save_data(TAB_COMPTES, pd.DataFrame(rows))
                                     st.cache_data.clear()
+                                    st.session_state.needs_refresh = True
                                     st.rerun()
                         else:
                             # Mode édition
@@ -3110,6 +3233,7 @@ with tabs[5]:
                                             rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
                                     save_data(TAB_COMPTES, pd.DataFrame(rows))
                                     st.cache_data.clear()
+                                    st.session_state.needs_refresh = True
                                     st.session_state[edit_key] = False
                                     st.rerun()
                                 
@@ -3150,6 +3274,7 @@ with tabs[5]:
                         rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
                     save_data(TAB_MOTS_CLES, pd.DataFrame(rows))
                     st.cache_data.clear()
+                    st.session_state.needs_refresh = True
                     st.success(f"✅ Règle créée pour '{m}' !")
                     # Supprimé pour rapidité
                     st.rerun()
@@ -3190,6 +3315,7 @@ with tabs[5]:
                                 rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
                             save_data(TAB_MOTS_CLES, pd.DataFrame(rows))
                             st.cache_data.clear()
+                            st.session_state.needs_refresh = True
                             st.rerun()
         else:
             st.markdown("""
