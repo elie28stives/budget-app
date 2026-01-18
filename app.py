@@ -2485,11 +2485,25 @@ with tabs[3]:
         ac = st.selectbox("Sélectionner un compte", cpt_visibles, label_visibility="collapsed")
     with col_actions:
         if st.button("🔄 Actualiser", use_container_width=True):
+            st.cache_data.clear()
+            st.session_state.needs_refresh = True
+            st.success("Cache vidé ! Rechargement...")
             st.rerun()
     
     if ac:
         sl = soldes.get(ac, 0.0)
         compte_type = comptes_types_map.get(ac, "Courant")
+        
+        # DEBUG - Afficher la valeur brute
+        with st.expander("🔍 Debug - Valeur brute du solde", expanded=False):
+            st.write(f"Solde brut : `{sl}`")
+            st.write(f"Type : `{type(sl)}`")
+            
+            # Voir les données du patrimoine pour ce compte
+            df_compte_pat = df_patrimoine[df_patrimoine["Compte"] == ac]
+            if not df_compte_pat.empty:
+                st.write("Dernières entrées patrimoine :")
+                st.dataframe(df_compte_pat.tail(3), use_container_width=True)
         
         # === SOLDE DU COMPTE ===
         solde_color = "#10B981" if sl >= 0 else "#EF4444"
