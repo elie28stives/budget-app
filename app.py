@@ -654,7 +654,8 @@ def load_data(tab, cols):
             if "Date" in df.columns: df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
             return df
         except Exception as e:
-            if "429" in str(e): # Supprimé pour rapidité; continue
+            if "429" in str(e): 
+                pass  # Rate limit atteint, on retourne un DataFrame vide
             return pd.DataFrame(columns=cols)
     return pd.DataFrame(columns=cols)
 
@@ -670,8 +671,10 @@ def save_data(tab, df):
             st.cache_data.clear()
             return
         except Exception as e:
-            if "429" in str(e): # Supprimé pour rapidité; continue
-            st.error(f"Erreur sauvegarde: {e}"); return
+            if "429" in str(e): 
+                pass  # Rate limit
+            st.error(f"Erreur sauvegarde: {e}")
+            return
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_all_configs():
