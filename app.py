@@ -704,22 +704,38 @@ def save_data(tab, df):
 
 def create_backup():
     """Crée une sauvegarde hebdomadaire automatique des données"""
-    import json
-    from datetime import datetime
-    
-    # Vérifier si c'est lundi (jour 0)
-    if datetime.now().weekday() != 0:
-        return
-    
-    # Vérifier si backup déjà fait cette semaine
-    last_backup = st.session_state.get('last_backup_date', '')
-    week_num = datetime.now().isocalendar()[1]
-    
-    if str(week_num) in last_backup:
-        return  # Backup déjà fait cette semaine
-    
     try:
-        # Créer le backup
+        from datetime import datetime
+        
+        # Vérifier si c'est lundi (jour 0)
+        if datetime.now().weekday() != 0:
+            return
+        
+        # Vérifier si backup déjà fait cette semaine
+        last_backup = st.session_state.get('last_backup_date', '')
+        week_num = datetime.now().isocalendar()[1]
+        
+        if str(week_num) in last_backup:
+            return  # Backup déjà fait cette semaine
+        
+        # Marquer comme tenté même si ça échoue pour éviter retry constant
+        st.session_state.last_backup_date = f"week_{week_num}"
+        
+        # Créer le backup (peut échouer silencieusement)
+        client = get_client()
+        if not client:
+            return
+            
+        sh = client.open(SHEET_NAME)
+        
+        # Vérifier si l'onglet Backups existe
+        try:
+            ws_backup = sh.worksheet("Backups")
+        except:
+            # Ne pas créer si ça échoue, juste skip
+            return
+        
+        # Ajouter la ligne de backup
         backup_data = {
             'date': datetime.now().strftime('%Y-%m-%d'),
             'week': week_num,
@@ -727,18 +743,6 @@ def create_backup():
             'nb_patrimoine': len(st.session_state.get('df_patrimoine', pd.DataFrame()))
         }
         
-        # Sauvegarder dans Google Sheets
-        client = get_client()
-        sh = client.open(SHEET_NAME)
-        
-        # Créer ou récupérer l'onglet Backups
-        try:
-            ws_backup = sh.worksheet("Backups")
-        except:
-            ws_backup = sh.add_worksheet(title="Backups", rows="100", cols="4")
-            ws_backup.append_row(['Date', 'Semaine', 'Nb_Transactions', 'Nb_Patrimoine'])
-        
-        # Ajouter la ligne de backup
         ws_backup.append_row([
             backup_data['date'],
             backup_data['week'],
@@ -746,10 +750,8 @@ def create_backup():
             backup_data['nb_patrimoine']
         ])
         
-        st.session_state.last_backup_date = f"week_{week_num}"
-        
     except Exception as e:
-        # Backup échoue silencieusement
+        # Backup échoue silencieusement pour ne pas bloquer l'app
         pass
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -2995,7 +2997,7 @@ with tabs[4]:
 with tabs[5]:
     page_header("Configuration", "Personnalisez vos catégories, comptes et automatisations")
     
-    c_t1, c_t2, c_t3 = st.tabs(["🏷️ Catégories", "💳 Comptes", "⚡ Automatisation"])
+    c_t1, c_t2, c_t3, c_t4 = st.tabs(["🏷️ Catégories", "💳 Comptes", "⚡ Automatisation", "💾 Sauvegardes"])
     
     # === 1. CATÉGORIES ===
     with c_t1:
@@ -3325,4 +3327,102 @@ with tabs[5]:
                 <p style="color: #6B7280; margin: 0; font-size: 14px;">Créez des règles pour automatiser la catégorisation de vos transactions</p>
             </div>
             """, unsafe_allow_html=True)
+    
+    # === 4. SAUVEGARDES ===
+    with c_t4:
+        st.markdown("### 💾 Gestion des sauvegardes")
+        st.caption("Configurez et gérez vos sauvegardes automatiques")
+        
+        # Info sur le système de backup
+        st.info("""
+        **Système de sauvegarde automatique** :
+        - 📅 Sauvegarde chaque **lundi**
+        - 📦 Conserve les **12 dernières sauvegardes** (3 mois)
+        - 🔒 Stockées dans Google Sheets (onglet "Backups")
+        - ✅ Automatique et silencieux
+        """)
+        
+        # Statut du dernier backup
+        last_backup = st.session_state.get('last_backup_date', 'Aucun')
+        if last_backup != 'Aucun':
+            week_num = last_backup.split('_')[1] if '_' in last_backup else 'N/A'
+            st.success(f"✅ Dernière sauvegarde : Semaine {week_num}")
+        else:
+            st.warning("⚠️ Aucune sauvegarde effectuée")
+        
+        st.markdown("---")
+        
+        # Bouton pour initialiser l'onglet Backups
+        st.markdown("### Initialiser le système de backup")
+        st.caption("Créez l'onglet 'Backups' dans votre Google Sheet (requis une seule fois)")
+        
+        if st.button("🔧 Créer l'onglet Backups", type="primary", use_container_width=True):
+            try:
+                client = get_client()
+                sh = client.open(SHEET_NAME)
+                
+                # Vérifier si existe déjà
+                try:
+                    ws = sh.worksheet("Backups")
+                    st.info("ℹ️ L'onglet 'Backups' existe déjà !")
+                except:
+                    # Créer l'onglet
+                    ws = sh.add_worksheet(title="Backups", rows="100", cols="4")
+                    ws.append_row(['Date', 'Semaine', 'Nb_Transactions', 'Nb_Patrimoine'])
+                    st.success("✅ Onglet 'Backups' créé avec succès !")
+                    st.balloons()
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la création : {str(e)}")
+                st.caption("💡 Vous pouvez créer manuellement un onglet 'Backups' dans votre Google Sheet")
+        
+        st.markdown("---")
+        
+        # Sauvegarde manuelle
+        st.markdown("### Sauvegarde manuelle")
+        st.caption("Forcer une sauvegarde immédiate")
+        
+        if st.button("💾 Sauvegarder maintenant", use_container_width=True):
+            try:
+                from datetime import datetime
+                client = get_client()
+                sh = client.open(SHEET_NAME)
+                ws_backup = sh.worksheet("Backups")
+                
+                # Créer le backup
+                today = datetime.now().strftime('%Y-%m-%d')
+                week_num = datetime.now().isocalendar()[1]
+                
+                ws_backup.append_row([
+                    today,
+                    week_num,
+                    len(df),
+                    len(df_patrimoine)
+                ])
+                
+                st.session_state.last_backup_date = f"week_{week_num}"
+                st.success(f"✅ Sauvegarde effectuée ! ({len(df)} transactions, {len(df_patrimoine)} entrées patrimoine)")
+                
+            except Exception as e:
+                st.error(f"❌ Erreur : {str(e)}")
+                st.caption("💡 Assurez-vous que l'onglet 'Backups' existe (bouton ci-dessus)")
+        
+        st.markdown("---")
+        
+        # Voir les backups
+        st.markdown("### Historique des sauvegardes")
+        
+        if st.button("📋 Afficher les sauvegardes", use_container_width=True):
+            try:
+                client = get_client()
+                sh = client.open(SHEET_NAME)
+                ws_backup = sh.worksheet("Backups")
+                
+                backups = ws_backup.get_all_records()
+                if backups:
+                    df_backups = pd.DataFrame(backups)
+                    st.dataframe(df_backups, use_container_width=True)
+                else:
+                    st.info("Aucune sauvegarde enregistrée")
+            except Exception as e:
+                st.warning("L'onglet 'Backups' n'existe pas encore. Utilisez le bouton ci-dessus pour le créer.")
 
