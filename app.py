@@ -654,7 +654,7 @@ def load_data(tab, cols):
             if "Date" in df.columns: df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
             return df
         except Exception as e:
-            if "429" in str(e): time.sleep(2); continue
+            if "429" in str(e): # Supprimé pour rapidité; continue
             return pd.DataFrame(columns=cols)
     return pd.DataFrame(columns=cols)
 
@@ -670,7 +670,7 @@ def save_data(tab, df):
             st.cache_data.clear()
             return
         except Exception as e:
-            if "429" in str(e): time.sleep(2); continue
+            if "429" in str(e): # Supprimé pour rapidité; continue
             st.error(f"Erreur sauvegarde: {e}"); return
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -873,10 +873,22 @@ with tabs[0]:
     epg = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Épargne")]["Montant"].sum()
     com = df_mois[df_mois["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
     
+    # Calcul du fixe : uniquement les abonnements PAYÉS ce mois
     fixe = 0
-    if not df_abonnements.empty:
-        au = df_abonnements[(df_abonnements["Proprietaire"]==user_actuel)|(df_abonnements["Imputation"].str.contains("Commun", na=False))]
-        for _,r in au.iterrows(): fixe += float(r["Montant"])/(2 if "Commun" in str(r["Imputation"]) else 1)
+    if not df_abonnements.empty and not df_mois.empty:
+        for _, abo in df_abonnements.iterrows():
+            # Vérifier si cet abonnement a été payé ce mois
+            paid = not df_mois[
+                (df_mois["Titre"].str.lower() == abo["Nom"].lower()) & 
+                (df_mois["Montant"] == float(abo["Montant"]))
+            ].empty
+            
+            if paid:
+                # Si c'est l'abonnement de l'utilisateur ou un abonnement commun
+                if abo["Proprietaire"] == user_actuel:
+                    fixe += float(abo["Montant"])
+                elif "Commun" in str(abo.get("Imputation", "")):
+                    fixe += float(abo["Montant"]) / 2
     
     rav = rev - fixe - dep - com
     ratio_epargne = (epg / rev * 100) if rev > 0 else 0
@@ -1221,8 +1233,7 @@ with tabs[1]:
                         
                         df = pd.concat([df, pd.DataFrame([nr])], ignore_index=True)
                         save_data(TAB_DATA, df)
-                        st.success("Transaction enregistrée !")
-                        time.sleep(0.5)
+                        st.success("✅ Transaction enregistrée !")
                         st.rerun()
 
     with op2:
@@ -1290,7 +1301,7 @@ with tabs[1]:
                         save_data(TAB_ABONNEMENTS, df_abonnements)
                         st.session_state['new_abo'] = False
                         st.success("Abonnement créé !")
-                        time.sleep(0.5)
+                        # Supprimé pour rapidité
                         st.rerun()
                     else:
                         st.error("Veuillez remplir tous les champs obligatoires")
@@ -1380,7 +1391,7 @@ with tabs[1]:
                     df = pd.concat([df, pd.DataFrame(nt)], ignore_index=True)
                     save_data(TAB_DATA, df)
                     st.success(f"{len(nt)} transaction(s) générée(s) !")
-                    time.sleep(0.5)
+                    # Supprimé pour rapidité
                     st.rerun()
             
             st.write("")
@@ -2098,7 +2109,7 @@ with tabs[2]:
                     
                     save_data(TAB_OBJECTIFS, pd.DataFrame(objectifs_list))
                     st.success(f"Budgets suggérés créés !")
-                    time.sleep(1)
+                    # Supprimé pour rapidité
                     st.rerun()
                 else:
                     st.warning("Pas assez de données pour suggérer des budgets")
@@ -2491,24 +2502,29 @@ with tabs[3]:
         with st.form("adj"):
             col1, col2 = st.columns(2)
             d = col1.date_input("Date de référence", datetime.today())
-            m = col2.number_input("Solde réel (€)", min_value=0.0, step=0.01)
+            m_text = col2.text_input("Solde réel (€)", placeholder="Ex: 7234,43 ou 7234.43", help="Utilisez , ou . comme séparateur décimal")
             
             if st.form_submit_button("💾 Enregistrer l'ajustement", use_container_width=True):
-                df_patrimoine = pd.concat([
-                    df_patrimoine, 
-                    pd.DataFrame([{
-                        "Date": d,
-                        "Mois": d.month,
-                        "Annee": d.year,
-                        "Compte": ac,
-                        "Montant": m,
-                        "Proprietaire": user_actuel
-                    }])
-                ], ignore_index=True)
-                save_data(TAB_PATRIMOINE, df_patrimoine)
-                st.success("✅ Ajustement enregistré !")
-                time.sleep(1)
-                st.rerun()
+                try:
+                    # Accepter virgule ou point comme séparateur décimal
+                    m = float(m_text.replace(',', '.').replace(' ', ''))
+                    
+                    df_patrimoine = pd.concat([
+                        df_patrimoine, 
+                        pd.DataFrame([{
+                            "Date": d,
+                            "Mois": d.month,
+                            "Annee": d.year,
+                            "Compte": ac,
+                            "Montant": m,
+                            "Proprietaire": user_actuel
+                        }])
+                    ], ignore_index=True)
+                    save_data(TAB_PATRIMOINE, df_patrimoine)
+                    st.success("✅ Ajustement enregistré !")
+                    st.rerun()
+                except ValueError:
+                    st.error("❌ Veuillez entrer un nombre valide (ex: 7234,43)")
 
 # TAB 5: REMBOURSEMENTS & CRÉDITS
 with tabs[4]:
@@ -2634,7 +2650,7 @@ with tabs[4]:
                     save_data(TAB_REMBOURSEMENTS, df_rembours)
                     
                     st.success(f"✅ Remboursement de {montant_remb:,.0f} € enregistré !")
-                    time.sleep(1)
+                    # Supprimé pour rapidité
                     st.rerun()
     
     # === TAB: CRÉDITS EN COURS ===
@@ -2727,7 +2743,7 @@ with tabs[4]:
                     save_data(TAB_CREDITS, df_credits)
                     st.session_state['new_credit'] = False
                     st.success("Crédit ajouté !")
-                    time.sleep(0.5)
+                    # Supprimé pour rapidité
                     st.rerun()
                 
                 if col_btn2.form_submit_button("Annuler", use_container_width=True):
@@ -2781,7 +2797,7 @@ with tabs[4]:
                             df_credits.at[idx, 'Montant_Restant'] = max(0, montant_restant - montant_remb_credit)
                             save_data(TAB_CREDITS, df_credits)
                             st.success("Remboursement enregistré !")
-                            time.sleep(0.5)
+                            # Supprimé pour rapidité
                             st.rerun()
                 
                 with col_act2:
@@ -2843,7 +2859,7 @@ with tabs[5]:
             
             save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
             st.success("✅ Catégories réinitialisées avec succès !")
-            time.sleep(1)
+            # Supprimé pour rapidité
             st.rerun()
         
         st.write("")
@@ -2864,7 +2880,7 @@ with tabs[5]:
                     cats_memoire.setdefault(ty, []).append(new_c)
                     save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                     st.success(f"✅ Catégorie '{new_c}' ajoutée !")
-                    time.sleep(0.5)
+                    # Supprimé pour rapidité
                     st.rerun()
         
         st.write("")
@@ -2891,7 +2907,7 @@ with tabs[5]:
                             cats_memoire["Dépense"].remove(d)
                         save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         st.success("✅ Catégories supprimées !")
-                        time.sleep(0.5)
+                        # Supprimé pour rapidité
                         st.rerun()
             else:
                 st.info("Aucune catégorie de dépense")
@@ -2918,7 +2934,7 @@ with tabs[5]:
                                     cats_memoire[t].remove(d)
                         save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         st.success("✅ Catégories supprimées !")
-                        time.sleep(0.5)
+                        # Supprimé pour rapidité
                         st.rerun()
             else:
                 st.info("Aucune catégorie de revenu/épargne")
@@ -2954,7 +2970,7 @@ with tabs[5]:
                                     rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, t)})
                             save_data(TAB_COMPTES, pd.DataFrame(rows))
                             st.success(f"✅ Compte '{n}' créé !")
-                            time.sleep(0.5)
+                            # Supprimé pour rapidité
                             st.rerun()
                         else:
                             st.error("Ce compte existe déjà !")
@@ -2971,27 +2987,69 @@ with tabs[5]:
             for p in [user_actuel, "Commun"]:
                 if p in comptes_structure and comptes_structure[p]:
                     st.markdown(f"**{p}**")
-                    for a in comptes_structure[p]:
+                    for idx, a in enumerate(comptes_structure[p]):
                         compte_type = comptes_types_map.get(a, 'Courant')
                         icon = "💰" if compte_type == "Épargne" else "💳"
                         
-                        col_name, col_del = st.columns([4, 1])
-                        with col_name:
-                            st.markdown(f"""
-                            <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
-                                <span style="font-size: 16px; margin-right: 0.5rem;">{icon}</span>
-                                <span style="font-weight: 600; color: #1F2937;">{a}</span>
-                                <span style="color: #6B7280; font-size: 12px; margin-left: 0.5rem;">• {compte_type}</span>
+                        # Vérifier si on est en mode édition
+                        edit_key = f"edit_compte_{p}_{idx}"
+                        
+                        if not st.session_state.get(edit_key, False):
+                            # Mode affichage
+                            col_name, col_edit, col_del = st.columns([3, 1, 1])
+                            with col_name:
+                                st.markdown(f"""
+                                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <span style="font-size: 16px; margin-right: 0.5rem;">{icon}</span>
+                                    <span style="font-weight: 600; color: #1F2937;">{a}</span>
+                                    <span style="color: #6B7280; font-size: 12px; margin-left: 0.5rem;">• {compte_type}</span>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            with col_edit:
+                                if st.button("✏️", key=f"edit_btn_{p}_{idx}", use_container_width=True):
+                                    st.session_state[edit_key] = True
+                                    st.rerun()
+                            with col_del:
+                                if st.button("🗑️", key=f"del_{a}", use_container_width=True):
+                                    comptes_structure[p].remove(a)
+                                    rows = []
+                                    for pr, l in comptes_structure.items():
+                                        for ct in l:
+                                            rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
+                                    save_data(TAB_COMPTES, pd.DataFrame(rows))
+                                    st.rerun()
+                        else:
+                            # Mode édition
+                            st.markdown("""
+                            <div style="background: #EEF2FF; border: 2px solid #4F46E5; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem;">
+                                <div style="color: #4F46E5; font-weight: 700; font-size: 12px;">✏️ Modification</div>
                             </div>
                             """, unsafe_allow_html=True)
-                        with col_del:
-                            if st.button("🗑️", key=f"del_{a}", use_container_width=True):
-                                comptes_structure[p].remove(a)
-                                rows = []
-                                for pr, l in comptes_structure.items():
-                                    for ct in l:
-                                        rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
-                                save_data(TAB_COMPTES, pd.DataFrame(rows))
+                            
+                            with st.form(f"edit_compte_form_{p}_{idx}"):
+                                new_name = st.text_input("Nom du compte", value=a)
+                                new_type = st.selectbox("Type", TYPES_COMPTE, index=TYPES_COMPTE.index(compte_type))
+                                
+                                col_save, col_cancel = st.columns(2)
+                                if col_save.form_submit_button("💾 Sauvegarder", use_container_width=True):
+                                    # Mettre à jour le compte
+                                    old_name = a
+                                    comptes_structure[p][idx] = new_name
+                                    comptes_types_map[new_name] = new_type
+                                    if old_name != new_name and old_name in comptes_types_map:
+                                        del comptes_types_map[old_name]
+                                    
+                                    rows = []
+                                    for pr, l in comptes_structure.items():
+                                        for ct in l:
+                                            rows.append({"Proprietaire": pr, "Compte": ct, "Type": comptes_types_map.get(ct, "Courant")})
+                                    save_data(TAB_COMPTES, pd.DataFrame(rows))
+                                    st.session_state[edit_key] = False
+                                    st.rerun()
+                                
+                                if col_cancel.form_submit_button("❌ Annuler", use_container_width=True):
+                                    st.session_state[edit_key] = False
+                                    st.rerun()
                                 st.rerun()
                     st.write("")
 
@@ -3026,7 +3084,7 @@ with tabs[5]:
                         rows.append({"Mot_Cle": mc, "Categorie": data["Categorie"], "Type": data["Type"], "Compte": data["Compte"]})
                     save_data(TAB_MOTS_CLES, pd.DataFrame(rows))
                     st.success(f"✅ Règle créée pour '{m}' !")
-                    time.sleep(0.5)
+                    # Supprimé pour rapidité
                     st.rerun()
                 else:
                     st.warning("Veuillez entrer un mot-clé")
