@@ -651,7 +651,16 @@ def load_data(tab, cols):
             if df.empty: return pd.DataFrame(columns=cols)
             for col in cols: 
                 if col not in df.columns: df[col] = ""
-            if "Date" in df.columns: df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
+            
+            # Nettoyer la colonne Date
+            if "Date" in df.columns: 
+                df["Date"] = pd.to_datetime(df["Date"], errors='coerce').dt.date
+            
+            # Nettoyer la colonne Montant (supprimer virgules de formatage)
+            if "Montant" in df.columns:
+                df["Montant"] = df["Montant"].astype(str).str.replace(',', '').str.replace(' ', '')
+                df["Montant"] = pd.to_numeric(df["Montant"], errors='coerce').fillna(0)
+            
             return df
         except Exception as e:
             if "429" in str(e): 
@@ -2509,8 +2518,22 @@ with tabs[3]:
             
             if st.form_submit_button("💾 Enregistrer l'ajustement", use_container_width=True):
                 try:
-                    # Accepter virgule ou point comme séparateur décimal
-                    m = float(m_text.replace(',', '.').replace(' ', ''))
+                    # Nettoyer et convertir le montant
+                    # Supprimer tous les espaces
+                    m_clean = m_text.replace(' ', '').strip()
+                    
+                    # Si contient une virgule ET un point, c'est ambigu
+                    if ',' in m_clean and '.' in m_clean:
+                        st.error("❌ Format ambigu. Utilisez soit la virgule (ex: 7234,43) soit le point (ex: 7234.43), pas les deux.")
+                        st.stop()
+                    
+                    # Remplacer virgule par point pour Python
+                    m_clean = m_clean.replace(',', '.')
+                    
+                    # Convertir en float
+                    m = float(m_clean)
+                    
+                    st.info(f"💡 Montant enregistré : {m:.2f} €")
                     
                     df_patrimoine = pd.concat([
                         df_patrimoine, 
@@ -2526,8 +2549,8 @@ with tabs[3]:
                     save_data(TAB_PATRIMOINE, df_patrimoine)
                     st.success("✅ Ajustement enregistré !")
                     st.rerun()
-                except ValueError:
-                    st.error("❌ Veuillez entrer un nombre valide (ex: 7234,43)")
+                except ValueError as e:
+                    st.error(f"❌ Format invalide : '{m_text}'. Utilisez uniquement des chiffres avec virgule ou point (ex: 7234,43 ou 7234.43)")
 
 # TAB 5: REMBOURSEMENTS & CRÉDITS
 with tabs[4]:
