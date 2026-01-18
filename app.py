@@ -2298,7 +2298,7 @@ with tabs[3]:
                     <div style="color: #1F2937; font-size: 11px; font-weight: 500; margin-top: 0.25rem;">{ac} • {compte_type}</div>
                 </div>
             </div>
-            <div style="color: {solde_color}; font-size: 48px; font-weight: 700;">{sl:,.2f} €</div>
+            <div style="color: {solde_color}; font-size: 48px; font-weight: 700;">{f'{sl:,.2f}'.replace(',', ' ').replace('.', ',')} €</div>
         </div>
         """, unsafe_allow_html=True)
         
