@@ -709,19 +709,20 @@ def load_data(tab, cols):
                         return 0
                     val = str(val).strip()
                     
-                    # Si contient à la fois virgule et point : format US avec thousands separator
-                    # Ex: "7,234.43" → enlever virgule, garder point
-                    if ',' in val and '.' in val:
-                        val = val.replace(',', '')
-                    # Si contient seulement virgule : format français
-                    # Ex: "7234,43" → remplacer virgule par point
-                    elif ',' in val:
-                        val = val.replace(',', '.')
-                    # Si contient seulement espace : format français avec espace milliers
-                    # Ex: "7 234,43" → enlever espaces, virgule→point
+                    # ÉTAPE 1: Enlever TOUS les espaces (séparateurs de milliers français)
                     val = val.replace(' ', '')
-                    if ',' in val:
+                    val = val.replace('\xa0', '')  # Espace insécable
+                    
+                    # ÉTAPE 2: Gérer virgule vs point
+                    # Si contient virgule ET point : format US "7,234.43"
+                    if ',' in val and '.' in val:
+                        # La virgule est le séparateur de milliers, le point est décimal
+                        val = val.replace(',', '')
+                    # Si contient SEULEMENT virgule : format français "7234,43"
+                    elif ',' in val:
+                        # La virgule est le séparateur décimal
                         val = val.replace(',', '.')
+                    # Si contient SEULEMENT point : déjà bon "7234.43"
                     
                     try:
                         return float(val)
