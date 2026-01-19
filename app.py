@@ -2768,49 +2768,7 @@ with tabs[3]:
     
     with st2:
         st.markdown("### Ajuster le solde d'un compte")
-        st.caption("Utilisez cette fonction pour corriger le solde d'un compte si nécessaire")
         
-        # Afficher les ajustements existants
-        if not df_patrimoine.empty:
-            df_compte_pat = df_patrimoine[df_patrimoine["Compte"] == ac].sort_values("Date", ascending=False)
-            if not df_compte_pat.empty:
-                st.markdown("**📋 Historique des ajustements**")
-                
-                # DEBUG TEMPORAIRE - Afficher la valeur BRUTE de Google Sheets
-                st.code(f"VALEUR BRUTE GOOGLE SHEETS: {df_compte_pat.iloc[0]['Montant']}")
-                st.code(f"TYPE: {type(df_compte_pat.iloc[0]['Montant'])}")
-                
-                for idx, row in df_compte_pat.head(5).iterrows():
-                    montant = row["Montant"]
-                    date_str = row["Date"].strftime("%d/%m/%Y") if hasattr(row["Date"], 'strftime') else str(row["Date"])
-                    
-                    # Détection de montant suspect
-                    is_suspect = montant > 100000
-                    color = "#EF4444" if is_suspect else "#10B981"
-                    
-                    col1, col2, col3 = st.columns([3, 2, 1])
-                    with col1:
-                        st.markdown(f"""
-                        <div style="background: white; border-left: 3px solid {color}; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem;">
-                            <div style="font-size: 12px; color: #6B7280;">{date_str}</div>
-                            <div style="font-size: 16px; font-weight: 600; color: {color};">{montant:,.2f} €</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col2:
-                        if is_suspect:
-                            st.warning("⚠️ Suspect")
-                    
-                    with col3:
-                        if st.button("🗑️", key=f"del_pat_{idx}", use_container_width=True):
-                            df_patrimoine = df_patrimoine.drop(idx)
-                            save_data(TAB_PATRIMOINE, df_patrimoine)
-                            st.cache_data.clear()
-                            st.session_state.needs_refresh = True
-                            st.success("✅ Ajustement supprimé")
-                            st.rerun()
-                
-                st.markdown("---")
         
         with st.form("adj"):
             col1, col2 = st.columns(2)
@@ -2833,9 +2791,6 @@ with tabs[3]:
                     
                     # Convertir en float
                     m = float(m_clean)
-                    
-                    # LOG: Afficher ce qui va être sauvegardé
-                    st.info(f"💾 Sauvegarde : {m} (type: {type(m).__name__})")
                     
                     df_patrimoine = pd.concat([
                         df_patrimoine, 
