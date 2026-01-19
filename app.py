@@ -740,19 +740,58 @@ def load_data(tab, cols):
 def save_data(tab, df):
     c = get_client()
     ws = get_ws(c, tab)
+    if not ws:
+        return
+    
     df_s = df.copy()
-    if "Date" in df_s.columns: df_s["Date"] = df_s["Date"].astype(str)
+    
+    # Convertir les dates en string
+    if "Date" in df_s.columns: 
+        df_s["Date"] = df_s["Date"].astype(str)
+    
+    # S'assurer que les montants sont bien des floats
+    if "Montant" in df_s.columns:
+        df_s["Montant"] = pd.to_numeric(df_s["Montant"], errors='coerce').fillna(0.0)
+    
     for i in range(3):
         try:
             ws.clear()
-            ws.update([df_s.columns.values.tolist()] + df_s.values.tolist())
+            
+            # Préparer les données
+            headers = df_s.columns.values.tolist()
+            values = df_s.values.tolist()
+            
+            # Trouver l'index de la colonne Montant
+            montant_col_idx = None
+            if "Montant" in headers:
+                montant_col_idx = headers.index("Montant")
+            
+            # Convertir les valeurs en s'assurant que les montants restent numériques
+            clean_values = []
+            for row in values:
+                clean_row = []
+                for idx, val in enumerate(row):
+                    if idx == montant_col_idx and val is not None:
+                        # Forcer en float pour la colonne Montant
+                        try:
+                            clean_row.append(float(val))
+                        except:
+                            clean_row.append(0.0)
+                    else:
+                        clean_row.append(val)
+                clean_values.append(clean_row)
+            
+            # Mettre à jour avec value_input_option='RAW' pour éviter l'interprétation
+            ws.update([headers] + clean_values, value_input_option='RAW')
+            
             st.cache_data.clear()
             st.session_state.needs_refresh = True
             return
         except Exception as e:
             if "429" in str(e): 
                 pass  # Rate limit
-            st.error(f"Erreur sauvegarde: {e}")
+            else:
+                st.error(f"Erreur sauvegarde: {e}")
             return
 
 def create_backup():
@@ -2798,19 +2837,34 @@ with tabs[3]:
                     # Convertir en float
                     m = float(m_clean)
                     
-                    st.info(f"💡 Montant enregistré : {m:.2f} €")
+                    # DEBUG: Afficher toutes les étapes
+                    st.success(f"""
+                    ✅ **Conversion réussie** :
+                    - Saisie : `{m_text}`
+                    - Nettoyé : `{m_clean}`
+                    - Float : `{m}` (type: {type(m).__name__})
+                    - Formaté : `{m:.2f} €`
+                    """)
+                    
+                    nouvelle_ligne = {
+                        "Date": d,
+                        "Mois": d.month,
+                        "Annee": d.year,
+                        "Compte": ac,
+                        "Montant": m,
+                        "Proprietaire": user_actuel
+                    }
+                    
+                    st.write("**Données à sauvegarder** :", nouvelle_ligne)
                     
                     df_patrimoine = pd.concat([
                         df_patrimoine, 
-                        pd.DataFrame([{
-                            "Date": d,
-                            "Mois": d.month,
-                            "Annee": d.year,
-                            "Compte": ac,
-                            "Montant": m,
-                            "Proprietaire": user_actuel
-                        }])
+                        pd.DataFrame([nouvelle_ligne])
                     ], ignore_index=True)
+                    
+                    st.write("**DataFrame avant sauvegarde** :")
+                    st.write(df_patrimoine.tail(1))
+                    
                     save_data(TAB_PATRIMOINE, df_patrimoine)
                     st.success("✅ Ajustement enregistré !")
                     st.cache_data.clear()
