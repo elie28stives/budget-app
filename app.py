@@ -2533,17 +2533,6 @@ with tabs[3]:
         sl = soldes.get(ac, 0.0)
         compte_type = comptes_types_map.get(ac, "Courant")
         
-        # DEBUG - Afficher la valeur brute
-        with st.expander("🔍 Debug - Valeur brute du solde", expanded=False):
-            st.write(f"Solde brut : `{sl}`")
-            st.write(f"Type : `{type(sl)}`")
-            
-            # Voir les données du patrimoine pour ce compte
-            df_compte_pat = df_patrimoine[df_patrimoine["Compte"] == ac]
-            if not df_compte_pat.empty:
-                st.write("Dernières entrées patrimoine :")
-                st.dataframe(df_compte_pat.tail(3), use_container_width=True)
-        
         # === SOLDE DU COMPTE ===
         solde_color = "#10B981" if sl >= 0 else "#EF4444"
         solde_bg = "#F0FDF4" if sl >= 0 else "#FEF2F2"
@@ -2837,33 +2826,17 @@ with tabs[3]:
                     # Convertir en float
                     m = float(m_clean)
                     
-                    # DEBUG: Afficher toutes les étapes
-                    st.success(f"""
-                    ✅ **Conversion réussie** :
-                    - Saisie : `{m_text}`
-                    - Nettoyé : `{m_clean}`
-                    - Float : `{m}` (type: {type(m).__name__})
-                    - Formaté : `{m:.2f} €`
-                    """)
-                    
-                    nouvelle_ligne = {
-                        "Date": d,
-                        "Mois": d.month,
-                        "Annee": d.year,
-                        "Compte": ac,
-                        "Montant": m,
-                        "Proprietaire": user_actuel
-                    }
-                    
-                    st.write("**Données à sauvegarder** :", nouvelle_ligne)
-                    
                     df_patrimoine = pd.concat([
                         df_patrimoine, 
-                        pd.DataFrame([nouvelle_ligne])
+                        pd.DataFrame([{
+                            "Date": d,
+                            "Mois": d.month,
+                            "Annee": d.year,
+                            "Compte": ac,
+                            "Montant": m,
+                            "Proprietaire": user_actuel
+                        }])
                     ], ignore_index=True)
-                    
-                    st.write("**DataFrame avant sauvegarde** :")
-                    st.write(df_patrimoine.tail(1))
                     
                     save_data(TAB_PATRIMOINE, df_patrimoine)
                     st.success("✅ Ajustement enregistré !")
