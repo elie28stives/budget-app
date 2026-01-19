@@ -682,7 +682,7 @@ def get_ws(client, tab):
                 raise
     return None
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_data(tab, cols):
     c = get_client()
     if not c: return pd.DataFrame(columns=cols)
@@ -850,7 +850,7 @@ def create_backup():
         # Backup échoue silencieusement pour ne pas bloquer l'app
         pass
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_all_configs():
     return (
         load_data(TAB_CONFIG, ["Type", "Categorie"]),
@@ -985,26 +985,28 @@ if 'needs_refresh' not in st.session_state:
 
 # Charger les données uniquement si nécessaire
 if st.session_state.needs_refresh or 'df' not in st.session_state:
-    # Chargement depuis Google Sheets
-    df = load_data(TAB_DATA, COLS_DATA)
-    df_patrimoine = load_data(TAB_PATRIMOINE, COLS_PAT)
-    cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_data()
-    
-    # Stocker dans session_state pour réutilisation
-    st.session_state.df = df
-    st.session_state.df_patrimoine = df_patrimoine
-    st.session_state.cats_memoire = cats_memoire
-    st.session_state.comptes_structure = comptes_structure
-    st.session_state.objectifs_list = objectifs_list
-    st.session_state.df_abonnements = df_abonnements
-    st.session_state.projets_config = projets_config
-    st.session_state.comptes_types_map = comptes_types_map
-    st.session_state.mots_cles_map = mots_cles_map
-    
-    st.session_state.needs_refresh = False
-    
-    # Créer un backup automatique (lundi uniquement)
-    create_backup()
+    # Spinner pendant le chargement
+    with st.spinner('⏳ Chargement des données...'):
+        # Chargement depuis Google Sheets
+        df = load_data(TAB_DATA, COLS_DATA)
+        df_patrimoine = load_data(TAB_PATRIMOINE, COLS_PAT)
+        cats_memoire, comptes_structure, objectifs_list, df_abonnements, projets_config, comptes_types_map, mots_cles_map = process_data()
+        
+        # Stocker dans session_state pour réutilisation
+        st.session_state.df = df
+        st.session_state.df_patrimoine = df_patrimoine
+        st.session_state.cats_memoire = cats_memoire
+        st.session_state.comptes_structure = comptes_structure
+        st.session_state.objectifs_list = objectifs_list
+        st.session_state.df_abonnements = df_abonnements
+        st.session_state.projets_config = projets_config
+        st.session_state.comptes_types_map = comptes_types_map
+        st.session_state.mots_cles_map = mots_cles_map
+        
+        st.session_state.needs_refresh = False
+        
+        # Créer un backup automatique (lundi uniquement)
+        create_backup()
 else:
     # Réutiliser les données en cache
     df = st.session_state.df
@@ -1071,6 +1073,14 @@ with st.sidebar:
     a_sel = st.number_input("Année", value=d_jour.year)
     df_mois = df[(df["Mois"] == m_sel) & (df["Annee"] == a_sel)]
     
+    # === OPTIMISATION : PRÉ-CALCULER LES FILTRES FRÉQUENTS ===
+    # Au lieu de filtrer df_mois 102 fois, on le fait 1 seule fois
+    df_mois_user = df_mois[df_mois["Qui_Connecte"] == user_actuel]
+    df_mois_depenses = df_mois_user[df_mois_user["Type"] == "Dépense"]
+    df_mois_revenus = df_mois_user[df_mois_user["Type"] == "Revenu"]
+    df_mois_epargne = df_mois_user[df_mois_user["Type"] == "Épargne"]
+    df_mois_commun = df_mois[df_mois["Imputation"] == "Commun (50/50)"]
+    
     st.markdown("---")
     
     # Indicateur de backup
@@ -1109,24 +1119,28 @@ tabs = st.tabs(["Accueil", "Opérations", "Analyses", "Patrimoine", "Rembourseme
 with tabs[0]:
     page_header(f"Synthèse - {m_nom} {a_sel}", f"Compte de {user_actuel}")
     
-    # === MÉTRIQUES DU MOIS ACTUEL ===
-    rev = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Revenu")]["Montant"].sum()
-    dep = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Dépense") & (df_mois["Imputation"]=="Perso")]["Montant"].sum()
-    epg = df_mois[(df_mois["Qui_Connecte"]==user_actuel) & (df_mois["Type"]=="Épargne")]["Montant"].sum()
-    com = df_mois[df_mois["Imputation"]=="Commun (50/50)"]["Montant"].sum() / 2
+    # === MÉTRIQUES DU MOIS ACTUEL - OPTIMISÉ ===
+    # Utiliser les DataFrames déjà filtrés au lieu de refiltrer
+    rev = df_mois_revenus["Montant"].sum()
+    dep = df_mois_depenses[df_mois_depenses["Imputation"] == "Perso"]["Montant"].sum()
+    epg = df_mois_epargne["Montant"].sum()
+    com = df_mois_commun["Montant"].sum() / 2
     
-    # Calcul du fixe : uniquement les abonnements PAYÉS ce mois
+    # Calcul du fixe : uniquement les abonnements PAYÉS ce mois - OPTIMISÉ
     fixe = 0
     if not df_abonnements.empty and not df_mois.empty:
-        for _, abo in df_abonnements.iterrows():
-            # Vérifier si cet abonnement a été payé ce mois
-            paid = not df_mois[
-                (df_mois["Titre"].str.lower() == abo["Nom"].lower()) & 
-                (df_mois["Montant"] == float(abo["Montant"]))
-            ].empty
+        # Filtrer les abonnements de l'utilisateur ou communs
+        abo_user = df_abonnements[
+            (df_abonnements["Proprietaire"] == user_actuel) | 
+            (df_abonnements["Imputation"].str.contains("Commun", na=False))
+        ]
+        
+        # Pour chaque abonnement, vérifier s'il est payé ce mois
+        for _, abo in abo_user.iterrows():
+            paid = ((df_mois["Titre"].str.lower() == abo["Nom"].lower()) & 
+                    (df_mois["Montant"] == float(abo["Montant"]))).any()
             
             if paid:
-                # Si c'est l'abonnement de l'utilisateur ou un abonnement commun
                 if abo["Proprietaire"] == user_actuel:
                     fixe += float(abo["Montant"])
                 elif "Commun" in str(abo.get("Imputation", "")):
@@ -1477,7 +1491,7 @@ with tabs[1]:
                         save_data(TAB_DATA, df)
                         st.cache_data.clear()
                         st.session_state.needs_refresh = True
-                        st.success("✅ Transaction enregistrée !")
+                        st.toast("✅ Transaction enregistrée", icon="✅")
                         st.rerun()
 
     with op2:
@@ -2530,7 +2544,6 @@ with tabs[3]:
         if st.button("🔄 Actualiser", use_container_width=True):
             st.cache_data.clear()
             st.session_state.needs_refresh = True
-            st.success("Cache vidé ! Rechargement...")
             st.rerun()
     
     if ac:
@@ -2805,7 +2818,6 @@ with tabs[3]:
                     ], ignore_index=True)
                     
                     save_data(TAB_PATRIMOINE, df_patrimoine)
-                    st.success("✅ Ajustement enregistré !")
                     st.cache_data.clear()
                     st.session_state.needs_refresh = True
                     st.rerun()
@@ -3150,7 +3162,6 @@ with tabs[5]:
             save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
             st.cache_data.clear()
             st.session_state.needs_refresh = True
-            st.success("✅ Catégories réinitialisées avec succès !")
             # Supprimé pour rapidité
             st.rerun()
         
@@ -3202,7 +3213,6 @@ with tabs[5]:
                         save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         st.cache_data.clear()
                         st.session_state.needs_refresh = True
-                        st.success("✅ Catégories supprimées !")
                         # Supprimé pour rapidité
                         st.rerun()
             else:
@@ -3231,7 +3241,6 @@ with tabs[5]:
                         save_data(TAB_CONFIG, pd.DataFrame([{"Type": t, "Categorie": c} for t, l in cats_memoire.items() for c in l]))
                         st.cache_data.clear()
                         st.session_state.needs_refresh = True
-                        st.success("✅ Catégories supprimées !")
                         # Supprimé pour rapidité
                         st.rerun()
             else:
@@ -3481,7 +3490,6 @@ with tabs[5]:
                     # Créer l'onglet
                     ws = sh.add_worksheet(title="Backups", rows="100", cols="4")
                     ws.append_row(['Date', 'Semaine', 'Nb_Transactions', 'Nb_Patrimoine'])
-                    st.success("✅ Onglet 'Backups' créé avec succès !")
                     st.balloons()
             except Exception as e:
                 error_msg = str(e)
