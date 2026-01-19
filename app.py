@@ -773,17 +773,20 @@ def save_data(tab, df):
                 clean_row = []
                 for idx, val in enumerate(row):
                     if idx == montant_col_idx and val is not None:
-                        # Forcer en float pour la colonne Montant
+                        # Forcer en float ET le formater en string avec point décimal
                         try:
-                            clean_row.append(float(val))
+                            # Convertir en float puis en string avec format anglais
+                            float_val = float(val)
+                            # Envoyer comme string "7500.45" pour que Google Sheets l'interprète comme nombre
+                            clean_row.append(str(float_val))
                         except:
-                            clean_row.append(0.0)
+                            clean_row.append("0.0")
                     else:
                         clean_row.append(val)
                 clean_values.append(clean_row)
             
-            # Mettre à jour avec value_input_option='RAW' pour éviter l'interprétation
-            ws.update([headers] + clean_values, value_input_option='RAW')
+            # Mettre à jour avec value_input_option='USER_ENTERED' pour que Google Sheets interprète les nombres
+            ws.update([headers] + clean_values, value_input_option='USER_ENTERED')
             
             st.cache_data.clear()
             st.session_state.needs_refresh = True
@@ -2773,6 +2776,10 @@ with tabs[3]:
             if not df_compte_pat.empty:
                 st.markdown("**📋 Historique des ajustements**")
                 
+                # DEBUG TEMPORAIRE - Afficher la valeur BRUTE de Google Sheets
+                st.code(f"VALEUR BRUTE GOOGLE SHEETS: {df_compte_pat.iloc[0]['Montant']}")
+                st.code(f"TYPE: {type(df_compte_pat.iloc[0]['Montant'])}")
+                
                 for idx, row in df_compte_pat.head(5).iterrows():
                     montant = row["Montant"]
                     date_str = row["Date"].strftime("%d/%m/%Y") if hasattr(row["Date"], 'strftime') else str(row["Date"])
@@ -2826,6 +2833,9 @@ with tabs[3]:
                     
                     # Convertir en float
                     m = float(m_clean)
+                    
+                    # LOG: Afficher ce qui va être sauvegardé
+                    st.info(f"💾 Sauvegarde : {m} (type: {type(m).__name__})")
                     
                     df_patrimoine = pd.concat([
                         df_patrimoine, 
