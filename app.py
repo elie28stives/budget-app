@@ -54,6 +54,8 @@ def load_transactions() -> pd.DataFrame:
             df['montant'] = pd.to_numeric(df['montant'], errors='coerce').fillna(0)
         return df
     except Exception as e:
+        if 'connection' in str(e).lower():
+            st.warning("⚠️ Problème de connexion à la base de données")
         return pd.DataFrame(columns=['date', 'mois', 'annee', 'type', 'categorie', 'titre', 'montant', 'compte_source', 'compte_cible', 'imputation', 'qui_connecte'])
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -105,7 +107,13 @@ def save_transaction(data: dict):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        error_msg = str(e)
+        if 'violates' in error_msg.lower():
+            st.error("❌ Impossible d'enregistrer : données invalides")
+        elif 'connection' in error_msg.lower():
+            st.error("❌ Problème de connexion. Réessayez dans quelques secondes.")
+        else:
+            st.error(f"❌ Erreur lors de l'enregistrement de la transaction")
         return False
 
 def save_patrimoine(data: dict):
@@ -117,7 +125,11 @@ def save_patrimoine(data: dict):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        error_msg = str(e)
+        if 'connection' in error_msg.lower():
+            st.error("❌ Problème de connexion. Réessayez.")
+        else:
+            st.error("❌ Impossible d'ajuster le solde")
         return False
 
 def save_compte(data: dict):
@@ -127,7 +139,11 @@ def save_compte(data: dict):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        error_msg = str(e)
+        if '23505' in error_msg or 'duplicate key' in error_msg:
+            st.error(f"❌ Le compte '{data.get('compte', '')}' existe déjà pour {data.get('proprietaire', '')}.")
+        else:
+            st.error(f"❌ Erreur: {e}")
         return False
 
 def save_projet(data: dict):
@@ -139,7 +155,11 @@ def save_projet(data: dict):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        error_msg = str(e)
+        if '23505' in error_msg or 'duplicate key' in error_msg:
+            st.error(f"❌ Le projet '{data.get('projet', '')}' existe déjà.")
+        else:
+            st.error(f"❌ Erreur: {e}")
         return False
 
 def delete_transaction(transaction_id: int):
@@ -149,7 +169,7 @@ def delete_transaction(transaction_id: int):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        st.error("❌ Impossible de supprimer la transaction")
         return False
 
 def delete_compte(compte_id: int):
@@ -159,7 +179,11 @@ def delete_compte(compte_id: int):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        error_msg = str(e)
+        if 'foreign key' in error_msg.lower() or 'referenced' in error_msg.lower():
+            st.error("❌ Impossible de supprimer : ce compte contient des transactions")
+        else:
+            st.error("❌ Impossible de supprimer le compte")
         return False
 
 def delete_projet(projet_id: int):
@@ -169,7 +193,7 @@ def delete_projet(projet_id: int):
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur: {e}")
+        st.error("❌ Impossible de supprimer le projet")
         return False
 
 # ============================================================================
@@ -179,31 +203,43 @@ def delete_projet(projet_id: int):
 def calc_soldes(df_transactions, df_patrimoine, comptes):
     """Calcule les soldes de tous les comptes - OPTIMISÉ"""
     soldes = {}
+    
+    # Si pas de comptes, retourner vide
+    if not comptes:
+        return soldes
+    
     for compte in comptes:
         # Dernier ajustement
-        df_c = df_patrimoine[df_patrimoine['compte'] == compte]
-        if not df_c.empty:
-            last_adj = df_c.sort_values('date', ascending=False).iloc[0]
-            solde_base = float(last_adj['montant'])
-            date_base = last_adj['date']
+        if not df_patrimoine.empty and 'compte' in df_patrimoine.columns:
+            df_c = df_patrimoine[df_patrimoine['compte'] == compte]
+            if not df_c.empty:
+                last_adj = df_c.sort_values('date', ascending=False).iloc[0]
+                solde_base = float(last_adj['montant'])
+                date_base = last_adj['date']
+            else:
+                solde_base = 0.0
+                date_base = pd.to_datetime('2000-01-01').date()
         else:
             solde_base = 0.0
             date_base = pd.to_datetime('2000-01-01').date()
         
         # Transactions après
-        df_after = df_transactions[df_transactions['date'] > date_base]
-        
-        # Débits
-        debits = df_after[
-            (df_after['compte_source'] == compte) & 
-            (df_after['type'].isin(['Dépense', 'Investissement', 'Virement Interne', 'Épargne']))
-        ]['montant'].sum()
-        
-        # Crédits  
-        credits_revenu = df_after[(df_after['compte_source'] == compte) & (df_after['type'] == 'Revenu')]['montant'].sum()
-        credits_virement = df_after[(df_after['compte_cible'] == compte) & (df_after['type'].isin(['Virement Interne', 'Épargne']))]['montant'].sum()
-        
-        soldes[compte] = solde_base + credits_revenu + credits_virement - debits
+        if not df_transactions.empty and 'date' in df_transactions.columns:
+            df_after = df_transactions[df_transactions['date'] > date_base]
+            
+            # Débits
+            debits = df_after[
+                (df_after['compte_source'] == compte) & 
+                (df_after['type'].isin(['Dépense', 'Investissement', 'Virement Interne', 'Épargne']))
+            ]['montant'].sum()
+            
+            # Crédits  
+            credits_revenu = df_after[(df_after['compte_source'] == compte) & (df_after['type'] == 'Revenu')]['montant'].sum()
+            credits_virement = df_after[(df_after['compte_cible'] == compte) & (df_after['type'].isin(['Virement Interne', 'Épargne']))]['montant'].sum()
+            
+            soldes[compte] = solde_base + credits_revenu + credits_virement - debits
+        else:
+            soldes[compte] = solde_base
     
     return soldes
 
