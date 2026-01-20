@@ -1,733 +1,196 @@
-# ============================================================================
-# APPLICATION BUDGET - VERSION SUPABASE
-# Performance : 10x plus rapide que Google Sheets
-# ============================================================================
+-- ============================================================================
+-- SCRIPTS SQL POUR CRÉER LES TABLES MANQUANTES DANS SUPABASE
+-- À exécuter dans le SQL Editor de Supabase
+-- ============================================================================
 
-import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
-from supabase import create_client, Client
-import plotly.graph_objects as go
-import io
+-- 1. Table objectifs (pour les budgets)
+CREATE TABLE IF NOT EXISTS objectifs (
+    id BIGSERIAL PRIMARY KEY,
+    scope TEXT NOT NULL,
+    categorie TEXT NOT NULL,
+    montant DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-# ============================================================================
-# 1. CONFIGURATION
-# ============================================================================
+-- 2. Table abonnements
+CREATE TABLE IF NOT EXISTS abonnements (
+    id BIGSERIAL PRIMARY KEY,
+    nom TEXT NOT NULL,
+    montant DECIMAL(10,2) NOT NULL,
+    jour INTEGER NOT NULL,
+    categorie TEXT NOT NULL,
+    compte_source TEXT NOT NULL,
+    proprietaire TEXT NOT NULL,
+    imputation TEXT NOT NULL,
+    frequence TEXT DEFAULT 'Mensuel',
+    date_debut DATE,
+    date_fin DATE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-st.set_page_config(page_title="Ma Banque", layout="wide", page_icon="🏦")
+-- 3. Table mots_cles (pour l'automatisation)
+CREATE TABLE IF NOT EXISTS mots_cles (
+    id BIGSERIAL PRIMARY KEY,
+    mot_cle TEXT NOT NULL UNIQUE,
+    categorie TEXT NOT NULL,
+    type TEXT NOT NULL,
+    compte TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-USERS = ["Pierre", "Elie"]
-TYPES = ["Dépense", "Revenu", "Épargne", "Virement Interne", "Investissement"]
-TYPES_COMPTE = ["Courant", "Épargne"]
-MOIS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+-- 4. Table remboursements
+CREATE TABLE IF NOT EXISTS remboursements (
+    id BIGSERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    de TEXT NOT NULL,
+    a TEXT NOT NULL,
+    montant DECIMAL(10,2) NOT NULL,
+    motif TEXT,
+    statut TEXT DEFAULT 'Payé',
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-# ============================================================================
-# 2. CONNEXION SUPABASE
-# ============================================================================
+-- 5. Table credits
+CREATE TABLE IF NOT EXISTS credits (
+    id BIGSERIAL PRIMARY KEY,
+    nom TEXT NOT NULL,
+    montant_initial DECIMAL(12,2) NOT NULL,
+    montant_restant DECIMAL(12,2) NOT NULL,
+    taux DECIMAL(5,2) NOT NULL,
+    mensualite DECIMAL(10,2) NOT NULL,
+    date_debut DATE NOT NULL,
+    date_fin DATE NOT NULL,
+    organisme TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-@st.cache_resource
-def get_supabase_client() -> Client:
-    """Connexion à Supabase avec cache"""
-    try:
-        url = st.secrets["supabase"]["url"]
-        key = st.secrets["supabase"]["key"]
-        return create_client(url, key)
-    except Exception as e:
-        st.error(f"❌ Erreur connexion Supabase: {e}")
-        st.info("💡 Vérifiez vos secrets Streamlit (Settings → Secrets)")
-        st.stop()
+-- 6. Modifier la table transactions pour ajouter les colonnes manquantes
+ALTER TABLE transactions 
+ADD COLUMN IF NOT EXISTS description TEXT,
+ADD COLUMN IF NOT EXISTS paye_par TEXT,
+ADD COLUMN IF NOT EXISTS projet_epargne TEXT;
 
-supabase = get_supabase_client()
+-- 7. Index pour améliorer les performances
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(qui_connecte);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_patrimoine_compte ON patrimoine(compte);
+CREATE INDEX IF NOT EXISTS idx_abonnements_proprietaire ON abonnements(proprietaire);
 
-# ============================================================================
-# 3. FONCTIONS BASE DE DONNÉES
-# ============================================================================
+-- 8. Activer Row Level Security (RLS) - Optionnel mais recommandé
+ALTER TABLE objectifs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE abonnements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mots_cles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE remboursements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credits ENABLE ROW LEVEL SECURITY;
 
-@st.cache_data(ttl=60, show_spinner=False)
-def load_transactions() -> pd.DataFrame:
-    """Charge toutes les transactions - ULTRA RAPIDE"""
-    try:
-        response = supabase.table('transactions').select('*').order('date', desc=True).execute()
-        df = pd.DataFrame(response.data)
-        if not df.empty:
-            df['date'] = pd.to_datetime(df['date']).dt.date
-            df['montant'] = pd.to_numeric(df['montant'], errors='coerce').fillna(0)
-        return df
-    except Exception as e:
-        if 'connection' in str(e).lower():
-            st.warning("⚠️ Problème de connexion à la base de données")
-        return pd.DataFrame(columns=['date', 'mois', 'annee', 'type', 'categorie', 'titre', 'montant', 'compte_source', 'compte_cible', 'imputation', 'qui_connecte'])
+-- 9. Politiques RLS simples (autoriser tout pour l'instant)
+CREATE POLICY "Allow all for objectifs" ON objectifs FOR ALL USING (true);
+CREATE POLICY "Allow all for abonnements" ON abonnements FOR ALL USING (true);
+CREATE POLICY "Allow all for mots_cles" ON mots_cles FOR ALL USING (true);
+CREATE POLICY "Allow all for remboursements" ON remboursements FOR ALL USING (true);
+CREATE POLICY "Allow all for credits" ON credits FOR ALL USING (true);
 
-@st.cache_data(ttl=60, show_spinner=False)
-def load_patrimoine() -> pd.DataFrame:
-    """Charge le patrimoine"""
-    try:
-        response = supabase.table('patrimoine').select('*').order('date', desc=True).execute()
-        df = pd.DataFrame(response.data)
-        if not df.empty:
-            df['date'] = pd.to_datetime(df['date']).dt.date
-            df['montant'] = pd.to_numeric(df['montant'], errors='coerce').fillna(0)
-        return df
-    except:
-        return pd.DataFrame(columns=['date', 'mois', 'annee', 'compte', 'montant', 'proprietaire'])
+-- 10. Vue pour faciliter les requêtes
+CREATE OR REPLACE VIEW v_transactions_enrichies AS
+SELECT 
+    t.*,
+    c.type as type_compte,
+    CASE 
+        WHEN t.type = 'Dépense' THEN -t.montant
+        WHEN t.type = 'Revenu' THEN t.montant
+        ELSE 0
+    END as impact_solde
+FROM transactions t
+LEFT JOIN comptes c ON t.compte_source = c.compte;
 
-@st.cache_data(ttl=300, show_spinner=False)
-def load_comptes() -> pd.DataFrame:
-    """Charge les comptes"""
-    try:
-        response = supabase.table('comptes').select('*').execute()
-        return pd.DataFrame(response.data)
-    except:
-        return pd.DataFrame(columns=['proprietaire', 'compte', 'type'])
+-- ============================================================================
+-- DONNÉES DE DÉMONSTRATION (optionnel)
+-- ============================================================================
 
-@st.cache_data(ttl=300, show_spinner=False)
-def load_categories() -> pd.DataFrame:
-    """Charge les catégories"""
-    try:
-        response = supabase.table('categories').select('*').execute()
-        return pd.DataFrame(response.data)
-    except:
-        return pd.DataFrame(columns=['type', 'categorie'])
+-- Catégories par défaut pour Dépense
+INSERT INTO categories (type, categorie) VALUES
+('Dépense', 'Alimentation'),
+('Dépense', 'Transport'),
+('Dépense', 'Logement'),
+('Dépense', 'Santé'),
+('Dépense', 'Loisirs'),
+('Dépense', 'Shopping'),
+('Dépense', 'Autre')
+ON CONFLICT DO NOTHING;
 
-@st.cache_data(ttl=300, show_spinner=False)
-def load_projets() -> pd.DataFrame:
-    """Charge les projets"""
-    try:
-        response = supabase.table('projets').select('*').execute()
-        return pd.DataFrame(response.data)
-    except:
-        return pd.DataFrame(columns=['projet', 'cible', 'date_fin', 'proprietaire'])
+-- Catégories par défaut pour Revenu
+INSERT INTO categories (type, categorie) VALUES
+('Revenu', 'Salaire'),
+('Revenu', 'Prime'),
+('Revenu', 'Freelance'),
+('Revenu', 'Autre')
+ON CONFLICT DO NOTHING;
 
-def save_transaction(data: dict):
-    """Sauvegarde une transaction"""
-    try:
-        if 'date' in data:
-            data['date'] = str(data['date'])
-        supabase.table('transactions').insert(data).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        error_msg = str(e)
-        if 'violates' in error_msg.lower():
-            st.error("❌ Impossible d'enregistrer : données invalides")
-        elif 'connection' in error_msg.lower():
-            st.error("❌ Problème de connexion. Réessayez dans quelques secondes.")
-        else:
-            st.error(f"❌ Erreur lors de l'enregistrement de la transaction")
-        return False
+-- Catégories par défaut pour Épargne
+INSERT INTO categories (type, categorie) VALUES
+('Épargne', 'Épargne Mensuelle'),
+('Épargne', 'Épargne Projet'),
+('Épargne', 'Autre')
+ON CONFLICT DO NOTHING;
 
-def save_patrimoine(data: dict):
-    """Sauvegarde patrimoine"""
-    try:
-        if 'date' in data:
-            data['date'] = str(data['date'])
-        supabase.table('patrimoine').insert(data).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        error_msg = str(e)
-        if 'connection' in error_msg.lower():
-            st.error("❌ Problème de connexion. Réessayez.")
-        else:
-            st.error("❌ Impossible d'ajuster le solde")
-        return False
+-- ============================================================================
+-- FONCTIONS UTILITAIRES
+-- ============================================================================
 
-def save_compte(data: dict):
-    """Sauvegarde un compte"""
-    try:
-        supabase.table('comptes').insert(data).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        error_msg = str(e)
-        if '23505' in error_msg or 'duplicate key' in error_msg:
-            st.error(f"❌ Le compte '{data.get('compte', '')}' existe déjà pour {data.get('proprietaire', '')}.")
-        else:
-            st.error(f"❌ Erreur: {e}")
-        return False
-
-def save_projet(data: dict):
-    """Sauvegarde un projet"""
-    try:
-        if 'date_fin' in data and data['date_fin']:
-            data['date_fin'] = str(data['date_fin'])
-        supabase.table('projets').insert(data).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        error_msg = str(e)
-        if '23505' in error_msg or 'duplicate key' in error_msg:
-            st.error(f"❌ Le projet '{data.get('projet', '')}' existe déjà.")
-        else:
-            st.error(f"❌ Erreur: {e}")
-        return False
-
-def delete_transaction(transaction_id: int):
-    """Supprime une transaction"""
-    try:
-        supabase.table('transactions').delete().eq('id', transaction_id).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        st.error("❌ Impossible de supprimer la transaction")
-        return False
-
-def delete_compte(compte_id: int):
-    """Supprime un compte"""
-    try:
-        supabase.table('comptes').delete().eq('id', compte_id).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        error_msg = str(e)
-        if 'foreign key' in error_msg.lower() or 'referenced' in error_msg.lower():
-            st.error("❌ Impossible de supprimer : ce compte contient des transactions")
-        else:
-            st.error("❌ Impossible de supprimer le compte")
-        return False
-
-def delete_projet(projet_id: int):
-    """Supprime un projet"""
-    try:
-        supabase.table('projets').delete().eq('id', projet_id).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        st.error("❌ Impossible de supprimer le projet")
-        return False
-
-# ============================================================================
-# 4. FONCTIONS MÉTIER
-# ============================================================================
-
-def calc_soldes(df_transactions, df_patrimoine, comptes):
-    """Calcule les soldes de tous les comptes - OPTIMISÉ"""
-    soldes = {}
+-- Fonction pour calculer le solde d'un compte
+CREATE OR REPLACE FUNCTION calcul_solde_compte(nom_compte TEXT)
+RETURNS DECIMAL AS $$
+DECLARE
+    solde DECIMAL := 0;
+    dernier_ajustement DECIMAL := 0;
+    date_ajustement DATE := '2000-01-01';
+BEGIN
+    -- Récupérer le dernier ajustement
+    SELECT montant, date INTO dernier_ajustement, date_ajustement
+    FROM patrimoine
+    WHERE compte = nom_compte
+    ORDER BY date DESC
+    LIMIT 1;
     
-    # Si pas de comptes, retourner vide
-    if not comptes:
-        return soldes
+    -- Calculer les mouvements depuis l'ajustement
+    SELECT 
+        COALESCE(dernier_ajustement, 0) +
+        COALESCE(SUM(CASE 
+            WHEN type = 'Revenu' AND compte_source = nom_compte THEN montant
+            WHEN compte_cible = nom_compte AND type IN ('Virement Interne', 'Épargne') THEN montant
+            WHEN compte_source = nom_compte AND type IN ('Dépense', 'Investissement', 'Virement Interne', 'Épargne') THEN -montant
+            ELSE 0
+        END), 0)
+    INTO solde
+    FROM transactions
+    WHERE (compte_source = nom_compte OR compte_cible = nom_compte)
+    AND date > COALESCE(date_ajustement, '2000-01-01');
     
-    for compte in comptes:
-        # Dernier ajustement
-        if not df_patrimoine.empty and 'compte' in df_patrimoine.columns:
-            df_c = df_patrimoine[df_patrimoine['compte'] == compte]
-            if not df_c.empty:
-                last_adj = df_c.sort_values('date', ascending=False).iloc[0]
-                solde_base = float(last_adj['montant'])
-                date_base = last_adj['date']
-            else:
-                solde_base = 0.0
-                date_base = pd.to_datetime('2000-01-01').date()
-        else:
-            solde_base = 0.0
-            date_base = pd.to_datetime('2000-01-01').date()
-        
-        # Transactions après
-        if not df_transactions.empty and 'date' in df_transactions.columns:
-            df_after = df_transactions[df_transactions['date'] > date_base]
-            
-            # Débits
-            debits = df_after[
-                (df_after['compte_source'] == compte) & 
-                (df_after['type'].isin(['Dépense', 'Investissement', 'Virement Interne', 'Épargne']))
-            ]['montant'].sum()
-            
-            # Crédits  
-            credits_revenu = df_after[(df_after['compte_source'] == compte) & (df_after['type'] == 'Revenu')]['montant'].sum()
-            credits_virement = df_after[(df_after['compte_cible'] == compte) & (df_after['type'].isin(['Virement Interne', 'Épargne']))]['montant'].sum()
-            
-            soldes[compte] = solde_base + credits_revenu + credits_virement - debits
-        else:
-            soldes[compte] = solde_base
-    
-    return soldes
+    RETURN solde;
+END;
+$$ LANGUAGE plpgsql;
 
-def fmt(montant, decimales=0):
-    """Formate un montant en français"""
-    if montant is None or pd.isna(montant):
-        return "0"
-    try:
-        m = float(montant)
-        if decimales == 0:
-            formatted = f"{m:,.0f}"
-        else:
-            formatted = f"{m:,.{decimales}f}"
-        formatted = formatted.replace(',', 'TEMP').replace('.', ',').replace('TEMP', ' ')
-        return formatted
-    except:
-        return "0"
+-- ============================================================================
+-- TRIGGERS POUR AUTOMATISATION
+-- ============================================================================
 
-def page_header(titre, soustitre=""):
-    """Header de page stylé"""
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 12px; margin-bottom: 2rem; color: white;">
-        <h1 style="margin: 0; font-size: 32px; font-weight: 700;">{titre}</h1>
-        {f'<p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 16px;">{soustitre}</p>' if soustitre else ''}
-    </div>
-    """, unsafe_allow_html=True)
+-- Trigger pour mettre à jour automatiquement mois et annee
+CREATE OR REPLACE FUNCTION update_date_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.mois := EXTRACT(MONTH FROM NEW.date);
+    NEW.annee := EXTRACT(YEAR FROM NEW.date);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-# ============================================================================
-# 5. CHARGEMENT DONNÉES
-# ============================================================================
+CREATE TRIGGER trg_transactions_date
+BEFORE INSERT OR UPDATE ON transactions
+FOR EACH ROW
+EXECUTE FUNCTION update_date_fields();
 
-# Init session state
-if 'needs_refresh' not in st.session_state:
-    st.session_state.needs_refresh = True
-
-# Charger les données
-if st.session_state.needs_refresh:
-    with st.spinner('⚡ Chargement ultra-rapide...'):
-        df = load_transactions()
-        df_patrimoine = load_patrimoine()
-        df_comptes = load_comptes()
-        df_categories = load_categories()
-        df_projets = load_projets()
-        
-        st.session_state.df = df
-        st.session_state.df_patrimoine = df_patrimoine
-        st.session_state.df_comptes = df_comptes
-        st.session_state.df_categories = df_categories
-        st.session_state.df_projets = df_projets
-        st.session_state.needs_refresh = False
-else:
-    df = st.session_state.df
-    df_patrimoine = st.session_state.df_patrimoine
-    df_comptes = st.session_state.df_comptes
-    df_categories = st.session_state.df_categories
-    df_projets = st.session_state.df_projets
-
-# Préparer structures
-comptes_structure = {}
-comptes_types = {}
-if not df_comptes.empty:
-    for _, row in df_comptes.iterrows():
-        comptes_structure.setdefault(row['proprietaire'], []).append(row['compte'])
-        comptes_types[row['compte']] = row.get('type', 'Courant')
-
-categories = {t: [] for t in TYPES}
-if not df_categories.empty:
-    for _, row in df_categories.iterrows():
-        categories.setdefault(row['type'], []).append(row['categorie'])
-
-# Catégories par défaut si vide
-if not categories.get('Dépense'):
-    categories['Dépense'] = ["Alimentation", "Transport", "Logement", "Santé", "Loisirs", "Shopping", "Autre"]
-if not categories.get('Revenu'):
-    categories['Revenu'] = ["Salaire", "Prime", "Autre"]
-if not categories.get('Épargne'):
-    categories['Épargne'] = ["Épargne Mensuelle", "Autre"]
-
-projets_config = {}
-if not df_projets.empty:
-    for _, row in df_projets.iterrows():
-        projets_config[row['projet']] = {
-            'Cible': float(row['cible']),
-            'Date_Fin': row.get('date_fin'),
-            'Proprietaire': row.get('proprietaire', 'Commun')
-        }
-
-# ============================================================================
-# 6. SIDEBAR
-# ============================================================================
-
-with st.sidebar:
-    st.markdown("# 👤 Utilisateur")
-    user_actuel = st.selectbox("", USERS, label_visibility="collapsed")
-    
-    st.markdown("---")
-    
-    # Sélection mois/année
-    st.markdown("### 📅 Période")
-    mois_actuel = datetime.now().month
-    annee_actuelle = datetime.now().year
-    
-    m_nom = st.selectbox("Mois", MOIS_FR, index=mois_actuel-1, label_visibility="collapsed")
-    m_sel = MOIS_FR.index(m_nom) + 1
-    a_sel = st.number_input("Année", value=annee_actuelle, label_visibility="collapsed")
-    
-    # Filtrer données du mois - gérer le cas vide
-    if not df.empty and 'mois' in df.columns and 'annee' in df.columns:
-        df_mois = df[(df['mois'] == m_sel) & (df['annee'] == a_sel)]
-        df_mois_user = df_mois[df_mois['qui_connecte'] == user_actuel] if not df_mois.empty else pd.DataFrame()
-    else:
-        df_mois = pd.DataFrame()
-        df_mois_user = pd.DataFrame()
-    
-    st.markdown("---")
-    
-    # Comptes
-    tous_comptes = comptes_structure.get(user_actuel, [])
-    soldes = calc_soldes(df, df_patrimoine, tous_comptes)
-    
-    # Séparer courants et épargne
-    comptes_courants = [c for c in tous_comptes if comptes_types.get(c) == 'Courant']
-    comptes_epargne = [c for c in tous_comptes if comptes_types.get(c) == 'Épargne']
-    
-    total_courant = sum(soldes.get(c, 0) for c in comptes_courants)
-    total_epargne = sum(soldes.get(c, 0) for c in comptes_epargne)
-    
-    st.markdown(f"""
-    <div style='background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;'>
-        <div style='color: #6B7280; font-size: 11px; font-weight: 600; text-transform: uppercase;'>💳 Comptes Courants</div>
-        <div style='color: #1F2937; font-size: 24px; font-weight: 700;'>{fmt(total_courant)} €</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    for compte in comptes_courants:
-        solde = soldes.get(compte, 0)
-        color = "#10B981" if solde >= 0 else "#EF4444"
-        st.markdown(f"""
-        <div style='background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {color};'>
-            <div style='font-size: 12px; color: #6B7280;'>{compte}</div>
-            <div style='font-size: 16px; font-weight: 600; color: {color};'>{fmt(solde, 2)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.write("")
-    
-    st.markdown(f"""
-    <div style='background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;'>
-        <div style='color: #6B7280; font-size: 11px; font-weight: 600; text-transform: uppercase;'>💰 Épargne</div>
-        <div style='color: #1F2937; font-size: 24px; font-weight: 700;'>{fmt(total_epargne)} €</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    for compte in comptes_epargne:
-        solde = soldes.get(compte, 0)
-        st.markdown(f"""
-        <div style='background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #4F46E5;'>
-            <div style='font-size: 12px; color: #6B7280;'>{compte}</div>
-            <div style='font-size: 16px; font-weight: 600; color: #4F46E5;'>{fmt(solde, 2)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    if st.button("🔄 Actualiser", use_container_width=True):
-        st.cache_data.clear()
-        st.session_state.needs_refresh = True
-        st.rerun()
-
-# ============================================================================
-# 7. TABS PRINCIPALES
-# ============================================================================
-
-tabs = st.tabs(["🏠 Accueil", "💰 Opérations", "📊 Analyses", "💎 Patrimoine", "⚙️ Réglages"])
-
-# ============================================================================
-# TAB 1 : ACCUEIL
-# ============================================================================
-
-with tabs[0]:
-    page_header(f"Synthèse - {m_nom} {a_sel}", f"Compte de {user_actuel}")
-    
-    # Métriques du mois
-    if not df_mois_user.empty:
-        rev = df_mois_user[df_mois_user['type'] == 'Revenu']['montant'].sum()
-        dep = df_mois_user[(df_mois_user['type'] == 'Dépense') & (df_mois_user['imputation'] == 'Perso')]['montant'].sum()
-        epg = df_mois_user[df_mois_user['type'] == 'Épargne']['montant'].sum()
-    else:
-        rev = dep = epg = 0
-    
-    if not df_mois.empty:
-        com = df_mois[df_mois['imputation'] == 'Commun (50/50)']['montant'].sum() / 2
-    else:
-        com = 0
-    
-    fixe = 0  # TODO: abonnements
-    rav = rev - fixe - dep - com
-    
-    # Affichage métriques
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        st.markdown(f"""
-        <div style='background: white; padding: 1.5rem; border-radius: 12px; text-align: center;'>
-            <div style='color: #6B7280; font-size: 12px; font-weight: 600;'>Revenus</div>
-            <div style='color: #10B981; font-size: 28px; font-weight: 700;'>{fmt(rev)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div style='background: white; padding: 1.5rem; border-radius: 12px; text-align: center;'>
-            <div style='color: #6B7280; font-size: 12px; font-weight: 600;'>Fixe</div>
-            <div style='color: #F59E0B; font-size: 28px; font-weight: 700;'>{fmt(fixe)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div style='background: white; padding: 1.5rem; border-radius: 12px; text-align: center;'>
-            <div style='color: #6B7280; font-size: 12px; font-weight: 600;'>Dépenses</div>
-            <div style='color: #EF4444; font-size: 28px; font-weight: 700;'>{fmt(dep+com)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        pct_epargne = (epg / rev * 100) if rev > 0 else 0
-        st.markdown(f"""
-        <div style='background: white; padding: 1.5rem; border-radius: 12px; text-align: center;'>
-            <div style='color: #6B7280; font-size: 12px; font-weight: 600;'>Épargne</div>
-            <div style='color: #4F46E5; font-size: 28px; font-weight: 700;'>{fmt(epg)} €</div>
-            <div style='color: #9CA3AF; font-size: 11px;'>{pct_epargne:.1f}% du revenu</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        color_rav = "#10B981" if rav >= 0 else "#EF4444"
-        icon_rav = "✓" if rav >= 0 else "⚠"
-        st.markdown(f"""
-        <div style='background: white; padding: 1.5rem; border-radius: 12px; text-align: center;'>
-            <div style='color: #6B7280; font-size: 12px; font-weight: 600;'>{icon_rav} Reste à Vivre</div>
-            <div style='color: {color_rav}; font-size: 28px; font-weight: 700;'>{fmt(rav)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Graphique dépenses
-    if not df_mois_user.empty:
-        df_dep = df_mois_user[df_mois_user['type'] == 'Dépense']
-        if not df_dep.empty:
-            dep_par_cat = df_dep.groupby('categorie')['montant'].sum().sort_values(ascending=False)
-            
-            fig = go.Figure(data=[go.Bar(
-                x=dep_par_cat.values,
-                y=dep_par_cat.index,
-                orientation='h',
-                marker_color='#667eea'
-            )])
-            fig.update_layout(
-                title="Dépenses par catégorie",
-                xaxis_title="Montant (€)",
-                height=400,
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-# ============================================================================
-# TAB 2 : OPÉRATIONS
-# ============================================================================
-
-with tabs[1]:
-    page_header("Opérations", "Gérez vos transactions")
-    
-    # Formulaire nouvelle transaction
-    with st.expander("➕ Nouvelle transaction", expanded=False):
-        with st.form("new_trans"):
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                date_trans = st.date_input("Date", datetime.today())
-                type_trans = st.selectbox("Type", TYPES)
-            
-            with col2:
-                categorie_trans = st.selectbox("Catégorie", categories.get(type_trans, []))
-                montant_trans = st.number_input("Montant (€)", min_value=0.01, step=0.01)
-            
-            with col3:
-                titre_trans = st.text_input("Titre")
-                compte_source = st.selectbox("Compte", tous_comptes)
-            
-            imputation = st.selectbox("Imputation", ["Perso", "Commun (50/50)"])
-            
-            if st.form_submit_button("💾 Enregistrer", use_container_width=True):
-                transaction = {
-                    'date': str(date_trans),
-                    'mois': date_trans.month,
-                    'annee': date_trans.year,
-                    'type': type_trans,
-                    'categorie': categorie_trans,
-                    'titre': titre_trans,
-                    'montant': float(montant_trans),
-                    'compte_source': compte_source,
-                    'compte_cible': None,
-                    'imputation': imputation,
-                    'qui_connecte': user_actuel
-                }
-                
-                if save_transaction(transaction):
-                    st.toast("✅ Transaction enregistrée", icon="✅")
-                    st.rerun()
-    
-    # Liste des transactions
-    st.markdown("### 📋 Dernières transactions")
-    
-    if not df_mois.empty:
-        df_affichage = df_mois.sort_values('date', ascending=False).head(20)
-        
-        for _, row in df_affichage.iterrows():
-            col1, col2, col3, col4 = st.columns([2, 3, 2, 1])
-            
-            with col1:
-                st.markdown(f"**{row['date']}**")
-            
-            with col2:
-                st.markdown(f"{row['titre']} • {row['categorie']}")
-            
-            with col3:
-                color = "#EF4444" if row['type'] == 'Dépense' else "#10B981"
-                st.markdown(f"<span style='color: {color}; font-weight: 600;'>{fmt(row['montant'], 2)} €</span>", unsafe_allow_html=True)
-            
-            with col4:
-                if st.button("🗑️", key=f"del_{row['id']}"):
-                    if delete_transaction(row['id']):
-                        st.rerun()
-            
-            st.markdown("---")
-    else:
-        st.info("Aucune transaction ce mois-ci")
-
-# ============================================================================
-# TAB 3 : ANALYSES
-# ============================================================================
-
-with tabs[2]:
-    page_header("Analyses", "Visualisez vos finances")
-    
-    st.info("📊 Graphiques et analyses à venir...")
-
-# ============================================================================
-# TAB 4 : PATRIMOINE
-# ============================================================================
-
-with tabs[3]:
-    page_header("Patrimoine", "Gérez vos comptes et projets")
-    
-    # Sélection compte
-    compte_selectionne = st.selectbox("💳 Sélectionner un compte", tous_comptes)
-    
-    if compte_selectionne:
-        solde = soldes.get(compte_selectionne, 0)
-        
-        st.markdown(f"""
-        <div style='background: #F0FDF4; border: 2px solid #10B981; border-radius: 12px; padding: 2rem; text-align: center; margin: 2rem 0;'>
-            <div style='color: #6B7280; font-size: 14px; font-weight: 600;'>Solde actuel</div>
-            <div style='color: #1F2937; font-size: 12px; margin-top: 0.25rem;'>{compte_selectionne}</div>
-            <div style='color: #10B981; font-size: 48px; font-weight: 700; margin-top: 1rem;'>{fmt(solde, 2)} €</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Ajustement de solde
-        with st.expander("⚙️ Ajuster le solde", expanded=False):
-            with st.form("adj_solde"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    date_adj = st.date_input("Date", datetime.today())
-                with col2:
-                    montant_adj_text = st.text_input("Solde réel (€)", placeholder="Ex: 7500,45")
-                
-                if st.form_submit_button("💾 Enregistrer"):
-                    try:
-                        # Nettoyer le montant
-                        montant_clean = montant_adj_text.replace(' ', '').replace(',', '.')
-                        montant_adj = float(montant_clean)
-                        
-                        data = {
-                            'date': str(date_adj),
-                            'mois': date_adj.month,
-                            'annee': date_adj.year,
-                            'compte': compte_selectionne,
-                            'montant': montant_adj,
-                            'proprietaire': user_actuel
-                        }
-                        
-                        if save_patrimoine(data):
-                            st.toast("✅ Solde ajusté", icon="✅")
-                            st.rerun()
-                    except ValueError:
-                        st.error("Format invalide. Utilisez: 7500,45 ou 7500.45")
-
-# ============================================================================
-# TAB 5 : RÉGLAGES
-# ============================================================================
-
-with tabs[4]:
-    page_header("Réglages", "Configuration de l'application")
-    
-    sub_tabs = st.tabs(["💳 Comptes", "🎯 Projets"])
-    
-    # Gestion comptes
-    with sub_tabs[0]:
-        st.markdown("### Gérer les comptes")
-        
-        with st.expander("➕ Créer un compte", expanded=False):
-            with st.form("new_compte"):
-                nom_compte = st.text_input("Nom du compte")
-                type_compte = st.selectbox("Type", TYPES_COMPTE)
-                proprio = st.selectbox("Propriétaire", USERS)
-                
-                if st.form_submit_button("Créer"):
-                    data = {
-                        'proprietaire': proprio,
-                        'compte': nom_compte,
-                        'type': type_compte
-                    }
-                    if save_compte(data):
-                        st.toast("✅ Compte créé", icon="✅")
-                        st.rerun()
-        
-        # Liste des comptes
-        if not df_comptes.empty:
-            for _, compte in df_comptes.iterrows():
-                col1, col2, col3 = st.columns([3, 2, 1])
-                with col1:
-                    st.markdown(f"**{compte['compte']}**")
-                with col2:
-                    st.markdown(f"{compte['type']} • {compte['proprietaire']}")
-                with col3:
-                    if st.button("🗑️", key=f"del_c_{compte['id']}"):
-                        if delete_compte(compte['id']):
-                            st.rerun()
-                st.markdown("---")
-    
-    # Gestion projets
-    with sub_tabs[1]:
-        st.markdown("### Projets d'épargne")
-        
-        with st.expander("➕ Créer un projet", expanded=False):
-            with st.form("new_projet"):
-                nom_projet = st.text_input("Nom du projet")
-                cible_projet = st.number_input("Cible (€)", min_value=1.0, step=100.0)
-                date_fin_projet = st.date_input("Date fin (optionnel)")
-                proprio_projet = st.selectbox("Pour", ["Commun"] + USERS)
-                
-                if st.form_submit_button("Créer"):
-                    data = {
-                        'projet': nom_projet,
-                        'cible': float(cible_projet),
-                        'date_fin': str(date_fin_projet) if date_fin_projet else None,
-                        'proprietaire': proprio_projet
-                    }
-                    if save_projet(data):
-                        st.toast("✅ Projet créé", icon="✅")
-                        st.rerun()
-        
-        # Liste des projets
-        if not df_projets.empty:
-            for _, projet in df_projets.iterrows():
-                # Calculer progression
-                df_epargne_projet = df[df['categorie'] == projet['projet']]
-                montant_actuel = df_epargne_projet['montant'].sum()
-                cible = float(projet['cible'])
-                progression = (montant_actuel / cible * 100) if cible > 0 else 0
-                
-                st.markdown(f"""
-                <div style='background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem;'>
-                    <div style='font-size: 18px; font-weight: 700; margin-bottom: 0.5rem;'>{projet['projet']}</div>
-                    <div style='background: #E5E7EB; border-radius: 8px; height: 20px; margin-bottom: 0.5rem;'>
-                        <div style='background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 8px; height: 20px; width: {min(progression, 100)}%;'></div>
-                    </div>
-                    <div style='font-size: 14px; color: #6B7280;'>{fmt(montant_actuel)} € / {fmt(cible)} € ({progression:.0f}%)</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button("🗑️", key=f"del_p_{projet['id']}"):
-                    if delete_projet(projet['id']):
-                        st.rerun()
-
-# ============================================================================
-# FIN
-# ============================================================================
+CREATE TRIGGER trg_patrimoine_date
+BEFORE INSERT OR UPDATE ON patrimoine
+FOR EACH ROW
+EXECUTE FUNCTION update_date_fields();
