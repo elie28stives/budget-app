@@ -310,9 +310,13 @@ with st.sidebar:
     m_sel = MOIS_FR.index(m_nom) + 1
     a_sel = st.number_input("Année", value=annee_actuelle, label_visibility="collapsed")
     
-    # Filtrer données du mois
-    df_mois = df[(df['mois'] == m_sel) & (df['annee'] == a_sel)]
-    df_mois_user = df_mois[df_mois['qui_connecte'] == user_actuel]
+    # Filtrer données du mois - gérer le cas vide
+    if not df.empty and 'mois' in df.columns and 'annee' in df.columns:
+        df_mois = df[(df['mois'] == m_sel) & (df['annee'] == a_sel)]
+        df_mois_user = df_mois[df_mois['qui_connecte'] == user_actuel] if not df_mois.empty else pd.DataFrame()
+    else:
+        df_mois = pd.DataFrame()
+        df_mois_user = pd.DataFrame()
     
     st.markdown("---")
     
@@ -383,10 +387,17 @@ with tabs[0]:
     page_header(f"Synthèse - {m_nom} {a_sel}", f"Compte de {user_actuel}")
     
     # Métriques du mois
-    rev = df_mois_user[df_mois_user['type'] == 'Revenu']['montant'].sum()
-    dep = df_mois_user[(df_mois_user['type'] == 'Dépense') & (df_mois_user['imputation'] == 'Perso')]['montant'].sum()
-    epg = df_mois_user[df_mois_user['type'] == 'Épargne']['montant'].sum()
-    com = df_mois[df_mois['imputation'] == 'Commun (50/50)']['montant'].sum() / 2
+    if not df_mois_user.empty:
+        rev = df_mois_user[df_mois_user['type'] == 'Revenu']['montant'].sum()
+        dep = df_mois_user[(df_mois_user['type'] == 'Dépense') & (df_mois_user['imputation'] == 'Perso')]['montant'].sum()
+        epg = df_mois_user[df_mois_user['type'] == 'Épargne']['montant'].sum()
+    else:
+        rev = dep = epg = 0
+    
+    if not df_mois.empty:
+        com = df_mois[df_mois['imputation'] == 'Commun (50/50)']['montant'].sum() / 2
+    else:
+        com = 0
     
     fixe = 0  # TODO: abonnements
     rav = rev - fixe - dep - com
