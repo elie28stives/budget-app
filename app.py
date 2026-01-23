@@ -251,6 +251,122 @@ def should_generate_abo(abo, mois, annee):
         return mois == 1
     return True
 
+def detecter_doublons(df, jours_tolerance=3):
+    """Détecte les transactions potentiellement dupliquées"""
+    doublons = []
+    
+    if df.empty:
+        return doublons
+    
+    df_sorted = df.sort_values('date')
+    
+    for i, row in df_sorted.iterrows():
+        similaires = df_sorted[
+            (df_sorted.index != i) &
+            (df_sorted['montant'] == row['montant']) &
+            (df_sorted['categorie'] == row['categorie']) &
+            (abs((pd.to_datetime(df_sorted['date']) - pd.to_datetime(row['date'])).dt.days) <= jours_tolerance)
+        ]
+        
+        if not similaires.empty:
+            doublons.append({
+                'transaction': row,
+                'similaires': similaires.iloc[0] if len(similaires) > 0 else None
+            })
+    
+    return doublons
+
+def detecter_depenses_inhabituelles(df_mois, df_historique, user, seuil=2.0):
+    """Détecte les dépenses anormalement élevées par rapport à l'historique"""
+    alertes = []
+    
+    if df_historique.empty:
+        return alertes
+    
+    date_limite = datetime.now() - relativedelta(months=3)
+    df_recent = df_historique[
+        (pd.to_datetime(df_historique['date']) >= date_limite) &
+        (df_historique['qui_connecte'] == user) &
+        (df_historique['type'] == 'Dépense')
+    ]
+    
+    if df_recent.empty or 'categorie' not in df_recent.columns:
+        return alertes
+    
+    moyennes = df_recent.groupby('categorie')['montant'].mean()
+    
+    if df_mois.empty or 'categorie' not in df_mois.columns:
+        return alertes
+    
+    for cat in df_mois['categorie'].unique():
+        montant_mois = df_mois[df_mois['categorie'] == cat]['montant'].sum()
+        
+        if cat in moyennes:
+            moyenne = moyennes[cat]
+            if montant_mois > moyenne * seuil:
+                ratio = montant_mois / moyenne
+                alertes.append({
+                    'categorie': cat,
+                    'montant': montant_mois,
+                    'moyenne': moyenne,
+                    'ratio': ratio
+                })
+    
+    return alertes
+
+def verifier_abonnements_manquants(df_mois, df_abonnements, mois, annee, user):
+    """Vérifie si des abonnements n'ont pas été générés"""
+    manquants = []
+    
+    if df_abonnements.empty:
+        return manquants
+    
+    abos_user = df_abonnements[df_abonnements['proprietaire'] == user]
+    
+    for _, abo in abos_user.iterrows():
+        if should_generate_abo(abo, mois, annee):
+            if not df_mois.empty and 'titre' in df_mois.columns:
+                paye = not df_mois[
+                    (df_mois['titre'].str.lower() == abo['nom'].lower()) &
+                    (df_mois['montant'] == float(abo['montant']))
+                ].empty
+            else:
+                paye = False
+            
+            if not paye:
+                manquants.append(abo)
+    
+    return manquants
+
+def calculer_prevision_fin_mois(df_mois, df_historique, user, jour_actuel):
+    """Prédit les dépenses totales en fin de mois"""
+    if df_mois.empty or 'montant' not in df_mois.columns:
+        return None
+    
+    dep_actuelles = df_mois[
+        (df_mois['qui_connecte'] == user) &
+        (df_mois['type'] == 'Dépense')
+    ]['montant'].sum()
+    
+    date_limite = datetime.now() - relativedelta(months=3)
+    
+    if df_historique.empty or 'date' not in df_historique.columns:
+        return None
+    
+    df_recent = df_historique[
+        (pd.to_datetime(df_historique['date']) >= date_limite) &
+        (df_historique['qui_connecte'] == user) &
+        (df_historique['type'] == 'Dépense')
+    ]
+    
+    if not df_recent.empty and 'montant' in df_recent.columns:
+        moy_journaliere = df_recent['montant'].sum() / 90
+        jours_restants = 30 - jour_actuel
+        prevision = dep_actuelles + (moy_journaliere * jours_restants)
+        return prevision
+    
+    return None
+
 def to_excel(df):
     out = BytesIO()
     with pd.ExcelWriter(out, engine='openpyxl') as writer:
@@ -460,6 +576,129 @@ with tabs[0]:
     """, unsafe_allow_html=True)
     
     st.write("")
+    
+    # === PANNEAU DE NOTIFICATIONS INTELLIGENTES ===
+    notifications = []
+    
+    # 1. Détecter les doublons
+    doublons = detecter_doublons(df_mois)
+    if doublons:
+        notifications.append({
+            'type': 'warning',
+            'icon': '⚠️',
+            'titre': 'Doublons potentiels détectés',
+            'message': f"{len(doublons)} transaction(s) semblent dupliquées (même montant, catégorie et date proche)"
+        })
+    
+    # 2. Détecter dépenses inhabituelles
+    if not df_mois_user.empty and 'type' in df_mois_user.columns:
+        dep_inhabituelles = detecter_depenses_inhabituelles(
+            df_mois_user[df_mois_user['type'] == 'Dépense'],
+            df[df['qui_connecte'] == user_actuel] if not df.empty and 'qui_connecte' in df.columns else pd.DataFrame(),
+            user_actuel
+        )
+        for alerte in dep_inhabituelles:
+            notifications.append({
+                'type': 'warning',
+                'icon': '📊',
+                'titre': f"Dépenses élevées : {alerte['categorie']}",
+                'message': f"{fmt(alerte['montant'])} € ce mois (x{alerte['ratio']:.1f} la moyenne)"
+            })
+    
+    # 3. Vérifier abonnements manquants
+    abos_manquants = verifier_abonnements_manquants(df_mois, df_abonnements, m_sel, a_sel, user_actuel)
+    if abos_manquants:
+        notifications.append({
+            'type': 'info',
+            'icon': '📅',
+            'titre': 'Abonnements à générer',
+            'message': f"{len(abos_manquants)} abonnement(s) n'ont pas encore été générés ce mois"
+        })
+    
+    # 4. Alertes budgets
+    if objectifs_list:
+        for obj in objectifs_list:
+            if obj.get('scope') in ['Perso', user_actuel]:
+                cat = obj.get('categorie', '')
+                budget_max = float(obj.get('montant', 0))
+                
+                if not df_mois.empty and 'categorie' in df_mois.columns:
+                    if obj.get('scope') == 'Perso':
+                        dep_cat = df_mois[
+                            (df_mois['categorie'] == cat) & 
+                            (df_mois['qui_connecte'] == user_actuel) & 
+                            (df_mois['imputation'] == 'Perso')
+                        ]['montant'].sum() if 'qui_connecte' in df_mois.columns and 'imputation' in df_mois.columns else 0
+                    else:
+                        dep_cat = df_mois[
+                            (df_mois['categorie'] == cat) & 
+                            (df_mois['imputation'].str.contains('Commun', na=False))
+                        ]['montant'].sum() if 'imputation' in df_mois.columns else 0
+                    
+                    pct = (dep_cat / budget_max * 100) if budget_max > 0 else 0
+                    
+                    if pct >= 100:
+                        notifications.append({
+                            'type': 'danger',
+                            'icon': '🚨',
+                            'titre': f"Budget dépassé : {cat}",
+                            'message': f"{fmt(dep_cat)} € / {fmt(budget_max)} € ({pct:.0f}%)"
+                        })
+                    elif pct >= 80:
+                        notifications.append({
+                            'type': 'warning',
+                            'icon': '⚡',
+                            'titre': f"Budget à 80% : {cat}",
+                            'message': f"{fmt(dep_cat)} € / {fmt(budget_max)} € ({pct:.0f}%)"
+                        })
+    
+    # 5. Prévision fin de mois
+    jour_actuel = datetime.now().day
+    if jour_actuel < 28:
+        prevision = calculer_prevision_fin_mois(
+            df_mois_user[df_mois_user['type'] == 'Dépense'] if not df_mois_user.empty and 'type' in df_mois_user.columns else pd.DataFrame(),
+            df[df['qui_connecte'] == user_actuel] if not df.empty and 'qui_connecte' in df.columns else pd.DataFrame(),
+            user_actuel,
+            jour_actuel
+        )
+        if prevision:
+            dep_actuelles = df_mois_user[df_mois_user['type'] == 'Dépense']['montant'].sum() if not df_mois_user.empty and 'type' in df_mois_user.columns else 0
+            if prevision > dep_actuelles * 1.2:
+                notifications.append({
+                    'type': 'info',
+                    'icon': '🔮',
+                    'titre': 'Prévision fin de mois',
+                    'message': f"Dépenses estimées : {fmt(prevision)} € (actuellement {fmt(dep_actuelles)} €)"
+                })
+    
+    # Afficher les notifications
+    if notifications:
+        st.markdown("### 🔔 Notifications")
+        
+        for notif in notifications[:5]:
+            couleurs = {
+                'danger': {'bg': '#FEF2F2', 'border': '#EF4444', 'text': '#991B1B'},
+                'warning': {'bg': '#FFFBEB', 'border': '#F59E0B', 'text': '#92400E'},
+                'info': {'bg': '#EFF6FF', 'border': '#3B82F6', 'text': '#1E40AF'}
+            }
+            
+            c = couleurs.get(notif['type'], couleurs['info'])
+            
+            st.markdown(f"""
+            <div style="background: {c['bg']}; border-left: 4px solid {c['border']}; padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: start; gap: 0.75rem;">
+                    <div style="font-size: 20px;">{notif['icon']}</div>
+                    <div style="flex: 1;">
+                        <div style="color: {c['text']}; font-weight: 700; font-size: 14px; margin-bottom: 0.25rem;">{notif['titre']}</div>
+                        <div style="color: #6B7280; font-size: 13px;">{notif['message']}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.write("")
+    
+    st.markdown("---")
     
     if not df_mois_user.empty and 'type' in df_mois_user.columns:
         df_dep = df_mois_user[df_mois_user['type'] == 'Dépense']
